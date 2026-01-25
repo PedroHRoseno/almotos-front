@@ -1,0 +1,150 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+      "title": "Vehicle Sales Manager API",
+      "description": "API para gerenciamento de stock, vendas, trocas e relatórios financeiros de uma loja de motos.",
+      "version": "1.0.0"
+    },
+    "servers": [
+      {
+        "url": "http://localhost:8080",
+        "description": "Servidor de Desenvolvimento"
+      }
+    ],
+    "paths": {
+      "/api/veiculos": {
+        "get": {
+          "summary": "Lista todos os veículos",
+          "responses": {
+            "200": {
+              "description": "Lista de motos em stock",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "array",
+                    "items": { "$ref": "#/components/schemas/Veiculo" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "post": {
+          "summary": "Cadastra um novo veículo",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Veiculo" }
+              }
+            }
+          },
+          "responses": {
+            "201": { "description": "Veículo criado com sucesso" }
+          }
+        }
+      },
+      "/api/vendas": {
+        "post": {
+          "summary": "Regista uma nova venda",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Venda" }
+              }
+            }
+          },
+          "responses": {
+            "201": { "description": "Venda registada com sucesso" }
+          }
+        }
+      },
+      "/api/trocas": {
+        "post": {
+          "summary": "Realiza a troca de um veículo",
+          "description": "Processo onde um veículo entra como parte do pagamento de outro.",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Troca" }
+              }
+            }
+          },
+          "responses": {
+            "201": { "description": "Troca concluída com sucesso" }
+          }
+        }
+      },
+      "/api/relatorios/financeiro": {
+        "get": {
+          "summary": "Relatório de entradas e saídas",
+          "parameters": [
+            {
+              "name": "dataInicio",
+              "in": "query",
+              "schema": { "type": "string", "format": "date" }
+            },
+            {
+              "name": "dataFim",
+              "in": "query",
+              "schema": { "type": "string", "format": "date" }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "Resumo financeiro",
+              "content": {
+                "application/json": {
+                  "schema": { "$ref": "#/components/schemas/Relatorio" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "components": {
+      "schemas": {
+        "Veiculo": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "integer" },
+            "modelo": { "type": "string", "example": "Honda Bros 160" },
+            "marca": { "type": "string", "example": "Honda" },
+            "ano": { "type": "integer", "example": 2024 },
+            "preco": { "type": "number", "example": 18500.00 },
+            "cor": { "type": "string" },
+            "status": { "type": "string", "enum": ["DISPONIVEL", "VENDIDO", "RESERVADO"] }
+          }
+        },
+        "Venda": {
+          "type": "object",
+          "properties": {
+            "veiculoId": { "type": "integer" },
+            "clienteNome": { "type": "string" },
+            "valorVenda": { "type": "number" },
+            "dataVenda": { "type": "string", "format": "date-time" }
+          }
+        },
+        "Troca": {
+          "type": "object",
+          "properties": {
+            "veiculoEntradaId": { "type": "integer", "description": "ID da moto que o cliente entregou" },
+            "veiculoSaidaId": { "type": "integer", "description": "ID da moto que o cliente comprou" },
+            "valorDiferenca": { "type": "number", "description": "Valor pago a mais pelo cliente" }
+          }
+        },
+        "Relatorio": {
+          "type": "object",
+          "properties": {
+            "totalEntradas": { "type": "number" },
+            "totalSaidas": { "type": "number" },
+            "saldoLiquido": { "type": "number" },
+            "quantidadeVendas": { "type": "integer" }
+          }
+        }
+      }
+    }
+  }
