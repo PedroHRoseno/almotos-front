@@ -15,7 +15,7 @@ export interface SearchableSelectOption<T = string> {
 export interface SearchableSelectProps<T = string> {
   options: SearchableSelectOption<T>[];
   value?: T;
-  onValueChange?: (value: T) => void;
+  onValueChange?: (value: T | undefined) => void;
   placeholder?: string;
   disabled?: boolean;
   emptyMessage?: string;
@@ -83,7 +83,7 @@ export function SearchableSelect<T extends string = string>({
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onValueChange?.(undefined as T);
+    onValueChange?.(undefined);
     setSearchTerm("");
     setOpen(false);
   };

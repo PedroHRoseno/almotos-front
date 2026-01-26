@@ -112,7 +112,7 @@ export function FormParceiro({
     try {
       const addressData = incluirEndereco && data.address
         ? {
-            streetName: data.address.streetName?.trim() || undefined,
+            streetName: data.address.streetName?.trim() || "",
             number: data.address.number.trim(),
             city: data.address.city.trim(), // Garantir que não está vazio (já validado acima)
             state: data.address.state.trim().toUpperCase(),
@@ -341,6 +341,14 @@ export function FormParceiro({
                         form.setError("address.zipCode", {
                           type: "manual",
                           message: "CEP deve ter 8 dígitos",
+                        });
+                        return;
+                      }
+                      
+                      if (!cepAtual) {
+                        form.setError("address.zipCode", {
+                          type: "manual",
+                          message: "CEP é obrigatório",
                         });
                         return;
                       }

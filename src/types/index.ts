@@ -249,8 +249,6 @@ export interface FinancialReport {
   totalVendas: number;
   totalCompras: number;
   totalTrocas: number;
-  totalVendas: number;
-  totalCompras: number;
   startDate: string;
   endDate: string;
 }
