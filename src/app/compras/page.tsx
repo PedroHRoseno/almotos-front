@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ShoppingBag, Plus, ChevronLeft, ChevronRight, Loader2, Search, X, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -82,6 +82,13 @@ export default function ComprasPage() {
   const [purchaseToDelete, setPurchaseToDelete] = useState<PurchaseResponse | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Debug: Monitorar mudanças no estado do modal
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      console.log("[Compras] Estado do modal mudou:", modalOpen);
+    }
+  }, [modalOpen]);
+
   // Debounce do termo de busca
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -124,6 +131,16 @@ export default function ComprasPage() {
     fetchPurchases();
   };
 
+  const handleOpenModal = useCallback(() => {
+    console.log("[Compras] handleOpenModal chamado");
+    try {
+      setModalOpen(true);
+      console.log("[Compras] Modal aberto com sucesso");
+    } catch (error) {
+      console.error("[Compras] Erro ao abrir modal:", error);
+    }
+  }, []);
+
   const handleDeleteClick = (purchase: PurchaseResponse) => {
     setPurchaseToDelete(purchase);
     setDeleteDialogOpen(true);
@@ -159,7 +176,12 @@ export default function ComprasPage() {
             Gerencie as compras de veículos realizadas.
           </p>
         </div>
-        <Button onClick={() => setModalOpen(true)} className="w-full sm:w-auto">
+        <Button 
+          onClick={handleOpenModal}
+          className="w-full sm:w-auto"
+          type="button"
+          aria-label="Abrir modal de nova compra"
+        >
           <Plus className="mr-2 h-4 w-4" />
           Nova Compra
         </Button>
@@ -338,7 +360,13 @@ export default function ComprasPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      <Dialog 
+        open={modalOpen} 
+        onOpenChange={(open) => {
+          console.log("[Compras] Dialog onOpenChange:", open);
+          setModalOpen(open);
+        }}
+      >
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Registrar Nova Compra</DialogTitle>
