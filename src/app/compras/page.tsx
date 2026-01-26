@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Repeat, Plus, ChevronLeft, ChevronRight, Loader2, Search, X, Trash2 } from "lucide-react";
+import { ShoppingBag, Plus, ChevronLeft, ChevronRight, Loader2, Search, X, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,9 +39,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { api } from "@/lib/api";
-import type { ExchangeResponse } from "@/types";
-import { FormTroca } from "@/components/forms/form-troca";
-import { toast } from "sonner";
+import type { PurchaseResponse } from "@/types";
+import { FormCompra } from "@/components/forms/form-compra";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -68,29 +68,42 @@ function formatCpf(cpf: string) {
   return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
 }
 
-export default function TrocasPage() {
-  const [exchanges, setExchanges] = useState<ExchangeResponse[]>([]);
+export default function ComprasPage() {
+  const [purchases, setPurchases] = useState<PurchaseResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(20);
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [exchangeToDelete, setExchangeToDelete] = useState<ExchangeResponse | null>(null);
+  const [purchaseToDelete, setPurchaseToDelete] = useState<PurchaseResponse | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const fetchExchanges = () => {
+  // Debounce do termo de busca
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setPage(0); // Reset para primeira página ao buscar
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const fetchPurchases = () => {
     setLoading(true);
-    api.exchanges
-      .listar(page, pageSize)
+    const search = debouncedSearchTerm.trim() || undefined;
+    api.purchases
+      .listar(page, pageSize, search)
       .then((response) => {
-        setExchanges(response.content || []);
+        setPurchases(response.content || []);
         setTotalElements(response.totalElements || 0);
         setTotalPages(response.totalPages || 0);
       })
       .catch(() => {
-        setExchanges([]);
+        setPurchases([]);
         setTotalElements(0);
         setTotalPages(0);
       })
@@ -98,39 +111,39 @@ export default function TrocasPage() {
   };
 
   useEffect(() => {
-    fetchExchanges();
-  }, [page, pageSize]);
+    fetchPurchases();
+  }, [page, pageSize, debouncedSearchTerm]);
 
   const handlePageSizeChange = (newSize: string) => {
     setPageSize(Number(newSize));
     setPage(0);
   };
 
-  const handleTrocaSuccess = () => {
+  const handleCompraSuccess = () => {
     setModalOpen(false);
-    fetchExchanges();
+    fetchPurchases();
   };
 
-  const handleDeleteClick = (exchange: ExchangeResponse) => {
-    setExchangeToDelete(exchange);
+  const handleDeleteClick = (purchase: PurchaseResponse) => {
+    setPurchaseToDelete(purchase);
     setDeleteDialogOpen(true);
   };
 
   const handleDeleteConfirm = async () => {
-    if (!exchangeToDelete?.id) return;
+    if (!purchaseToDelete?.id) return;
 
     setDeleting(true);
     try {
-      await api.exchanges.deletar(exchangeToDelete.id);
-      toast.success("Troca excluída com sucesso. O veículo de saída foi revertido para disponível e o veículo de entrada foi removido do estoque.");
+      await api.purchases.deletar(purchaseToDelete.id);
+      toast.success("Compra excluída com sucesso. O veículo foi removido do estoque.");
       setDeleteDialogOpen(false);
-      setExchangeToDelete(null);
-      fetchExchanges();
+      setPurchaseToDelete(null);
+      fetchPurchases();
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Erro ao excluir troca. Tente novamente."
+          : "Erro ao excluir compra. Tente novamente."
       );
     } finally {
       setDeleting(false);
@@ -141,36 +154,66 @@ export default function TrocasPage() {
     <div className="space-y-4 md:space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Trocas</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Compras</h1>
           <p className="text-sm md:text-base text-muted-foreground">
-            Gerencie as trocas de veículos realizadas.
+            Gerencie as compras de veículos realizadas.
           </p>
         </div>
         <Button onClick={() => setModalOpen(true)} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
-          Nova Troca
+          Nova Compra
         </Button>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Repeat className="h-5 w-5" />
-            Lista de Trocas
+            <ShoppingBag className="h-5 w-5" />
+            Lista de Compras
           </CardTitle>
           <CardDescription>
-            {totalElements} {totalElements === 1 ? "troca registrada" : "trocas registradas"}
+            {totalElements} {totalElements === 1 ? "compra registrada" : "compras registradas"}
+            {debouncedSearchTerm && (
+              <span className="ml-2">
+                • Buscando por: <strong>"{debouncedSearchTerm}"</strong>
+              </span>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4">
+            <div className="relative w-full max-w-md">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Input
+                type="text"
+                placeholder="Buscar por placa, CPF ou nome do fornecedor..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-10"
+              />
+              {searchTerm && (
+                <button
+                  onClick={() => setSearchTerm("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="Limpar busca"
+                  type="button"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          ) : exchanges.length === 0 ? (
+          ) : purchases.length === 0 ? (
             <div className="py-12 text-center">
               <p className="text-sm text-muted-foreground">
-                Nenhuma troca registrada ainda.
+                {debouncedSearchTerm
+                  ? "Nenhuma compra encontrada com os critérios de busca."
+                  : "Nenhuma compra registrada ainda."}
               </p>
             </div>
           ) : (
@@ -180,66 +223,46 @@ export default function TrocasPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="min-w-[140px]">Data</TableHead>
-                      <TableHead className="min-w-[180px]">Veículo Entrada</TableHead>
-                      <TableHead className="min-w-[180px]">Veículo Saída</TableHead>
-                      <TableHead className="min-w-[180px]">Parceiro</TableHead>
-                      <TableHead className="text-right min-w-[120px]">Diferença</TableHead>
+                      <TableHead className="min-w-[180px]">Veículo</TableHead>
+                      <TableHead className="min-w-[180px]">Fornecedor</TableHead>
+                      <TableHead className="text-right min-w-[120px]">Valor</TableHead>
                       <TableHead className="w-[100px]">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {exchanges.map((exchange) => (
-                      <TableRow key={exchange.id} className="hover:bg-muted/50">
+                    {purchases.map((purchase) => (
+                      <TableRow key={purchase.id} className="hover:bg-muted/50">
                         <TableCell className="text-muted-foreground text-sm">
-                          {formatDate(exchange.exchangeDate)}
+                          {formatDate(purchase.purchaseDate)}
                         </TableCell>
                         <TableCell>
                           <div>
                             <div className="font-medium text-sm md:text-base">
-                              {exchange.vehicleEntradaBrand} {exchange.vehicleEntradaModel}
+                              {purchase.vehicleBrand} {purchase.vehicleModel}
                             </div>
                             <div className="text-xs md:text-sm text-muted-foreground font-mono">
-                              {exchange.vehicleEntradaLicensePlate}
+                              {purchase.vehicleLicensePlate}
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div>
-                            <div className="font-medium text-sm md:text-base">
-                              {exchange.vehicleSaidaBrand} {exchange.vehicleSaidaModel}
-                            </div>
+                            <div className="font-medium text-sm md:text-base">{purchase.partnerName}</div>
                             <div className="text-xs md:text-sm text-muted-foreground font-mono">
-                              {exchange.vehicleSaidaLicensePlate}
+                              {formatCpf(purchase.partnerCpf)}
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium text-sm md:text-base">{exchange.partnerName}</div>
-                            <div className="text-xs md:text-sm text-muted-foreground font-mono">
-                              {formatCpf(exchange.partnerCpf)}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <span
-                            className={`font-medium ${
-                              exchange.diferencaValor >= 0
-                                ? "text-green-600 dark:text-green-400"
-                                : "text-red-600 dark:text-red-400"
-                            }`}
-                          >
-                            {exchange.diferencaValor >= 0 ? "+" : ""}
-                            {formatCurrency(exchange.diferencaValor)}
-                          </span>
+                        <TableCell className="text-right font-medium text-sm md:text-base">
+                          {formatCurrency(purchase.purchasePrice)}
                         </TableCell>
                         <TableCell>
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleDeleteClick(exchange)}
+                            onClick={() => handleDeleteClick(purchase)}
                             className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            title="Excluir troca"
+                            title="Excluir compra"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -267,7 +290,7 @@ export default function TrocasPage() {
                     </Select>
                   </div>
                   <span className="text-sm text-muted-foreground">
-                    Mostrando {page * pageSize + 1} a {Math.min((page + 1) * pageSize, totalElements)} de {totalElements} trocas
+                    Mostrando {page * pageSize + 1} a {Math.min((page + 1) * pageSize, totalElements)} de {totalElements} compras
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -318,12 +341,12 @@ export default function TrocasPage() {
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Registrar Nova Troca</DialogTitle>
+            <DialogTitle>Registrar Nova Compra</DialogTitle>
             <DialogDescription>
-              Registre uma troca de veículos. O cliente entrega um veículo como parte do pagamento de outro.
+              Registre a compra de um veículo. Você pode selecionar um veículo existente ou cadastrar um novo, assim como selecionar ou cadastrar um fornecedor/parceiro.
             </DialogDescription>
           </DialogHeader>
-          <FormTroca onSuccess={handleTrocaSuccess} insideModal />
+          <FormCompra onSuccess={handleCompraSuccess} insideModal />
         </DialogContent>
       </Dialog>
 
@@ -332,13 +355,12 @@ export default function TrocasPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta troca? Isso reverterá o status do veículo de saída para DISPONÍVEL e removerá o veículo de entrada do estoque.
-              {exchangeToDelete && (
-                <div className="mt-2 p-2 bg-muted rounded text-xs space-y-1">
-                  <div><strong>Veículo Entrada:</strong> {exchangeToDelete.vehicleEntradaBrand} {exchangeToDelete.vehicleEntradaModel} - {exchangeToDelete.vehicleEntradaLicensePlate}</div>
-                  <div><strong>Veículo Saída:</strong> {exchangeToDelete.vehicleSaidaBrand} {exchangeToDelete.vehicleSaidaModel} - {exchangeToDelete.vehicleSaidaLicensePlate}</div>
-                  <div><strong>Parceiro:</strong> {exchangeToDelete.partnerName}</div>
-                  <div><strong>Diferença:</strong> {formatCurrency(exchangeToDelete.diferencaValor)}</div>
+              Tem certeza que deseja excluir esta compra? Isso removerá o veículo do estoque.
+              {purchaseToDelete && (
+                <div className="mt-2 p-2 bg-muted rounded text-xs">
+                  <div><strong>Veículo:</strong> {purchaseToDelete.vehicleBrand} {purchaseToDelete.vehicleModel} - {purchaseToDelete.vehicleLicensePlate}</div>
+                  <div><strong>Fornecedor:</strong> {purchaseToDelete.partnerName}</div>
+                  <div><strong>Valor:</strong> {formatCurrency(purchaseToDelete.purchasePrice)}</div>
                 </div>
               )}
             </AlertDialogDescription>

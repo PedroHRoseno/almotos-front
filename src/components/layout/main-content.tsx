@@ -10,10 +10,11 @@ export function MainContent({ children }: { children: React.ReactNode }) {
     <main
       className={cn(
         "min-h-screen transition-[padding] duration-300 ease-in-out",
-        collapsed ? "pl-[72px]" : "pl-64"
+        collapsed ? "pl-[72px]" : "pl-64",
+        "max-md:pl-0 max-md:pt-16"
       )}
     >
-      <div className="container mx-auto p-6">{children}</div>
+      <div className="container mx-auto p-4 md:p-6">{children}</div>
     </main>
   );
 }

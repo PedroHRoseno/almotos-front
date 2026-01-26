@@ -28,7 +28,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FormVeiculo } from "@/components/forms/form-veiculo";
-import { api, type Veiculo } from "@/lib/api";
+import { api } from "@/lib/api";
+import type { Vehicle } from "@/types";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
 const DEFAULT_PAGE_SIZE = 10;
@@ -45,21 +46,36 @@ function isHexColor(s: string | null | undefined): boolean {
 }
 
 export default function MotosPage() {
-  const [veiculos, setVeiculos] = useState<Veiculo[]>([]);
+  const [veiculos, setVeiculos] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [stockFilter, setStockFilter] = useState<StockFilter>("TODOS");
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [totalElements, setTotalElements] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
+  const fetchVehicles = (pageNum: number = 0, size: number = pageSize) => {
+    setLoading(true);
+    api.vehicles
+      .listar(pageNum, size)
+      .then((response) => {
+        setVeiculos(response.content || []);
+        setTotalElements(response.totalElements || 0);
+        setTotalPages(response.totalPages || 0);
+      })
+      .catch(() => {
+        setVeiculos([]);
+        setTotalElements(0);
+        setTotalPages(0);
+      })
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
-    api.veiculos
-      .listar()
-      .then((data) => setVeiculos(Array.isArray(data) ? data : []))
-      .catch(() => setVeiculos([]))
-      .finally(() => setLoading(false));
-  }, []);
+    fetchVehicles(page, pageSize);
+  }, [page, pageSize]);
 
   const filtered = useMemo(() => {
     let list = veiculos;
@@ -73,29 +89,13 @@ export default function MotosPage() {
           (v.color && v.color.toLowerCase().includes(q))
       );
     }
-    if (stockFilter === "SIM") list = list.filter((v) => v.inStock);
-    if (stockFilter === "NAO") list = list.filter((v) => !v.inStock);
+    if (stockFilter === "SIM") list = list.filter((v) => v.inStock || v.status === "DISPONIVEL");
+    if (stockFilter === "NAO") list = list.filter((v) => !v.inStock || v.status === "VENDIDO");
     return list;
   }, [veiculos, search, stockFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const paginated = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, currentPage, pageSize]);
-
-  useEffect(() => {
-    if (page > totalPages && totalPages >= 1) setPage(totalPages);
-  }, [totalPages, page]);
-
   const handleRefetch = () => {
-    setLoading(true);
-    api.veiculos
-      .listar()
-      .then((data) => setVeiculos(Array.isArray(data) ? data : []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    fetchVehicles(page, pageSize);
   };
 
   const handleCadastroSuccess = () => {
@@ -127,7 +127,7 @@ export default function MotosPage() {
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
-                setPage(1);
+                setPage(0);
               }}
               className="pl-9"
             />
@@ -136,7 +136,7 @@ export default function MotosPage() {
             value={stockFilter}
             onValueChange={(v) => {
               setStockFilter(v as StockFilter);
-              setPage(1);
+              setPage(0);
             }}
           >
             <SelectTrigger className="w-full sm:w-[180px]">
@@ -152,7 +152,7 @@ export default function MotosPage() {
             value={String(pageSize)}
             onValueChange={(v) => {
               setPageSize(Number(v) as (typeof PAGE_SIZE_OPTIONS)[number]);
-              setPage(1);
+              setPage(0);
             }}
           >
             <SelectTrigger className="w-full sm:w-[140px]">
@@ -173,7 +173,7 @@ export default function MotosPage() {
             <div className="flex items-center justify-center py-16 text-muted-foreground">
               Carregando…
             </div>
-          ) : paginated.length === 0 ? (
+          ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-muted-foreground">
               <Bike className="h-10 w-10" />
               <p>
@@ -187,7 +187,7 @@ export default function MotosPage() {
                   onClick={() => {
                     setSearch("");
                     setStockFilter("TODOS");
-                    setPage(1);
+                    setPage(0);
                   }}
                 >
                   Limpar filtros
@@ -210,10 +210,10 @@ export default function MotosPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginated.map((v) => (
+                  {filtered.map((v) => (
                     <TableRow key={v.licensePlate}>
                       <TableCell className="font-medium">{v.licensePlate}</TableCell>
-                      <TableCell>{v.brand}</TableCell>
+                      <TableCell>{(v.brand ?? "").replace(/_/g, " ")}</TableCell>
                       <TableCell>{v.modelName}</TableCell>
                       <TableCell>{v.manufactureYear}</TableCell>
                       <TableCell>{v.modelYear}</TableCell>
@@ -243,29 +243,29 @@ export default function MotosPage() {
 
               <div className="flex flex-col gap-4 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-muted-foreground">
-                  Mostrando {(currentPage - 1) * pageSize + 1}–
-                  {Math.min(currentPage * pageSize, filtered.length)} de{" "}
-                  {filtered.length}{" "}
-                  {filtered.length === 1 ? "veículo" : "veículos"}
+                  Mostrando {page * pageSize + 1}–
+                  {Math.min((page + 1) * pageSize, totalElements)} de{" "}
+                  {totalElements}{" "}
+                  {totalElements === 1 ? "veículo" : "veículos"}
                 </p>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage <= 1}
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={page <= 0}
                   >
                     <ChevronLeft className="h-4 w-4" />
                     Anterior
                   </Button>
                   <span className="text-sm text-muted-foreground">
-                    Página {currentPage} de {totalPages}
+                    Página {page + 1} de {Math.max(1, totalPages)}
                   </span>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={currentPage >= totalPages}
+                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                    disabled={page >= totalPages - 1}
                   >
                     Próxima
                     <ChevronRight className="h-4 w-4" />

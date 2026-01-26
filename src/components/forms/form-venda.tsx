@@ -2,16 +2,18 @@
 
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import type { SearchableSelectOption } from "@/components/ui/searchable-select";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { FormField } from "@/components/ui/form-field";
 import {
   Card,
@@ -21,26 +23,35 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { vendaSchema, type VendaFormData } from "@/lib/validations/schemas";
-import { api, type Veiculo } from "@/lib/api";
-import { useState, useEffect } from "react";
+import { api } from "@/lib/api";
+import type { Vehicle, PartnerSummary } from "@/types";
+import { useState, useEffect, useMemo } from "react";
+import { cn } from "@/lib/utils";
+import { FormParceiro } from "@/components/forms/form-parceiro";
 
-function toDatetimeLocal(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+function cpfSomenteDigitos(s: string): string {
+  return s.replace(/\D/g, "");
 }
 
 const defaultValues: Partial<VendaFormData> = {
-  veiculoLicensePlate: "",
-  clienteNome: "",
-  valorVenda: 0,
-  dataVenda: toDatetimeLocal(new Date()),
+  vehicleLicensePlate: "",
+  customerCpf: "",
+  salePrice: 0,
 };
 
-export function FormVenda() {
+export interface FormVendaProps {
+  onSuccess?: () => void;
+  insideModal?: boolean;
+}
+
+export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [veiculos, setVeiculos] = useState<Veiculo[]>([]);
+  const [veiculos, setVeiculos] = useState<Vehicle[]>([]);
   const [loadingVeiculos, setLoadingVeiculos] = useState(true);
+  const [partners, setPartners] = useState<PartnerSummary[]>([]);
+  const [loadingPartners, setLoadingPartners] = useState(true);
+  const [modalParceiroOpen, setModalParceiroOpen] = useState(false);
 
   const form = useForm<VendaFormData>({
     resolver: zodResolver(vendaSchema),
@@ -48,43 +59,83 @@ export function FormVenda() {
   });
 
   useEffect(() => {
-    api.veiculos
-      .listar()
-      .then((data) => setVeiculos(Array.isArray(data) ? data : []))
+    setLoadingVeiculos(true);
+    // Buscar apenas veículos disponíveis
+    api.vehicles
+      .listarDisponiveis(0, 100) // Buscar até 100 veículos disponíveis
+      .then((response) => setVeiculos(response.content || []))
       .catch(() => setVeiculos([]))
       .finally(() => setLoadingVeiculos(false));
+
+    // Buscar parceiros para seleção
+    setLoadingPartners(true);
+    api.customers
+      .listar(0, 100)
+      .then((response) => setPartners(response.content || []))
+      .catch(() => setPartners([]))
+      .finally(() => setLoadingPartners(false));
   }, []);
 
-  const disponiveis = veiculos.filter((v) => v.inStock);
+  const disponiveis = veiculos.filter((v) => v.inStock || v.status === "DISPONIVEL");
+
+  // Preparar opções de veículos para o SearchableSelect
+  const veiculoOptions: SearchableSelectOption[] = useMemo(
+    () =>
+      disponiveis.map((v) => ({
+        value: v.licensePlate,
+        label: `${v.brand} ${v.modelName} (${v.modelYear}) – ${v.licensePlate}`,
+        searchText: `${v.brand} ${v.modelName} ${v.modelYear} ${v.licensePlate} ${v.color}`,
+      })),
+    [disponiveis]
+  );
+
+  // Preparar opções de parceiros para o SearchableSelect
+  const parceiroOptions: SearchableSelectOption[] = useMemo(
+    () =>
+      partners.map((p) => {
+        const cpfFormatado = p.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+        return {
+          value: p.cpf,
+          label: `${p.name} - ${cpfFormatado}`,
+          searchText: `${p.name} ${p.cpf} ${cpfFormatado} ${p.city || ""}`,
+        };
+      }),
+    [partners]
+  );
+
+  const handleParceiroCriado = (cpf: string) => {
+    setModalParceiroOpen(false);
+    // Recarregar lista de parceiros
+    api.customers
+      .listar(0, 100)
+      .then((response) => {
+        setPartners(response.content || []);
+        // Selecionar o parceiro recém-criado
+        form.setValue("customerCpf", cpf);
+      })
+      .catch(() => {});
+  };
 
   const onSubmit = async (data: VendaFormData) => {
     setSuccess(null);
     setError(null);
     try {
-      const dataVendaISO =
-        data.dataVenda.includes("T") ? data.dataVenda : `${data.dataVenda}T12:00:00`;
-      await api.vendas.registrar({
-        veiculoLicensePlate: data.veiculoLicensePlate,
-        clienteNome: data.clienteNome,
-        valorVenda: data.valorVenda,
-        dataVenda: new Date(dataVendaISO).toISOString(),
+      await api.sales.criar({
+        vehicle: { licensePlate: data.vehicleLicensePlate },
+        customer: { cpf: cpfSomenteDigitos(data.customerCpf) },
+        salePrice: data.salePrice,
       });
       setSuccess("Venda registrada com sucesso.");
-      form.reset({ ...defaultValues, dataVenda: toDatetimeLocal(new Date()) });
+      if (!insideModal) {
+        form.reset(defaultValues);
+      }
+      onSuccess?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao registrar venda.");
     }
   };
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Registrar venda</CardTitle>
-        <CardDescription>
-          Preencha os dados da venda para registrar no sistema.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+  const formContent = (
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           {success && (
             <div className="rounded-md bg-green-50 dark:bg-green-950/30 p-3 text-sm text-green-800 dark:text-green-200">
@@ -99,10 +150,10 @@ export function FormVenda() {
 
           <div className="grid gap-6 sm:grid-cols-2">
             <FormField
-              name="veiculoLicensePlate"
+              name="vehicleLicensePlate"
               label="Veículo"
               required
-              error={form.formState.errors.veiculoLicensePlate}
+              error={form.formState.errors.vehicleLicensePlate}
             >
               <>
                 {!loadingVeiculos && disponiveis.length === 0 && (
@@ -112,74 +163,77 @@ export function FormVenda() {
                 )}
                 <Controller
                   control={form.control}
-                  name="veiculoLicensePlate"
+                  name="vehicleLicensePlate"
                   render={({ field }) => (
-                    <Select
+                    <SearchableSelect
+                      options={veiculoOptions}
                       value={field.value}
                       onValueChange={field.onChange}
+                      placeholder={loadingVeiculos ? "Carregando…" : "Buscar veículo..."}
                       disabled={loadingVeiculos || disponiveis.length === 0}
-                    >
-                      <SelectTrigger
-                        id="veiculoLicensePlate"
-                        className={form.formState.errors.veiculoLicensePlate ? "border-destructive" : ""}
-                      >
-                        <SelectValue placeholder={loadingVeiculos ? "Carregando…" : "Selecione o veículo"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {disponiveis.map((v) => (
-                          <SelectItem key={v.licensePlate} value={v.licensePlate}>
-                            {v.brand} {v.modelName} ({v.modelYear}) – {v.licensePlate}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      emptyMessage="Nenhum veículo encontrado"
+                      error={!!form.formState.errors.vehicleLicensePlate}
+                      allowClear
+                    />
                   )}
                 />
               </>
             </FormField>
 
             <FormField
-              name="clienteNome"
-              label="Nome do cliente"
+              name="customerCpf"
+              label="Cliente/Parceiro"
               required
-              error={form.formState.errors.clienteNome}
+              error={form.formState.errors.customerCpf}
             >
-              <Input
-                id="clienteNome"
-                placeholder="Ex.: João Silva"
-                {...form.register("clienteNome")}
-                className={form.formState.errors.clienteNome ? "border-destructive" : ""}
-              />
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Controller
+                    control={form.control}
+                    name="customerCpf"
+                    render={({ field }) => (
+                      <SearchableSelect
+                        options={parceiroOptions}
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        placeholder={loadingPartners ? "Carregando…" : "Buscar cliente/parceiro..."}
+                        disabled={loadingPartners}
+                        emptyMessage="Nenhum parceiro encontrado"
+                        error={!!form.formState.errors.customerCpf}
+                        allowClear
+                      />
+                    )}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setModalParceiroOpen(true)}
+                  title="Cadastrar novo parceiro"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Selecione um parceiro existente ou cadastre um novo clicando no botão +.
+              </p>
             </FormField>
 
             <FormField
-              name="valorVenda"
+              name="salePrice"
               label="Valor da venda (R$)"
               required
-              error={form.formState.errors.valorVenda}
+              error={form.formState.errors.salePrice}
             >
               <Input
-                id="valorVenda"
+                id="salePrice"
                 type="number"
                 step="0.01"
                 min={0.01}
                 placeholder="Ex.: 18500,00"
-                {...form.register("valorVenda", { valueAsNumber: true })}
-                className={form.formState.errors.valorVenda ? "border-destructive" : ""}
-              />
-            </FormField>
-
-            <FormField
-              name="dataVenda"
-              label="Data e hora da venda"
-              required
-              error={form.formState.errors.dataVenda}
-            >
-              <Input
-                id="dataVenda"
-                type="datetime-local"
-                {...form.register("dataVenda")}
-                className={form.formState.errors.dataVenda ? "border-destructive" : ""}
+                {...form.register("salePrice", { valueAsNumber: true })}
+                className={cn(form.formState.errors.salePrice && "border-destructive")}
               />
             </FormField>
           </div>
@@ -188,7 +242,7 @@ export function FormVenda() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => form.reset({ ...defaultValues, dataVenda: toDatetimeLocal(new Date()) })}
+              onClick={() => form.reset(defaultValues)}
             >
               Limpar
             </Button>
@@ -204,7 +258,40 @@ export function FormVenda() {
             </Button>
           </div>
         </form>
-      </CardContent>
-    </Card>
+  );
+
+  return (
+    <>
+      {!insideModal && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Registrar venda</CardTitle>
+            <CardDescription>
+              Selecione o veículo disponível, escolha o cliente/parceiro (ou cadastre um novo) e informe o valor da venda. A data é definida automaticamente pelo sistema.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>{formContent}</CardContent>
+        </Card>
+      )}
+
+      {insideModal && formContent}
+
+      <Dialog open={modalParceiroOpen} onOpenChange={setModalParceiroOpen}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Cadastrar Novo Parceiro</DialogTitle>
+            <DialogDescription>
+              Cadastre um novo parceiro para realizar a venda. Após o cadastro, ele será automaticamente selecionado.
+            </DialogDescription>
+          </DialogHeader>
+          <FormParceiro
+            insideModal
+            onSuccessWithCpf={(cpf) => {
+              handleParceiroCriado(cpf);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

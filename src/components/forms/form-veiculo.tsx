@@ -5,16 +5,25 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { FormField } from "@/components/ui/form-field";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { veiculoSchema, type VeiculoFormData } from "@/lib/validations/schemas";
-import { api, type VeiculoCreate } from "@/lib/api";
+import { api } from "@/lib/api";
+import type { VehicleBrand } from "@/types";
+import { VEHICLE_BRANDS } from "@/types";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 const defaultValues: Partial<VeiculoFormData> = {
   licensePlate: "",
-  brand: "",
+  brand: "HONDA",
   modelName: "",
   manufactureYear: new Date().getFullYear(),
   modelYear: new Date().getFullYear(),
@@ -41,17 +50,16 @@ export function FormVeiculo({ onSuccess, insideModal }: FormVeiculoProps = {}) {
     setSuccess(null);
     setError(null);
     try {
-      const payload: VeiculoCreate = {
+      await api.vehicles.criar({
         licensePlate: data.licensePlate.trim().toUpperCase(),
-        brand: data.brand.trim(),
+        brand: data.brand as VehicleBrand,
         modelName: data.modelName.trim(),
         manufactureYear: data.manufactureYear,
         modelYear: data.modelYear,
         color: data.color.trim().toLowerCase(),
         kilometersDriven: data.kilometersDriven,
         inStock: data.inStock,
-      };
-      await api.veiculos.criar(payload);
+      });
       setSuccess("Veículo cadastrado com sucesso.");
       form.reset(defaultValues);
       onSuccess?.();
@@ -89,11 +97,26 @@ export function FormVeiculo({ onSuccess, insideModal }: FormVeiculoProps = {}) {
         </FormField>
 
         <FormField name="brand" label="Marca" required error={form.formState.errors.brand}>
-          <Input
-            id="brand"
-            placeholder="Ex.: HONDA"
-            {...form.register("brand")}
-            className={cn(form.formState.errors.brand && "border-destructive")}
+          <Controller
+            control={form.control}
+            name="brand"
+            render={({ field }) => (
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger
+                  id="brand"
+                  className={cn(form.formState.errors.brand && "border-destructive")}
+                >
+                  <SelectValue placeholder="Selecione a marca" />
+                </SelectTrigger>
+                <SelectContent>
+                  {VEHICLE_BRANDS.map((b) => (
+                    <SelectItem key={b} value={b}>
+                      {b.replace(/_/g, " ")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           />
         </FormField>
 
@@ -187,6 +210,7 @@ export function FormVeiculo({ onSuccess, insideModal }: FormVeiculoProps = {}) {
               <label className="flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
+                  id="inStock"
                   checked={field.value}
                   onChange={(e) => field.onChange(e.target.checked)}
                   className="h-4 w-4 rounded border-input"

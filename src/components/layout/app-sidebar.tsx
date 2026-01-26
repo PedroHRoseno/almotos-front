@@ -8,20 +8,25 @@ import {
   Bike,
   Users,
   ShoppingCart,
+  ShoppingBag,
   Repeat,
   BarChart3,
   Settings,
   ChevronLeft,
   ChevronRight,
+  Menu,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "./sidebar-provider";
+import { useState, useEffect } from "react";
 
 const menuItems = [
   { title: "Dashboard", href: "/", icon: LayoutDashboard },
-  { title: "Motos", href: "/motos", icon: Bike },
+  { title: "Veículos", href: "/motos", icon: Bike },
   { title: "Clientes", href: "/clientes", icon: Users },
+  { title: "Compras", href: "/compras", icon: ShoppingBag },
   { title: "Vendas", href: "/vendas", icon: ShoppingCart },
   { title: "Trocas", href: "/trocas", icon: Repeat },
   { title: "Relatórios", href: "/relatorios", icon: BarChart3 },
@@ -31,14 +36,43 @@ const menuItems = [
 export function AppSidebar() {
   const pathname = usePathname();
   const { collapsed, toggle } = useSidebar();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Fechar sidebar mobile ao mudar de rota
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   return (
-    <aside
-      className={cn(
-        "fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300 ease-in-out",
-        collapsed ? "w-[72px]" : "w-64"
+    <>
+      {/* Mobile Menu Button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="fixed left-4 top-4 z-50 md:hidden"
+        onClick={() => setMobileOpen(!mobileOpen)}
+        aria-label="Abrir menu"
+      >
+        <Menu className="h-6 w-6" />
+      </Button>
+
+      {/* Mobile Overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
       )}
-    >
+
+      {/* Sidebar */}
+      <aside
+        className={cn(
+          "fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300 ease-in-out",
+          collapsed ? "w-[72px]" : "w-64",
+          "max-md:translate-x-[-100%]",
+          mobileOpen && "max-md:translate-x-0"
+        )}
+      >
       {/* Header */}
       <div
         className={cn(
@@ -69,22 +103,33 @@ export function AppSidebar() {
             />
           </Link>
         )}
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-            collapsed && "h-8 w-8"
-          )}
-          onClick={toggle}
-          aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-        >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronLeft className="h-5 w-5" />
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground max-md:hidden",
+              collapsed && "h-8 w-8"
+            )}
+            onClick={toggle}
+            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+          >
+            {collapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-5 w-5" />
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:hidden"
+            onClick={() => setMobileOpen(false)}
+            aria-label="Fechar menu"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
 
       {/* Navigation */}
@@ -123,5 +168,6 @@ export function AppSidebar() {
         </div>
       )}
     </aside>
+    </>
   );
 }
