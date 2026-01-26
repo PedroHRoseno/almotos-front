@@ -19,10 +19,25 @@ import type {
   PageResponse,
 } from "@/types";
 
-/** Proxy local (/api/proxy/*) evita CORS; rewrites encaminham para o back-end. */
+/** 
+ * Configuração da API:
+ * - Em desenvolvimento: usa proxy local (/api/proxy/*) para evitar CORS
+ * - Em produção: pode usar proxy ou requisição direta (dependendo do CORS)
+ */
 const PROXY_PREFIX = "/api/proxy";
-const getBaseUrl = () =>
-  typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+
+// Obter URL base do backend
+const getBackendUrl = () => {
+  // No cliente, tenta usar NEXT_PUBLIC_API_URL se disponível
+  if (typeof window !== "undefined") {
+    // Em produção, se NEXT_PUBLIC_API_URL estiver disponível no cliente, pode fazer requisição direta
+    // Mas por segurança, vamos usar o proxy sempre
+    return window.location.origin;
+  }
+  return "http://localhost:3000";
+};
+
+const getBaseUrl = getBackendUrl;
 
 type RequestConfig = RequestInit & { params?: Record<string, string> };
 
