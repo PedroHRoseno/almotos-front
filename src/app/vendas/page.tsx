@@ -175,7 +175,7 @@ export default function VendasPage() {
             {totalElements} {totalElements === 1 ? "venda registrada" : "vendas registradas"}
             {debouncedSearchTerm && (
               <span className="ml-2">
-                • Buscando por: <strong>"{debouncedSearchTerm}"</strong>
+                • Buscando por: <strong>&quot;{debouncedSearchTerm}&quot;</strong>
               </span>
             )}
           </CardDescription>

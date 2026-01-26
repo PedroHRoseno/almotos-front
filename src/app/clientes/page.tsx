@@ -119,7 +119,7 @@ export default function ClientesPage() {
             {totalElements} {totalElements === 1 ? "parceiro cadastrado" : "parceiros cadastrados"}
             {debouncedSearchTerm && (
               <span className="ml-2">
-                • Buscando por: <strong>"{debouncedSearchTerm}"</strong>
+                • Buscando por: <strong>&quot;{debouncedSearchTerm}&quot;</strong>
               </span>
             )}
           </CardDescription>
