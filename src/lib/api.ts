@@ -147,6 +147,10 @@ export const api = {
         method: "POST",
         body: JSON.stringify(body),
       }),
+    deletar: (id: number) =>
+      request<void>(`/purchases/${id}`, {
+        method: "DELETE",
+      }),
   },
 
   customers: {
@@ -177,21 +181,6 @@ export const api = {
     listarCompat: () => request<Customer[]>("/customers/"),
     criarCompat: (body: Customer) =>
       request<void>("/customers", {
-        method: "POST",
-        body: JSON.stringify(body),
-      }),
-  },
-
-  purchases: {
-    listar: (page: number = 0, size: number = 20, search?: string) =>
-      request<PageResponse<PurchaseResponse>>("/purchases", {
-        params: {
-          ...buildPaginationParams(page, size, "purchaseDate,desc"),
-          ...(search && search.trim() ? { search: search.trim() } : {}),
-        },
-      }),
-    criar: (body: PurchaseCreate) =>
-      request<void>("/purchases", {
         method: "POST",
         body: JSON.stringify(body),
       }),
