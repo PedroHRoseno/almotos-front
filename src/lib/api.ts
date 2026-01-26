@@ -36,6 +36,12 @@ async function request<T>(
   if (params) {
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
   }
+
+  // Debug em desenvolvimento
+  if (process.env.NODE_ENV === "development") {
+    console.log(`[API] Requisição: ${url.toString()}`);
+  }
+
   const res = await fetch(url.toString(), {
     ...init,
     headers: {
@@ -47,7 +53,16 @@ async function request<T>(
   if (!res.ok) {
     const status = res.status;
     const text = await res.text();
-    const errorMsg = text || `${res.status} ${res.statusText}`;
+    let errorMsg = text || `${res.status} ${res.statusText}`;
+    
+    // Mensagem mais clara para erro 404
+    if (status === 404) {
+      const isProxyError = url.pathname.startsWith("/api/proxy");
+      if (isProxyError) {
+        errorMsg = `Backend não encontrado. Verifique se NEXT_PUBLIC_API_URL está configurado corretamente. URL tentada: ${url.toString()}`;
+      }
+    }
+    
     console.error(`[API] Erro ${status} (${res.url}):`, errorMsg);
     throw new Error(errorMsg || `Erro ${status}: ${res.statusText}`);
   }

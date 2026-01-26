@@ -214,7 +214,18 @@ NEXT_PUBLIC_API_URL=http://localhost:8080
 
 ### Proxy e CORS
 
-O frontend usa um proxy local (`/api/proxy/*`) configurado no `next.config.ts` para evitar problemas de CORS. As requisições são automaticamente redirecionadas para o backend.
+O frontend usa um proxy via API Routes (`/api/proxy/*`) implementado em `src/app/api/proxy/[...path]/route.ts`. Isso resolve problemas de CORS e DNS que ocorriam com `rewrites` na Vercel quando o backend está na Railway.
+
+**Como funciona:**
+- O frontend faz requisições para `/api/proxy/vehicles`
+- A API Route do Next.js recebe a requisição no servidor
+- A API Route faz o proxy para o backend usando `NEXT_PUBLIC_API_URL`
+- A resposta é retornada ao frontend
+
+**Vantagens:**
+- Funciona corretamente na Vercel com backends na Railway
+- Evita erros de DNS (DNS_HOSTNAME_RESOLVED_PRIVATE)
+- Mantém CORS configurado corretamente
 
 ## Integração ViaCEP
 
@@ -224,7 +235,25 @@ O sistema integra com a API ViaCEP para busca automática de endereços:
 - Campo "Rua" opcional para CEPs de cidade
 - Validação de CEP no formato brasileiro
 
-## Como rodar
+## Deploy na Vercel
+
+O frontend está preparado para deploy na Vercel. Veja o arquivo `VERCEL_DEPLOY.md` para instruções detalhadas.
+
+### Configuração Rápida
+
+1. **Configure a variável de ambiente na Vercel:**
+   - Vá em **Settings** → **Environment Variables**
+   - Adicione: `NEXT_PUBLIC_API_URL` = `https://seu-backend.railway.app`
+   - Substitua pela URL real do seu backend no Railway
+
+2. **Faça o deploy:**
+   - Conecte o repositório na Vercel
+   - O Vercel detectará automaticamente o Next.js
+   - Após o deploy, re-deploy para aplicar as variáveis de ambiente
+
+**Importante**: Após adicionar/modificar variáveis de ambiente, você **DEVE** fazer um novo deploy.
+
+## Como rodar localmente
 
 1. **Instale as dependências:**
 
@@ -313,14 +342,30 @@ Exemplos: `npx shadcn@latest add input`, `npx shadcn@latest add table`, etc.
 
 ## Troubleshooting
 
-### Erro 404 em requisições
+### Erro 404 em requisições (Local)
 - Verifique se o backend está rodando na porta 8080
 - Confirme que o `.env.local` está configurado corretamente
 - Reinicie o servidor Next.js após alterar `.env.local`
 
+### Erro 404 em requisições (Vercel)
+- **Verifique se `NEXT_PUBLIC_API_URL` está configurada na Vercel**
+- Confirme que a URL do backend está correta (sem `/api` no final)
+- Faça um **re-deploy** após adicionar/modificar variáveis de ambiente
+- Verifique os logs do build na Vercel para ver se há avisos
+
+### Erro "DNS_HOSTNAME_RESOLVED_PRIVATE" (Vercel)
+**Este erro foi resolvido!** Agora usamos API Routes ao invés de rewrites.
+
+Se ainda ocorrer:
+- Verifique se `NEXT_PUBLIC_API_URL` está configurada na Vercel com a URL **pública** do Railway
+- A URL deve ser `https://seu-backend.up.railway.app` (não use hostnames privados)
+- Teste a URL do backend diretamente no navegador para confirmar que está acessível
+- Faça um re-deploy após configurar a variável de ambiente
+
 ### Erro de CORS
-- O backend já está configurado com CORS para `http://localhost:3000`
-- Verifique se o proxy está funcionando no `next.config.ts`
+- O backend já está configurado com CORS
+- Para produção, configure `CORS_ALLOWED_ORIGINS` no Railway com a URL da Vercel (ex: `https://almotos-front.vercel.app`)
+- O proxy via API Routes já adiciona headers CORS automaticamente
 
 ### Componentes não encontrados
 - Execute `npm install` para instalar todas as dependências
