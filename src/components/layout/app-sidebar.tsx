@@ -16,10 +16,14 @@ import {
   ChevronRight,
   Menu,
   X,
+  ArrowUpDown,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "./sidebar-provider";
+import { useAuth } from "@/contexts/AuthContext";
+import { LogOut } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const menuItems = [
@@ -29,13 +33,16 @@ const menuItems = [
   { title: "Compras", href: "/compras", icon: ShoppingBag },
   { title: "Vendas", href: "/vendas", icon: ShoppingCart },
   { title: "Trocas", href: "/trocas", icon: Repeat },
+  { title: "Fluxo de Caixa", href: "/fluxo-caixa", icon: ArrowUpDown },
   { title: "Relatórios", href: "/relatorios", icon: BarChart3 },
+  { title: "Guia", href: "/guia", icon: BookOpen },
   { title: "Configurações", href: "/configuracoes", icon: Settings },
 ];
 
 export function AppSidebar() {
   const pathname = usePathname();
   const { collapsed, toggle } = useSidebar();
+  const { logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Fechar sidebar mobile ao mudar de rota
@@ -160,13 +167,42 @@ export function AppSidebar() {
       </nav>
 
       {/* Footer */}
-      {!collapsed && (
-        <div className="border-t border-sidebar-border p-4">
-          <p className="text-xs text-sidebar-foreground/80">
-            Sistema de Gestão de Motos v1.0
-          </p>
-        </div>
-      )}
+      <div className="border-t border-sidebar-border p-4">
+        {!collapsed ? (
+          <div className="space-y-2">
+            <p className="text-xs text-sidebar-foreground/80">
+              Sistema de Gestão de Motos v1.0
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              onClick={() => {
+                logout();
+                window.location.href = "/login";
+              }}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Sair
+            </Button>
+          </div>
+        ) : (
+          <div className="flex justify-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              onClick={() => {
+                logout();
+                window.location.href = "/login";
+              }}
+              title="Sair"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </div>
     </aside>
     </>
   );

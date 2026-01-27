@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { BarChart3, DollarSign, TrendingUp, TrendingDown, Repeat } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { BarChart3, DollarSign, TrendingUp, TrendingDown, Repeat, Wrench } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,18 +21,18 @@ export default function RelatoriosPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  const fetchReport = () => {
+  const fetchReport = useCallback(() => {
     setLoading(true);
     api.reports
       .financial(startDate || undefined, endDate || undefined)
       .then(setReport)
       .catch(() => setReport(null))
       .finally(() => setLoading(false));
-  };
+  }, [startDate, endDate]);
 
   useEffect(() => {
     fetchReport();
-  }, []);
+  }, [fetchReport]);
 
   const handleFilter = (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,59 +87,78 @@ export default function RelatoriosPage() {
           {loading ? (
             <p className="text-sm text-muted-foreground">Carregando relatório...</p>
           ) : report ? (
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total de Vendas</CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+              <Card className="min-w-0 overflow-hidden">
+                <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium truncate min-w-0">Total de Vendas</CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(report.totalVendas)}</div>
-                  <p className="text-xs text-muted-foreground">
+                <CardContent className="min-w-0">
+                  <div className="min-w-0 break-words text-base sm:text-lg md:text-xl xl:text-2xl font-bold" title={formatCurrency(report.totalVendas)}>
+                    {formatCurrency(report.totalVendas)}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                     Período: {report.startDate} a {report.endDate}
                   </p>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total de Compras</CardTitle>
-                  <TrendingDown className="h-4 w-4 text-muted-foreground" />
+              <Card className="min-w-0 overflow-hidden">
+                <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium truncate min-w-0">Total de Compras</CardTitle>
+                  <TrendingDown className="h-4 w-4 text-muted-foreground shrink-0" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{formatCurrency(report.totalCompras)}</div>
-                  <p className="text-xs text-muted-foreground">
+                <CardContent className="min-w-0">
+                  <div className="min-w-0 break-words text-base sm:text-lg md:text-xl xl:text-2xl font-bold" title={formatCurrency(report.totalCompras)}>
+                    {formatCurrency(report.totalCompras)}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                     Período: {report.startDate} a {report.endDate}
                   </p>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total de Trocas</CardTitle>
-                  <Repeat className="h-4 w-4 text-muted-foreground" />
+              <Card className="min-w-0 overflow-hidden">
+                <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium truncate min-w-0">Total de Trocas</CardTitle>
+                  <Repeat className="h-4 w-4 text-muted-foreground shrink-0" />
                 </CardHeader>
-                <CardContent>
-                  <div className={`text-2xl font-bold ${report.totalTrocas >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                <CardContent className="min-w-0">
+                  <div className={`min-w-0 break-words text-base sm:text-lg md:text-xl xl:text-2xl font-bold ${report.totalTrocas >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`} title={formatCurrency(report.totalTrocas)}>
                     {report.totalTrocas >= 0 ? "+" : ""}{formatCurrency(report.totalTrocas)}
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Soma das diferenças de valor
                   </p>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Saldo Geral</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <Card className="min-w-0 overflow-hidden">
+                <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium truncate min-w-0">Custos Adicionais</CardTitle>
+                  <Wrench className="h-4 w-4 text-muted-foreground shrink-0" />
                 </CardHeader>
-                <CardContent>
-                  <div className={`text-2xl font-bold ${report.saldoGeral >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                <CardContent className="min-w-0">
+                  <div className="min-w-0 break-words text-base sm:text-lg md:text-xl xl:text-2xl font-bold text-orange-600 dark:text-orange-400" title={formatCurrency(report.totalCustos)}>
+                    {formatCurrency(report.totalCustos)}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Manutenção, documentação, etc.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="min-w-0 overflow-hidden">
+                <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium truncate min-w-0">Saldo Geral</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground shrink-0" />
+                </CardHeader>
+                <CardContent className="min-w-0">
+                  <div className={`min-w-0 break-words text-base sm:text-lg md:text-xl xl:text-2xl font-bold ${report.saldoGeral >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`} title={formatCurrency(report.saldoGeral)}>
                     {formatCurrency(report.saldoGeral)}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Vendas - Compras + Trocas
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Vendas - Compras + Trocas - Custos
                   </p>
                 </CardContent>
               </Card>

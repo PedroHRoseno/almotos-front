@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Users, Plus, ChevronLeft, ChevronRight, Eye, Loader2, Search, X } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -62,7 +62,7 @@ export default function ClientesPage() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const fetchPartners = () => {
+  const fetchPartners = useCallback(() => {
     setLoading(true);
     const search = debouncedSearchTerm.trim() || undefined;
     api.customers
@@ -78,11 +78,11 @@ export default function ClientesPage() {
         setTotalPages(0);
       })
       .finally(() => setLoading(false));
-  };
+  }, [page, pageSize, debouncedSearchTerm]);
 
   useEffect(() => {
     fetchPartners();
-  }, [page, pageSize, debouncedSearchTerm]);
+  }, [fetchPartners]);
 
   const handlePageSizeChange = (newSize: string) => {
     setPageSize(Number(newSize));

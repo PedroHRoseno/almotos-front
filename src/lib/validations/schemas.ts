@@ -56,7 +56,10 @@ export const vendaSchema = z.object({
 
 export type VendaFormData = z.infer<typeof vendaSchema>;
 
-/** Schema de validação para Troca (sem endpoint no back-end) */
+/** Tipo de diferença na troca: quem paga a diferença em dinheiro */
+export const tipoDiferencaTrocaEnum = z.enum(["cliente_paga", "loja_paga"]);
+
+/** Schema de validação para Troca */
 export const trocaSchema = z
   .object({
     veiculoEntradaLicensePlate: z
@@ -65,14 +68,18 @@ export const trocaSchema = z
     veiculoSaidaLicensePlate: z
       .string()
       .min(1, "Selecione o veículo de saída"),
-    valorDiferenca: z
-      .number({ invalid_type_error: "Valor da diferença deve ser um número" }),
+    /** Quem paga a diferença: cliente = entrada para loja (positivo), loja = saída (negativo) */
+    tipoDiferenca: tipoDiferencaTrocaEnum.default("cliente_paga"),
+    /** Valor absoluto em R$ (sempre >= 0). O sinal é definido por tipoDiferenca. */
+    valorAbsoluto: z
+      .number({ invalid_type_error: "Informe o valor em R$" })
+      .min(0.01, "Informe o valor da diferença (mín. R$ 0,01)"),
     customerCpf: z
       .string()
       .optional()
       .refine(
         (cpf) => {
-          if (!cpf || cpf.trim() === "") return true; // Opcional
+          if (!cpf || cpf.trim() === "") return true;
           const digitsOnly = cpf.replace(/\D/g, "");
           return digitsOnly.length === 11;
         },

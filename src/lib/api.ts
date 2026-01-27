@@ -4,6 +4,7 @@ import type {
   Sale,
   SaleCreate,
   SaleResponse,
+  SaleUpdate,
   Customer,
   PartnerSummary,
   PartnerDetail,
@@ -12,32 +13,24 @@ import type {
   Purchase,
   PurchaseCreate,
   PurchaseResponse,
+  PurchaseUpdate,
   TrocaInput,
   ExchangeResponse,
+  ExchangeUpdate,
   Dashboard,
   FinancialReport,
   PageResponse,
+  VehicleHistory,
+  VehicleCostItem,
+  FinancialMovement,
+  StoreTransaction,
+  StoreTransactionCreate,
 } from "@/types";
 
-/** 
- * Configuração da API:
- * - Em desenvolvimento: usa proxy local (/api/proxy/*) para evitar CORS
- * - Em produção: pode usar proxy ou requisição direta (dependendo do CORS)
- */
+/** Proxy local (/api/proxy/*) evita CORS; rewrites encaminham para o back-end. */
 const PROXY_PREFIX = "/api/proxy";
-
-// Obter URL base do backend
-const getBackendUrl = () => {
-  // No cliente, tenta usar NEXT_PUBLIC_API_URL se disponível
-  if (typeof window !== "undefined") {
-    // Em produção, se NEXT_PUBLIC_API_URL estiver disponível no cliente, pode fazer requisição direta
-    // Mas por segurança, vamos usar o proxy sempre
-    return window.location.origin;
-  }
-  return "http://localhost:3000";
-};
-
-const getBaseUrl = getBackendUrl;
+const getBaseUrl = () =>
+  typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
 
 type RequestConfig = RequestInit & { params?: Record<string, string> };
 
@@ -51,34 +44,36 @@ async function request<T>(
   if (params) {
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
   }
-
-  // Debug em desenvolvimento
-  if (process.env.NODE_ENV === "development") {
-    console.log(`[API] Requisição: ${url.toString()}`);
+  
+  // Adicionar token de autenticação se existir
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(init.headers as Record<string, string>),
+  };
+  
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
   }
-
+  
   const res = await fetch(url.toString(), {
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...init.headers,
-    },
+    headers,
   });
 
   if (!res.ok) {
     const status = res.status;
     const text = await res.text();
-    let errorMsg = text || `${res.status} ${res.statusText}`;
+    const errorMsg = text || `${res.status} ${res.statusText}`;
+    console.error(`[API] Erro ${status} (${res.url}):`, errorMsg);
     
-    // Mensagem mais clara para erro 404
-    if (status === 404) {
-      const isProxyError = url.pathname.startsWith("/api/proxy");
-      if (isProxyError) {
-        errorMsg = `Backend não encontrado. Verifique se NEXT_PUBLIC_API_URL está configurado corretamente. URL tentada: ${url.toString()}`;
-      }
+    // Se for erro 401 (não autorizado), limpar token e redirecionar para login
+    if (status === 401 && typeof window !== "undefined") {
+      localStorage.removeItem("auth_token");
+      localStorage.removeItem("auth_user");
+      window.location.href = "/login";
     }
     
-    console.error(`[API] Erro ${status} (${res.url}):`, errorMsg);
     throw new Error(errorMsg || `Erro ${status}: ${res.statusText}`);
   }
 
@@ -112,6 +107,8 @@ export const api = {
       }),
     buscarPorPlaca: (licensePlate: string) =>
       request<Vehicle>("/vehicles/search", { params: { licensePlate } }),
+    historico: (licensePlate: string) =>
+      request<VehicleHistory>(`/vehicles/${encodeURIComponent(licensePlate)}/history`),
     criar: (body: VehicleCreate) =>
       request<void>("/vehicles", {
         method: "POST",
@@ -126,6 +123,19 @@ export const api = {
       request<void>(`/vehicles/${encodeURIComponent(licensePlate)}`, {
         method: "DELETE",
       }),
+    custos: {
+      listar: (licensePlate: string) =>
+        request<VehicleCostItem[]>(`/vehicles/${encodeURIComponent(licensePlate)}/costs`),
+      criar: (licensePlate: string, body: { cost: number; description: string; costDate?: string }) =>
+        request<VehicleCostItem>(`/vehicles/${encodeURIComponent(licensePlate)}/costs`, {
+          method: "POST",
+          body: JSON.stringify(body),
+        }),
+      deletar: (licensePlate: string, id: number) =>
+        request<void>(`/vehicles/${encodeURIComponent(licensePlate)}/costs/${id}`, {
+          method: "DELETE",
+        }),
+    },
   },
 
   sales: {
@@ -153,10 +163,14 @@ export const api = {
         method: "POST",
         body: JSON.stringify(body),
       }),
-    atualizar: (id: number, body: Partial<SaleCreate> & { salePrice: number }) =>
-      request<void>(`/sales/${id}`, {
+    atualizar: (id: number, body: SaleUpdate) =>
+      request<SaleResponse>(`/sales/${id}`, {
         method: "PUT",
         body: JSON.stringify(body),
+      }),
+    cancelar: (id: number) =>
+      request<SaleResponse>(`/sales/${id}/cancel`, {
+        method: "POST",
       }),
     deletar: (id: number) =>
       request<void>(`/sales/${id}`, {
@@ -177,9 +191,19 @@ export const api = {
         method: "POST",
         body: JSON.stringify(body),
       }),
-    deletar: (id: number) =>
+    atualizar: (id: number, body: PurchaseUpdate) =>
+      request<PurchaseResponse>(`/purchases/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }),
+    cancelar: (id: number) =>
+      request<PurchaseResponse>(`/purchases/${id}/cancel`, {
+        method: "POST",
+      }),
+    deletar: (id: number, deleteVehicle: boolean = false) =>
       request<void>(`/purchases/${id}`, {
         method: "DELETE",
+        params: { deleteVehicle: String(deleteVehicle) },
       }),
   },
 
@@ -207,13 +231,6 @@ export const api = {
       request<void>(`/partners/${encodeURIComponent(cpf)}`, {
         method: "DELETE",
       }),
-    // Compatibilidade com endpoint antigo
-    listarCompat: () => request<Customer[]>("/customers/"),
-    criarCompat: (body: Customer) =>
-      request<void>("/customers", {
-        method: "POST",
-        body: JSON.stringify(body),
-      }),
   },
 
   exchanges: {
@@ -226,19 +243,22 @@ export const api = {
         method: "POST",
         body: JSON.stringify(body),
       }),
-    deletar: (id: number) =>
-      request<void>(`/exchanges/${id}`, {
-        method: "DELETE",
-      }),
-  },
-  /** Compatibilidade com endpoint antigo */
-  trocas: {
-    realizar: (body: TrocaInput) =>
-      request<void>("/trocas", {
-        method: "POST",
+    atualizar: (id: number, body: ExchangeUpdate) =>
+      request<ExchangeResponse>(`/exchanges/${id}`, {
+        method: "PUT",
         body: JSON.stringify(body),
       }),
+    cancelar: (id: number) =>
+      request<ExchangeResponse>(`/exchanges/${id}/cancel`, {
+        method: "POST",
+      }),
+    deletar: (id: number, deleteIncomingVehicle: boolean = false) =>
+      request<void>(`/exchanges/${id}`, {
+        method: "DELETE",
+        params: { deleteIncomingVehicle: String(deleteIncomingVehicle) },
+      }),
   },
+
   reports: {
     dashboard: () => request<Dashboard>("/reports/dashboard"),
     financial: (startDate?: string, endDate?: string) => {
@@ -247,6 +267,43 @@ export const api = {
       if (endDate) params.endDate = endDate;
       return request<FinancialReport>("/reports/financial", { params });
     },
+  },
+  financial: {
+    movements: (page: number = 0, size: number = 20, startDate?: string, endDate?: string, type?: "ENTRY" | "EXIT", category?: string) => {
+      const params: Record<string, string> = {
+        page: String(page),
+        size: String(size),
+      };
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+      if (type) params.type = type;
+      if (category) params.category = category;
+      return request<PageResponse<FinancialMovement>>("/financial/movements", { params });
+    },
+  },
+  storeTransactions: {
+    listar: (page: number = 0, size: number = 20) =>
+      request<PageResponse<StoreTransaction>>("/store-transactions", {
+        params: buildPaginationParams(page, size, "date,desc"),
+      }),
+    criar: (body: StoreTransactionCreate) =>
+      request<StoreTransaction>("/store-transactions", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    atualizar: (id: number, body: Partial<StoreTransactionCreate>) =>
+      request<StoreTransaction>(`/store-transactions/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }),
+    cancelar: (id: number) =>
+      request<StoreTransaction>(`/store-transactions/${id}/cancel`, {
+        method: "POST",
+      }),
+    deletar: (id: number) =>
+      request<void>(`/store-transactions/${id}`, {
+        method: "DELETE",
+      }),
   },
 };
 

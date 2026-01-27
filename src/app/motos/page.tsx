@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { Bike, Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { Bike, Plus, Search, ChevronLeft, ChevronRight, Eye } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -56,7 +57,7 @@ export default function MotosPage() {
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
-  const fetchVehicles = (pageNum: number = 0, size: number = pageSize) => {
+  const fetchVehicles = useCallback((pageNum: number = 0, size: number = pageSize) => {
     setLoading(true);
     api.vehicles
       .listar(pageNum, size)
@@ -71,11 +72,11 @@ export default function MotosPage() {
         setTotalPages(0);
       })
       .finally(() => setLoading(false));
-  };
+  }, [pageSize]);
 
   useEffect(() => {
     fetchVehicles(page, pageSize);
-  }, [page, pageSize]);
+  }, [page, pageSize, fetchVehicles]);
 
   const filtered = useMemo(() => {
     let list = veiculos;
@@ -207,6 +208,7 @@ export default function MotosPage() {
                     <TableHead>Cor</TableHead>
                     <TableHead className="text-right">Quilometragem</TableHead>
                     <TableHead className="w-28">Estoque</TableHead>
+                    <TableHead className="w-24">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -236,40 +238,91 @@ export default function MotosPage() {
                           {v.inStock ? "Em estoque" : "Fora"}
                         </Badge>
                       </TableCell>
+                      <TableCell>
+                        <Link href={`/motos/${v.licensePlate}`}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Ver detalhes">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
 
-              <div className="flex flex-col gap-4 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-muted-foreground">
-                  Mostrando {page * pageSize + 1}–
-                  {Math.min((page + 1) * pageSize, totalElements)} de{" "}
-                  {totalElements}{" "}
-                  {totalElements === 1 ? "veículo" : "veículos"}
-                </p>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage((p) => Math.max(0, p - 1))}
-                    disabled={page <= 0}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Anterior
-                  </Button>
-                  <span className="text-sm text-muted-foreground">
-                    Página {page + 1} de {Math.max(1, totalPages)}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                    disabled={page >= totalPages - 1}
-                  >
-                    Próxima
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+              <div className="flex flex-col gap-4 border-t px-2 md:px-4 py-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs md:text-sm text-muted-foreground">Itens por página:</span>
+                      <Select
+                        value={String(pageSize)}
+                        onValueChange={(v) => {
+                          setPageSize(Number(v) as (typeof PAGE_SIZE_OPTIONS)[number]);
+                          setPage(0);
+                        }}
+                      >
+                        <SelectTrigger className="w-[80px] md:w-[100px] text-xs md:text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PAGE_SIZE_OPTIONS.map((n) => (
+                            <SelectItem key={n} value={String(n)}>
+                              {n}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <span className="text-xs md:text-sm text-muted-foreground">
+                      Mostrando {page * pageSize + 1} a {Math.min((page + 1) * pageSize, totalElements)} de {totalElements} {totalElements === 1 ? "veículo" : "veículos"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 md:gap-2 w-full sm:w-auto justify-center sm:justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(0)}
+                      disabled={page <= 0}
+                      className="text-xs md:text-sm px-2 md:px-3"
+                    >
+                      <span className="hidden sm:inline">Primeira</span>
+                      <span className="sm:hidden">1ª</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.max(0, p - 1))}
+                      disabled={page <= 0}
+                      className="text-xs md:text-sm px-2 md:px-3"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      <span className="hidden sm:inline ml-1">Anterior</span>
+                    </Button>
+                    <span className="text-xs md:text-sm text-muted-foreground min-w-[80px] md:min-w-[100px] text-center px-2">
+                      {page + 1}/{Math.max(1, totalPages)}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                      disabled={page >= totalPages - 1}
+                      className="text-xs md:text-sm px-2 md:px-3"
+                    >
+                      <span className="hidden sm:inline mr-1">Próxima</span>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(totalPages - 1)}
+                      disabled={page >= totalPages - 1}
+                      className="text-xs md:text-sm px-2 md:px-3"
+                    >
+                      <span className="hidden sm:inline">Última</span>
+                      <span className="sm:hidden">Últ.</span>
+                    </Button>
+                  </div>
                 </div>
               </div>
             </>

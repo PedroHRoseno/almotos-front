@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Repeat, Plus, ChevronLeft, ChevronRight, Loader2, Search, X, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,7 @@ import { api } from "@/lib/api";
 import type { ExchangeResponse } from "@/types";
 import { FormTroca } from "@/components/forms/form-troca";
 import { toast } from "sonner";
+import { useDashboard } from "@/contexts/DashboardContext";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -79,8 +80,9 @@ export default function TrocasPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [exchangeToDelete, setExchangeToDelete] = useState<ExchangeResponse | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const { refreshDashboard } = useDashboard();
 
-  const fetchExchanges = () => {
+  const fetchExchanges = useCallback(() => {
     setLoading(true);
     api.exchanges
       .listar(page, pageSize)
@@ -95,11 +97,11 @@ export default function TrocasPage() {
         setTotalPages(0);
       })
       .finally(() => setLoading(false));
-  };
+  }, [page, pageSize]);
 
   useEffect(() => {
     fetchExchanges();
-  }, [page, pageSize]);
+  }, [fetchExchanges]);
 
   const handlePageSizeChange = (newSize: string) => {
     setPageSize(Number(newSize));
@@ -109,6 +111,7 @@ export default function TrocasPage() {
   const handleTrocaSuccess = () => {
     setModalOpen(false);
     fetchExchanges();
+    refreshDashboard();
   };
 
   const handleDeleteClick = (exchange: ExchangeResponse) => {
@@ -122,10 +125,11 @@ export default function TrocasPage() {
     setDeleting(true);
     try {
       await api.exchanges.deletar(exchangeToDelete.id);
-      toast.success("Troca excluída com sucesso. O veículo de saída foi revertido para disponível e o veículo de entrada foi removido do estoque.");
+      toast.success("Troca cancelada com sucesso. O veículo de saída foi revertido para disponível.");
       setDeleteDialogOpen(false);
       setExchangeToDelete(null);
       fetchExchanges();
+      refreshDashboard();
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -222,16 +226,20 @@ export default function TrocasPage() {
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <span
+                          <div
                             className={`font-medium ${
                               exchange.diferencaValor >= 0
                                 ? "text-green-600 dark:text-green-400"
                                 : "text-red-600 dark:text-red-400"
                             }`}
                           >
-                            {exchange.diferencaValor >= 0 ? "+" : ""}
-                            {formatCurrency(exchange.diferencaValor)}
-                          </span>
+                            <div className="text-xs font-normal opacity-90">
+                              {exchange.diferencaValor >= 0 ? "Cliente pagou" : "Loja pagou"}
+                            </div>
+                            <div>
+                              {formatCurrency(exchange.diferencaValor)}
+                            </div>
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Button
@@ -250,64 +258,72 @@ export default function TrocasPage() {
                 </Table>
               </div>
 
-              <div className="flex items-center justify-between border-t px-4 py-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Itens por página:</span>
-                    <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
-                      <SelectTrigger className="w-[100px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="10">10</SelectItem>
-                        <SelectItem value="20">20</SelectItem>
-                        <SelectItem value="50">50</SelectItem>
-                        <SelectItem value="100">100</SelectItem>
-                      </SelectContent>
-                    </Select>
+              <div className="flex flex-col gap-4 border-t px-2 md:px-4 py-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs md:text-sm text-muted-foreground">Itens por página:</span>
+                      <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
+                        <SelectTrigger className="w-[80px] md:w-[100px] text-xs md:text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="20">20</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                          <SelectItem value="100">100</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <span className="text-xs md:text-sm text-muted-foreground">
+                      Mostrando {page * pageSize + 1} a {Math.min((page + 1) * pageSize, totalElements)} de {totalElements} trocas
+                    </span>
                   </div>
-                  <span className="text-sm text-muted-foreground">
-                    Mostrando {page * pageSize + 1} a {Math.min((page + 1) * pageSize, totalElements)} de {totalElements} trocas
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(0)}
-                    disabled={page <= 0}
-                  >
-                    Primeira
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage((p) => Math.max(0, p - 1))}
-                    disabled={page <= 0}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Anterior
-                  </Button>
-                  <span className="text-sm text-muted-foreground min-w-[100px] text-center">
-                    Página {page + 1} de {totalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                    disabled={page >= totalPages - 1}
-                  >
-                    Próxima
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(totalPages - 1)}
-                    disabled={page >= totalPages - 1}
-                  >
-                    Última
-                  </Button>
+                  <div className="flex items-center gap-1 md:gap-2 w-full sm:w-auto justify-center sm:justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(0)}
+                      disabled={page <= 0}
+                      className="text-xs md:text-sm px-2 md:px-3"
+                    >
+                      <span className="hidden sm:inline">Primeira</span>
+                      <span className="sm:hidden">1ª</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.max(0, p - 1))}
+                      disabled={page <= 0}
+                      className="text-xs md:text-sm px-2 md:px-3"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      <span className="hidden sm:inline ml-1">Anterior</span>
+                    </Button>
+                    <span className="text-xs md:text-sm text-muted-foreground min-w-[80px] md:min-w-[100px] text-center px-2">
+                      {page + 1}/{totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                      disabled={page >= totalPages - 1}
+                      className="text-xs md:text-sm px-2 md:px-3"
+                    >
+                      <span className="hidden sm:inline mr-1">Próxima</span>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(totalPages - 1)}
+                      disabled={page >= totalPages - 1}
+                      className="text-xs md:text-sm px-2 md:px-3"
+                    >
+                      <span className="hidden sm:inline">Última</span>
+                      <span className="sm:hidden">Últ.</span>
+                    </Button>
+                  </div>
                 </div>
               </div>
             </>
@@ -330,21 +346,27 @@ export default function TrocasPage() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogTitle>Confirmar Cancelamento</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta troca? Isso reverterá o status do veículo de saída para DISPONÍVEL e removerá o veículo de entrada do estoque.
+              Tem certeza que deseja cancelar esta troca? A troca será marcada como CANCELADA e o status do veículo de saída será revertido para DISPONÍVEL. Transações canceladas não aparecem nos cálculos financeiros.
               {exchangeToDelete && (
                 <div className="mt-2 p-2 bg-muted rounded text-xs space-y-1">
                   <div><strong>Veículo Entrada:</strong> {exchangeToDelete.vehicleEntradaBrand} {exchangeToDelete.vehicleEntradaModel} - {exchangeToDelete.vehicleEntradaLicensePlate}</div>
                   <div><strong>Veículo Saída:</strong> {exchangeToDelete.vehicleSaidaBrand} {exchangeToDelete.vehicleSaidaModel} - {exchangeToDelete.vehicleSaidaLicensePlate}</div>
                   <div><strong>Parceiro:</strong> {exchangeToDelete.partnerName}</div>
-                  <div><strong>Diferença:</strong> {formatCurrency(exchangeToDelete.diferencaValor)}</div>
+                  <div>
+                    <strong>Diferença:</strong>{" "}
+                    <span className={exchangeToDelete.diferencaValor >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                      {exchangeToDelete.diferencaValor >= 0 ? "Cliente pagou " : "Loja pagou "}
+                      {formatCurrency(exchangeToDelete.diferencaValor)}
+                    </span>
+                  </div>
                 </div>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>Não Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
               disabled={deleting}
@@ -353,10 +375,10 @@ export default function TrocasPage() {
               {deleting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Excluindo...
+                  Cancelando...
                 </>
               ) : (
-                "Excluir"
+                "Confirmar Cancelamento"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

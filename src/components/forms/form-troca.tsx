@@ -23,7 +23,8 @@ import { useState, useEffect, useMemo } from "react";
 const defaultValues: Partial<TrocaFormData> = {
   veiculoEntradaLicensePlate: "",
   veiculoSaidaLicensePlate: "",
-  valorDiferenca: 0,
+  tipoDiferenca: "cliente_paga",
+  valorAbsoluto: undefined,
   customerCpf: "",
 };
 
@@ -131,22 +132,22 @@ export function FormTroca({ onSuccess, insideModal }: FormTrocaProps = {}) {
     setSuccess(null);
     setError(null);
     try {
-      // Preparar o CPF do parceiro (remover formatação se existir)
-      // Tratar o valor especial "__NONE__" como undefined
       const customerCpfValue = data.customerCpf?.trim();
       const customerCpf = customerCpfValue && customerCpfValue !== "__NONE__"
         ? cpfSomenteDigitos(customerCpfValue)
         : undefined;
 
-      // Usar o novo endpoint de exchanges
+      // Valor da diferença: positivo = cliente paga (entrada), negativo = loja paga (saída)
+      const valorDiferenca = data.tipoDiferenca === "cliente_paga"
+        ? Number(data.valorAbsoluto)
+        : -Number(data.valorAbsoluto);
+
       const payload = {
         veiculoEntradaLicensePlate: data.veiculoEntradaLicensePlate,
         veiculoSaidaLicensePlate: data.veiculoSaidaLicensePlate,
-        valorDiferenca: data.valorDiferenca,
+        valorDiferenca,
         ...(customerCpf && customerCpf.length === 11 ? { customerCpf } : {}),
       };
-
-      console.log("DEBUG Frontend - Payload de troca:", JSON.stringify(payload, null, 2));
 
       await api.exchanges.realizar(payload);
       setSuccess("Troca realizada com sucesso.");
@@ -260,21 +261,56 @@ export function FormTroca({ onSuccess, insideModal }: FormTrocaProps = {}) {
             </FormField>
 
             <FormField
-              name="valorDiferenca"
+              name="tipoDiferenca"
+              label="Quem paga a diferença?"
+              required
+              error={form.formState.errors.tipoDiferenca}
+            >
+              <div className="flex flex-col gap-3 rounded-lg border p-4 bg-muted/30">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    value="cliente_paga"
+                    {...form.register("tipoDiferenca")}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                    Cliente paga a diferença
+                  </span>
+                  <span className="text-xs text-muted-foreground">(entrada para a loja)</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    value="loja_paga"
+                    {...form.register("tipoDiferenca")}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  <span className="text-sm font-medium text-red-600 dark:text-red-400">
+                    Loja paga a diferença
+                  </span>
+                  <span className="text-xs text-muted-foreground">(saída da loja)</span>
+                </label>
+              </div>
+            </FormField>
+
+            <FormField
+              name="valorAbsoluto"
               label="Valor da diferença (R$)"
               required
-              error={form.formState.errors.valorDiferenca}
+              error={form.formState.errors.valorAbsoluto}
             >
               <Input
-                id="valorDiferenca"
+                id="valorAbsoluto"
                 type="number"
                 step="0.01"
-                placeholder="Ex.: 5000,00 ou -2000,00"
-                {...form.register("valorDiferenca", { valueAsNumber: true })}
-                className={form.formState.errors.valorDiferenca ? "border-destructive" : ""}
+                min={0}
+                placeholder="Ex.: 5.000,00"
+                {...form.register("valorAbsoluto", { valueAsNumber: true })}
+                className={form.formState.errors.valorAbsoluto ? "border-destructive" : ""}
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                <strong>Valor positivo:</strong> Cliente paga a diferença. <strong>Valor negativo:</strong> Loja paga a diferença.
+                Informe apenas o valor em R$. O tipo (quem paga) já está definido acima.
               </p>
             </FormField>
           </div>

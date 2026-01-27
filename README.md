@@ -22,14 +22,19 @@ almotos-front/
 │   ├── app/                 # App Router (páginas e layout)
 │   │   ├── layout.tsx       # Layout raiz com sidebar
 │   │   ├── page.tsx         # Dashboard
-│   │   ├── motos/          # Página de veículos (tabela paginada)
+│   │   ├── login/           # Login (JWT)
+│   │   ├── motos/           # Página de veículos (tabela paginada)
+│   │   │   └── [placa]/     # Detalhes do veículo (custos, histórico)
 │   │   ├── clientes/        # Página de parceiros/clientes
-│   │   │   └── [cpf]/      # Detalhes e edição de parceiro
-│   │   ├── compras/        # Página de compras (tabela paginada)
-│   │   ├── vendas/         # Página de vendas (tabela paginada)
-│   │   ├── trocas/         # Página de trocas
-│   │   ├── relatorios/     # Página de relatórios
-│   │   └── configuracoes/  # Página de configurações
+│   │   │   └── [cpf]/       # Detalhes e edição de parceiro
+│   │   ├── compras/         # Página de compras (tabela paginada)
+│   │   ├── vendas/          # Página de vendas (tabela paginada)
+│   │   ├── trocas/          # Página de trocas
+│   │   ├── fluxo-caixa/     # Movimentações unificadas + lançamentos da loja
+│   │   ├── relatorios/      # Página de relatórios
+│   │   ├── guia/            # Guia do sistema (uso e lógica)
+│   │   ├── configuracoes/   # Página de configurações
+│   │   └── api/proxy/       # API Route proxy para o backend (evita CORS)
 │   ├── components/
 │   │   ├── forms/          # Formulários
 │   │   │   ├── form-veiculo.tsx
@@ -69,12 +74,14 @@ almotos-front/
 O layout inclui um **menu lateral** (sidebar) com:
 
 - **Dashboard** – visão geral com indicadores financeiros e estoque
-- **Veículos** – cadastro e listagem de veículos
+- **Veículos** – cadastro e listagem de veículos (com detalhes por placa)
 - **Clientes** – cadastro e listagem de parceiros/clientes/fornecedores
 - **Compras** – registro e listagem de compras
 - **Vendas** – registro e listagem de vendas
 - **Trocas** – registro e listagem de trocas de veículos
-- **Relatórios** – indicadores financeiros
+- **Fluxo de Caixa** – movimentações unificadas e lançamentos da loja
+- **Relatórios** – indicadores financeiros por período
+- **Guia** – explicação do funcionamento e da lógica do sistema
 - **Configurações** – preferências do sistema
 
 O menu pode ser **recolhido** (apenas ícones) clicando no botão de seta no header da sidebar.
@@ -83,10 +90,10 @@ O menu pode ser **recolhido** (apenas ícones) clicando no botão de seta no hea
 
 ### Dashboard
 - Exibe indicadores em tempo real:
-  - Total de motos em estoque
-  - Total de vendas
-  - Total de compras
-  - Saldo líquido (vendas - compras)
+  - Motos em estoque, Total de vendas, Total de compras, Total de trocas
+  - Custos adicionais, Despesas operacionais
+  - Lucro bruto e Lucro líquido (Lucro bruto − Despesas operacionais)
+- Gráfico comparativo Lucro Bruto vs Despesas Operacionais
 
 ### Veículos
 - **Tabela paginada** com todos os veículos
@@ -127,15 +134,26 @@ O menu pode ser **recolhido** (apenas ícones) clicando no botão de seta no hea
 - Campos: veículo, cliente, valor da venda (data automática)
 
 ### Trocas
-- Formulário para registro de trocas
+- Formulário para registro de trocas com **quem paga a diferença** (cliente ou loja)
+- Valor da diferença sempre informado em valor absoluto; exibição como positivo/negativo na listagem
 - **Seleção de parceiro opcional** via SearchableSelect
 - Se não informado, sistema busca automaticamente pela última venda do veículo de entrada
-- Seleção de veículos via SearchableSelect
 - Campos: veículo de entrada, veículo de saída, valor da diferença, CPF do parceiro (opcional)
 
+### Fluxo de Caixa
+- Tabela unificada de movimentações: vendas, compras, trocas, custos de veículos e transações da loja
+- Filtros: Este Mês, Entradas, Saídas, Categoria
+- **Novo lançamento**: despesas ou receitas da loja (tipo Entrada/Saída, categoria, descrição, valor)
+
 ### Relatórios
-- Dashboard financeiro
-- Filtros de data para relatórios personalizados
+- Relatório financeiro por período (padrão: últimos 30 dias)
+- Total de vendas, compras, trocas, custos adicionais e saldo geral
+- Filtros de data personalizados
+
+### Guia
+- Visão geral do AlMotos, módulos (Clientes, Veículos, Compras, Vendas, Trocas, Fluxo de Caixa, Relatórios)
+- Lógica financeira e fórmulas (Lucro Bruto, Despesas Operacionais, Lucro Líquido)
+- Custos adicionais e detalhes do veículo, dicas rápidas
 
 ## Componentes Customizados
 
@@ -175,57 +193,41 @@ Formulários modernos com **validação de campos** (Zod) para todas as entidade
 
 ### Configuração da API
 
-A API está configurada para se comunicar com o backend Kotlin. Configure a URL em `.env.local`:
+O destino das requisições é definido **apenas** pela variável `NEXT_PUBLIC_API_URL`. Use-a em `.env.local` (desenvolvimento) ou nas variáveis de ambiente da Vercel (produção):
+
+| Ambiente | Valor recomendado |
+|----------|-------------------|
+| Local    | `http://localhost:8080` |
+| Produção (Vercel → Railway) | `https://seu-app.up.railway.app` |
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8080
 ```
 
-**IMPORTANTE**: O backend Kotlin não usa o prefixo `/api`. Todos os endpoints estão diretamente na raiz.
-
-### Endpoints Utilizados
-
-- **Veículos**: 
-  - `GET /vehicles` (paginado)
-  - `GET /vehicles/available` (paginado)
-  - `POST /vehicles`
-  
-- **Parceiros**: 
-  - `GET /partners` (paginado, com busca)
-  - `GET /partners/{cpf}`
-  - `POST /partners`
-  - `PUT /partners/{cpf}`
-  
-- **Vendas**: 
-  - `GET /sales` (paginado, com busca)
-  - `POST /sales`
-  
-- **Compras**: 
-  - `GET /purchases` (paginado, com busca)
-  - `POST /purchases`
-  
-- **Trocas**: 
-  - `GET /exchanges` (paginado)
-  - `POST /exchanges`
-  
-- **Relatórios**: 
-  - `GET /reports/dashboard`
-  - `GET /reports/financial`
+O frontend **não** chama o backend diretamente: todas as chamadas passam pelo proxy (`/api/proxy/*`), que encaminha para essa URL.
 
 ### Proxy e CORS
 
-O frontend usa um proxy via API Routes (`/api/proxy/*`) implementado em `src/app/api/proxy/[...path]/route.ts`. Isso resolve problemas de CORS e DNS que ocorriam com `rewrites` na Vercel quando o backend está na Railway.
+O proxy está em `src/app/api/proxy/[...path]/route.ts`. Ele usa **somente** `NEXT_PUBLIC_API_URL` para saber para onde encaminhar.
 
-**Como funciona:**
-- O frontend faz requisições para `/api/proxy/vehicles`
-- A API Route do Next.js recebe a requisição no servidor
-- A API Route faz o proxy para o backend usando `NEXT_PUBLIC_API_URL`
-- A resposta é retornada ao frontend
+**Fluxo:**
+1. O front chama `/api/proxy/vehicles`, `/api/proxy/reports/dashboard`, etc. (mesma origem do Next).
+2. A API Route recebe no servidor e repassa para `NEXT_PUBLIC_API_URL` + path.
+3. A resposta volta ao cliente sem CORS/DNS da Railway no browser.
 
-**Vantagens:**
-- Funciona corretamente na Vercel com backends na Railway
-- Evita erros de DNS (DNS_HOSTNAME_RESOLVED_PRIVATE)
-- Mantém CORS configurado corretamente
+**Vantagens:** funciona na Vercel com backend na Railway, evita DNS_HOSTNAME_RESOLVED_PRIVATE e problemas de CORS.
+
+### Endpoints utilizados
+
+- **Autenticação**: `POST /api/auth/login`
+- **Veículos**: `GET/POST/PUT/DELETE /vehicles`, `GET /vehicles/available`, `GET /vehicles/{placa}/history`, `GET/POST/DELETE /vehicles/{placa}/costs`
+- **Parceiros**: `GET/POST/PUT/DELETE /partners`, `GET /partners/{cpf}`
+- **Vendas**: `GET/POST/PUT/DELETE /sales`
+- **Compras**: `GET/POST/PUT/DELETE /purchases`
+- **Trocas**: `GET/POST/PUT/DELETE /exchanges`
+- **Fluxo de caixa**: `GET /financial/movements` (paginado, filtros por data/tipo/categoria)
+- **Transações da loja**: `GET/POST/PUT/DELETE /store-transactions`
+- **Relatórios**: `GET /reports/dashboard`, `GET /reports/financial`
 
 ## Integração ViaCEP
 
@@ -380,8 +382,9 @@ Todos os tipos estão definidos em `src/types/index.ts`:
 - `PartnerSummary`, `PartnerDetail`, `Customer`
 - `Sale`, `SaleResponse`, `SaleCreate`
 - `Purchase`, `PurchaseResponse`, `PurchaseCreate`
-- `ExchangeResponse`, `ExchangeCreate`
+- `ExchangeResponse`, `TrocaInput`, `ExchangeUpdate`
 - `Dashboard`, `FinancialReport`
+- `FinancialMovement`, `StoreTransaction`, `StoreTransactionCreate`
 - `PageResponse<T>` (para paginação)
 
 ## Próximos Passos
@@ -389,6 +392,4 @@ Todos os tipos estão definidos em `src/types/index.ts`:
 - [ ] Implementar edição de veículos
 - [ ] Adicionar filtros avançados nas tabelas
 - [ ] Implementar exportação de relatórios (PDF/Excel)
-- [ ] Adicionar gráficos no dashboard
-- [ ] Implementar autenticação e autorização
 - [ ] Adicionar testes automatizados

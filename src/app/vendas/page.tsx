@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ShoppingCart, Plus, ChevronLeft, ChevronRight, Loader2, Search, X, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -41,6 +41,7 @@ import {
 import { api } from "@/lib/api";
 import type { SaleResponse } from "@/types";
 import { FormVenda } from "@/components/forms/form-venda";
+import { useDashboard } from "@/contexts/DashboardContext";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -81,6 +82,7 @@ export default function VendasPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [saleToDelete, setSaleToDelete] = useState<SaleResponse | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const { refreshDashboard } = useDashboard();
 
   // Debounce do termo de busca
   useEffect(() => {
@@ -92,7 +94,7 @@ export default function VendasPage() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const fetchSales = () => {
+  const fetchSales = useCallback(() => {
     setLoading(true);
     const search = debouncedSearchTerm.trim() || undefined;
     api.sales
@@ -108,11 +110,11 @@ export default function VendasPage() {
         setTotalPages(0);
       })
       .finally(() => setLoading(false));
-  };
+  }, [page, pageSize, debouncedSearchTerm]);
 
   useEffect(() => {
     fetchSales();
-  }, [page, pageSize, debouncedSearchTerm]);
+  }, [fetchSales]);
 
   const handlePageSizeChange = (newSize: string) => {
     setPageSize(Number(newSize));
@@ -122,6 +124,7 @@ export default function VendasPage() {
   const handleVendaSuccess = () => {
     setModalOpen(false);
     fetchSales();
+    refreshDashboard();
   };
 
   const handleDeleteClick = (sale: SaleResponse) => {
@@ -135,10 +138,11 @@ export default function VendasPage() {
     setDeleting(true);
     try {
       await api.sales.deletar(saleToDelete.id);
-      toast.success("Venda excluída com sucesso. O veículo foi revertido para disponível.");
+      toast.success("Venda cancelada com sucesso. O veículo foi revertido para disponível.");
       setDeleteDialogOpen(false);
       setSaleToDelete(null);
       fetchSales();
+      refreshDashboard();
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -361,9 +365,9 @@ export default function VendasPage() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogTitle>Confirmar Cancelamento</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta venda? Isso reverterá o status do veículo para DISPONÍVEL no estoque.
+              Tem certeza que deseja cancelar esta venda? A venda será marcada como CANCELADA e o veículo será revertido para DISPONÍVEL no estoque. Transações canceladas não aparecem nos cálculos financeiros.
               {saleToDelete && (
                 <div className="mt-2 p-2 bg-muted rounded text-xs">
                   <div><strong>Veículo:</strong> {saleToDelete.vehicleBrand} {saleToDelete.vehicleModel} - {saleToDelete.vehicleLicensePlate}</div>
@@ -374,7 +378,7 @@ export default function VendasPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>Não Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
               disabled={deleting}
@@ -383,10 +387,10 @@ export default function VendasPage() {
               {deleting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Excluindo...
+                  Cancelando...
                 </>
               ) : (
-                "Excluir"
+                "Confirmar Cancelamento"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

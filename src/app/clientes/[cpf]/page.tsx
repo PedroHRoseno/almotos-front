@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Edit } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -27,13 +27,7 @@ export default function ClienteDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (cpf) {
-      fetchPartnerDetail();
-    }
-  }, [cpf]);
-
-  const fetchPartnerDetail = () => {
+  const fetchPartnerDetail = useCallback(() => {
     setLoading(true);
     setError(null);
     api.customers
@@ -45,7 +39,13 @@ export default function ClienteDetailPage() {
         setError(err instanceof Error ? err.message : "Erro ao carregar dados do parceiro");
       })
       .finally(() => setLoading(false));
-  };
+  }, [cpf]);
+
+  useEffect(() => {
+    if (cpf) {
+      fetchPartnerDetail();
+    }
+  }, [cpf, fetchPartnerDetail]);
 
   const handleEditSuccess = () => {
     setEditModalOpen(false);

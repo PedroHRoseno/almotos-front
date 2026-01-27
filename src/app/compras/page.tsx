@@ -6,6 +6,10 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useDashboard } from "@/contexts/DashboardContext";
 import {
   Table,
   TableBody,
@@ -81,13 +85,8 @@ export default function ComprasPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [purchaseToDelete, setPurchaseToDelete] = useState<PurchaseResponse | null>(null);
   const [deleting, setDeleting] = useState(false);
-
-  // Debug: Monitorar mudanças no estado do modal
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      console.log("[Compras] Estado do modal mudou:", modalOpen);
-    }
-  }, [modalOpen]);
+  const [deleteVehicle, setDeleteVehicle] = useState(false);
+  const { refreshDashboard } = useDashboard();
 
   // Debounce do termo de busca
   useEffect(() => {
@@ -99,7 +98,7 @@ export default function ComprasPage() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const fetchPurchases = () => {
+  const fetchPurchases = useCallback(() => {
     setLoading(true);
     const search = debouncedSearchTerm.trim() || undefined;
     api.purchases
@@ -115,11 +114,11 @@ export default function ComprasPage() {
         setTotalPages(0);
       })
       .finally(() => setLoading(false));
-  };
+  }, [page, pageSize, debouncedSearchTerm]);
 
   useEffect(() => {
     fetchPurchases();
-  }, [page, pageSize, debouncedSearchTerm]);
+  }, [fetchPurchases]);
 
   const handlePageSizeChange = (newSize: string) => {
     setPageSize(Number(newSize));
@@ -129,20 +128,12 @@ export default function ComprasPage() {
   const handleCompraSuccess = () => {
     setModalOpen(false);
     fetchPurchases();
+    refreshDashboard();
   };
-
-  const handleOpenModal = useCallback(() => {
-    console.log("[Compras] handleOpenModal chamado");
-    try {
-      setModalOpen(true);
-      console.log("[Compras] Modal aberto com sucesso");
-    } catch (error) {
-      console.error("[Compras] Erro ao abrir modal:", error);
-    }
-  }, []);
 
   const handleDeleteClick = (purchase: PurchaseResponse) => {
     setPurchaseToDelete(purchase);
+    setDeleteVehicle(false);
     setDeleteDialogOpen(true);
   };
 
@@ -151,11 +142,17 @@ export default function ComprasPage() {
 
     setDeleting(true);
     try {
-      await api.purchases.deletar(purchaseToDelete.id);
-      toast.success("Compra excluída com sucesso. O veículo foi removido do estoque.");
+      await api.purchases.deletar(purchaseToDelete.id, deleteVehicle);
+      toast.success(
+        deleteVehicle
+          ? "Compra cancelada e veículo removido com sucesso."
+          : "Compra cancelada com sucesso. O veículo foi marcado como INACTIVE."
+      );
       setDeleteDialogOpen(false);
       setPurchaseToDelete(null);
+      setDeleteVehicle(false);
       fetchPurchases();
+      refreshDashboard();
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -176,12 +173,7 @@ export default function ComprasPage() {
             Gerencie as compras de veículos realizadas.
           </p>
         </div>
-        <Button 
-          onClick={handleOpenModal}
-          className="w-full sm:w-auto"
-          type="button"
-          aria-label="Abrir modal de nova compra"
-        >
+        <Button onClick={() => setModalOpen(true)} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           Nova Compra
         </Button>
@@ -248,6 +240,7 @@ export default function ComprasPage() {
                       <TableHead className="min-w-[180px]">Veículo</TableHead>
                       <TableHead className="min-w-[180px]">Fornecedor</TableHead>
                       <TableHead className="text-right min-w-[120px]">Valor</TableHead>
+                      <TableHead className="w-[100px]">Status</TableHead>
                       <TableHead className="w-[100px]">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -276,15 +269,27 @@ export default function ComprasPage() {
                           </div>
                         </TableCell>
                         <TableCell className="text-right font-medium text-sm md:text-base">
-                          {formatCurrency(purchase.purchasePrice)}
+                          {purchase.status === "CANCELLED" ? (
+                            <span className="line-through text-muted-foreground">
+                              {formatCurrency(purchase.purchasePrice)}
+                            </span>
+                          ) : (
+                            formatCurrency(purchase.purchasePrice)
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={purchase.status === "CANCELLED" ? "secondary" : "default"}>
+                            {purchase.status === "CANCELLED" ? "Cancelada" : "Ativa"}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => handleDeleteClick(purchase)}
-                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            title="Excluir compra"
+                            disabled={purchase.status === "CANCELLED"}
+                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                            title={purchase.status === "CANCELLED" ? "Compra cancelada não pode ser excluída" : "Excluir compra"}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -295,64 +300,72 @@ export default function ComprasPage() {
                 </Table>
               </div>
 
-              <div className="flex items-center justify-between border-t px-4 py-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Itens por página:</span>
-                    <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
-                      <SelectTrigger className="w-[100px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="10">10</SelectItem>
-                        <SelectItem value="20">20</SelectItem>
-                        <SelectItem value="50">50</SelectItem>
-                        <SelectItem value="100">100</SelectItem>
-                      </SelectContent>
-                    </Select>
+              <div className="flex flex-col gap-4 border-t px-2 md:px-4 py-4">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs md:text-sm text-muted-foreground">Itens por página:</span>
+                      <Select value={String(pageSize)} onValueChange={handlePageSizeChange}>
+                        <SelectTrigger className="w-[80px] md:w-[100px] text-xs md:text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="20">20</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                          <SelectItem value="100">100</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <span className="text-xs md:text-sm text-muted-foreground">
+                      Mostrando {page * pageSize + 1} a {Math.min((page + 1) * pageSize, totalElements)} de {totalElements} compras
+                    </span>
                   </div>
-                  <span className="text-sm text-muted-foreground">
-                    Mostrando {page * pageSize + 1} a {Math.min((page + 1) * pageSize, totalElements)} de {totalElements} compras
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(0)}
-                    disabled={page <= 0}
-                  >
-                    Primeira
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage((p) => Math.max(0, p - 1))}
-                    disabled={page <= 0}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    Anterior
-                  </Button>
-                  <span className="text-sm text-muted-foreground min-w-[100px] text-center">
-                    Página {page + 1} de {totalPages}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                    disabled={page >= totalPages - 1}
-                  >
-                    Próxima
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(totalPages - 1)}
-                    disabled={page >= totalPages - 1}
-                  >
-                    Última
-                  </Button>
+                  <div className="flex items-center gap-1 md:gap-2 w-full sm:w-auto justify-center sm:justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(0)}
+                      disabled={page <= 0}
+                      className="text-xs md:text-sm px-2 md:px-3"
+                    >
+                      <span className="hidden sm:inline">Primeira</span>
+                      <span className="sm:hidden">1ª</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.max(0, p - 1))}
+                      disabled={page <= 0}
+                      className="text-xs md:text-sm px-2 md:px-3"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      <span className="hidden sm:inline ml-1">Anterior</span>
+                    </Button>
+                    <span className="text-xs md:text-sm text-muted-foreground min-w-[80px] md:min-w-[100px] text-center px-2">
+                      {page + 1}/{totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                      disabled={page >= totalPages - 1}
+                      className="text-xs md:text-sm px-2 md:px-3"
+                    >
+                      <span className="hidden sm:inline mr-1">Próxima</span>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(totalPages - 1)}
+                      disabled={page >= totalPages - 1}
+                      className="text-xs md:text-sm px-2 md:px-3"
+                    >
+                      <span className="hidden sm:inline">Última</span>
+                      <span className="sm:hidden">Últ.</span>
+                    </Button>
+                  </div>
                 </div>
               </div>
             </>
@@ -360,13 +373,7 @@ export default function ComprasPage() {
         </CardContent>
       </Card>
 
-      <Dialog 
-        open={modalOpen} 
-        onOpenChange={(open) => {
-          console.log("[Compras] Dialog onOpenChange:", open);
-          setModalOpen(open);
-        }}
-      >
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Registrar Nova Compra</DialogTitle>
@@ -381,9 +388,9 @@ export default function ComprasPage() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogTitle>Confirmar Cancelamento</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta compra? Isso removerá o veículo do estoque.
+              Escolha como deseja cancelar esta compra:
               {purchaseToDelete && (
                 <div className="mt-2 p-2 bg-muted rounded text-xs">
                   <div><strong>Veículo:</strong> {purchaseToDelete.vehicleBrand} {purchaseToDelete.vehicleModel} - {purchaseToDelete.vehicleLicensePlate}</div>
@@ -393,8 +400,33 @@ export default function ComprasPage() {
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex items-start space-x-3">
+              <Checkbox
+                id="delete-vehicle"
+                checked={deleteVehicle}
+                onCheckedChange={(checked) => setDeleteVehicle(checked === true)}
+              />
+              <div className="space-y-1 leading-none">
+                <Label
+                  htmlFor="delete-vehicle"
+                  className="text-sm font-medium cursor-pointer"
+                >
+                  Remover veículo do estoque permanentemente
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Esta ação é irreversível. O veículo será permanentemente removido do sistema.
+                </p>
+              </div>
+            </div>
+            {!deleteVehicle && (
+              <p className="text-xs text-muted-foreground pl-6">
+                Se não marcar esta opção, a compra será cancelada (status CANCELLED) e o veículo será marcado como INACTIVE. O veículo permanecerá no sistema, mas não aparecerá nos cálculos financeiros.
+              </p>
+            )}
+          </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting} onClick={() => setDeleteVehicle(false)}>Não Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
               disabled={deleting}
@@ -403,10 +435,10 @@ export default function ComprasPage() {
               {deleting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Excluindo...
+                  Cancelando...
                 </>
               ) : (
-                "Excluir"
+                "Confirmar Cancelamento"
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

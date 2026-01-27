@@ -1,19 +1,17 @@
 import type { NextConfig } from "next";
 
-// NOTA: Removemos os rewrites porque eles causam problemas na Vercel
-// com hostnames privados da Railway (erro DNS_HOSTNAME_RESOLVED_PRIVATE).
-// Agora usamos API Routes em src/app/api/proxy/[...path]/route.ts
-// que fazem o proxy corretamente no servidor.
-
-// Validação em produção
+/**
+ * Proxy de API: o destino é definido por NEXT_PUBLIC_API_URL.
+ * - Local: NEXT_PUBLIC_API_URL=http://localhost:8080 (backend na máquina)
+ * - Vercel/Produção: NEXT_PUBLIC_API_URL=https://seu-app.railway.app (backend no Railway)
+ * As requisições do cliente vão para /api/proxy/[...path], que encaminha para essa URL.
+ */
 if (process.env.NODE_ENV === "production" && !process.env.NEXT_PUBLIC_API_URL) {
   console.warn(
-    "⚠️  AVISO: NEXT_PUBLIC_API_URL não está configurado. Configure esta variável de ambiente na Vercel."
+    "⚠️ NEXT_PUBLIC_API_URL não definido. Defina na Vercel para o proxy apontar ao backend (Railway)."
   );
 }
 
-const nextConfig: NextConfig = {
-  // Rewrites removidos - usando API Routes ao invés
-};
+const nextConfig: NextConfig = {};
 
 export default nextConfig;
