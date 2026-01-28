@@ -5,14 +5,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { FormField } from "@/components/ui/form-field";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -24,8 +16,8 @@ import {
 } from "@/components/ui/dialog";
 import { compraSchema, type CompraFormData } from "@/lib/validations/schemas";
 import { api } from "@/lib/api";
-import type { VehicleBrand } from "@/types";
-import { VEHICLE_BRANDS } from "@/types";
+import { digitsOnly } from "@/lib/masks";
+import { toast } from "sonner";
 import { useState, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -34,10 +26,9 @@ import { FormVeiculo } from "./form-veiculo";
 
 const defaultValues: Partial<CompraFormData> = {
   vehicleLicensePlate: "",
-  customerCpf: "",
+  customerDocument: "",
   purchasePrice: 0,
   purchaseDate: new Date().toISOString().split("T")[0], // yyyy-MM-dd
-  cadastrarVeiculo: false,
 };
 
 export interface FormCompraProps {
@@ -50,7 +41,7 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
   const [error, setError] = useState<string | null>(null);
   const [veiculos, setVeiculos] = useState<Array<{ licensePlate: string; brand: string; modelName: string }>>([]);
   const [loadingVeiculos, setLoadingVeiculos] = useState(true);
-  const [partners, setPartners] = useState<Array<{ cpf: string; name: string; city?: string }>>([]);
+  const [partners, setPartners] = useState<Array<{ document: string; name: string; city?: string }>>([]);
   const [loadingPartners, setLoadingPartners] = useState(true);
   const [modalParceiroOpen, setModalParceiroOpen] = useState(false);
   const [modalVeiculoOpen, setModalVeiculoOpen] = useState(false);
@@ -59,8 +50,6 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
     resolver: zodResolver(compraSchema),
     defaultValues,
   });
-
-  const cadastrarVeiculo = form.watch("cadastrarVeiculo");
 
   // Buscar veículos disponíveis
   useEffect(() => {
@@ -98,47 +87,48 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
 
   const veiculoOptions = useMemo(
     () =>
-      veiculos.map((v) => ({
-        value: v.licensePlate,
-        label: `${v.brand} ${v.modelName} - ${v.licensePlate}`,
-        searchText: `${v.brand} ${v.modelName} ${v.licensePlate}`,
-      })),
+      [...veiculos]
+        .sort((a, b) => a.licensePlate.localeCompare(b.licensePlate))
+        .map((v) => ({
+          value: v.licensePlate,
+          label: `${v.brand} ${v.modelName} - ${v.licensePlate}`,
+          searchText: `${v.brand} ${v.modelName} ${v.licensePlate}`,
+        })),
     [veiculos]
   );
 
   const parceiroOptions = useMemo(
     () =>
       partners.map((p) => {
-        const cpfFormatado = p.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+        const d = p.document;
+        const fmt = d.length === 11
+          ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
+          : d.length === 14
+            ? d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5")
+            : d;
         return {
-          value: p.cpf,
-          label: `${p.name} - ${cpfFormatado}`,
-          searchText: `${p.name} ${p.cpf} ${cpfFormatado} ${p.city || ""}`,
+          value: p.document,
+          label: `${p.name} - ${fmt}`,
+          searchText: `${p.name} ${p.document} ${fmt} ${p.city || ""}`,
         };
       }),
     [partners]
   );
 
-  const cpfSomenteDigitos = (cpf: string) => {
-    return cpf.replace(/\D/g, "");
-  };
-
-  const handleParceiroCriado = (cpf: string) => {
+  const handleParceiroCriado = (document: string) => {
     setModalParceiroOpen(false);
-    // Recarregar lista de parceiros
     api.customers
       .listar(0, 100)
       .then((response) => {
         setPartners(response.content || []);
-        // Selecionar o parceiro recém-criado
-        form.setValue("customerCpf", cpf);
+        form.setValue("customerDocument", document);
       })
       .catch(() => {});
   };
 
   const handleVeiculoCriado = (licensePlate: string) => {
     setModalVeiculoOpen(false);
-    // Recarregar lista de veículos
+    // Recarregar lista e selecionar exatamente o veículo criado (não o "primeiro da lista")
     api.vehicles
       .listar(0, 1000)
       .then((response) => {
@@ -149,9 +139,8 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
             modelName: v.modelName,
           }))
         );
-        // Selecionar o veículo recém-criado
         form.setValue("vehicleLicensePlate", licensePlate);
-        form.setValue("cadastrarVeiculo", false);
+        toast.success(`Veículo ${licensePlate} cadastrado e selecionado para esta compra.`);
       })
       .catch(() => {});
   };
@@ -160,24 +149,11 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
     setSuccess(null);
     setError(null);
     try {
-      // Se estiver cadastrando um novo veículo, primeiro criar o veículo
-      if (data.cadastrarVeiculo && data.vehicleBrand && data.vehicleModelName) {
-        await api.vehicles.criar({
-          licensePlate: data.vehicleLicensePlate.trim().toUpperCase(),
-          brand: data.vehicleBrand as VehicleBrand,
-          modelName: data.vehicleModelName.trim(),
-          manufactureYear: data.vehicleManufactureYear!,
-          modelYear: data.vehicleModelYear!,
-          color: data.vehicleColor!.trim().toLowerCase(),
-          kilometersDriven: data.vehicleKilometersDriven!,
-          inStock: true, // Compras sempre entram como disponível
-        });
-      }
-
+      // Veículo deve ter sido selecionado ou cadastrado via botão +
       // Criar a compra
       await api.purchases.criar({
         vehicle: { licensePlate: data.vehicleLicensePlate.trim().toUpperCase() },
-        customer: { cpf: cpfSomenteDigitos(data.customerCpf) },
+        customer: { document: digitsOnly(data.customerDocument) },
         purchasePrice: data.purchasePrice,
         purchaseDate: data.purchaseDate,
       });
@@ -207,204 +183,56 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
 
       <div className="grid gap-6">
         <FormField
-          name="cadastrarVeiculo"
-          label="Cadastrar novo veículo"
-          error={form.formState.errors.cadastrarVeiculo}
-        >
-          <div className="flex items-center space-x-2">
-            <Controller
-              control={form.control}
-              name="cadastrarVeiculo"
-              render={({ field }) => (
-                <Checkbox
-                  id="cadastrarVeiculo"
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              )}
-            />
-            <label
-              htmlFor="cadastrarVeiculo"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              Cadastrar um novo veículo nesta compra
-            </label>
-          </div>
-        </FormField>
-
-        {!cadastrarVeiculo ? (
-          <FormField
-            name="vehicleLicensePlate"
-            label="Veículo"
-            required
-            error={form.formState.errors.vehicleLicensePlate}
-          >
-            <div className="flex gap-2">
-              <div className="flex-1">
-                <Controller
-                  control={form.control}
-                  name="vehicleLicensePlate"
-                  render={({ field }) => (
-                    <SearchableSelect
-                      options={veiculoOptions}
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      placeholder={loadingVeiculos ? "Carregando…" : "Buscar veículo..."}
-                      disabled={loadingVeiculos}
-                      emptyMessage="Nenhum veículo encontrado"
-                      error={!!form.formState.errors.vehicleLicensePlate}
-                      allowClear
-                    />
-                  )}
-                />
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={() => setModalVeiculoOpen(true)}
-                title="Cadastrar novo veículo"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Selecione um veículo existente ou cadastre um novo clicando no botão +.
-            </p>
-          </FormField>
-        ) : (
-          <>
-            <FormField
-              name="vehicleLicensePlate"
-              label="Placa do Veículo"
-              required
-              error={form.formState.errors.vehicleLicensePlate}
-            >
-              <Input
-                id="vehicleLicensePlate"
-                placeholder="Ex.: ABC-1D23"
-                {...form.register("vehicleLicensePlate")}
-                className={cn(form.formState.errors.vehicleLicensePlate && "border-destructive")}
-              />
-            </FormField>
-
-            <div className="grid gap-6 sm:grid-cols-2">
-              <FormField name="vehicleBrand" label="Marca" required error={form.formState.errors.vehicleBrand}>
-                <Controller
-                  control={form.control}
-                  name="vehicleBrand"
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger
-                        id="vehicleBrand"
-                        className={cn(form.formState.errors.vehicleBrand && "border-destructive")}
-                      >
-                        <SelectValue placeholder="Selecione a marca" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {VEHICLE_BRANDS.map((b) => (
-                          <SelectItem key={b} value={b}>
-                            {b.replace(/_/g, " ")}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </FormField>
-
-              <FormField
-                name="vehicleModelName"
-                label="Modelo"
-                required
-                error={form.formState.errors.vehicleModelName}
-              >
-                <Input
-                  id="vehicleModelName"
-                  placeholder="Ex.: CG 160 Titan"
-                  {...form.register("vehicleModelName")}
-                  className={cn(form.formState.errors.vehicleModelName && "border-destructive")}
-                />
-              </FormField>
-
-              <FormField
-                name="vehicleManufactureYear"
-                label="Ano de Fabricação"
-                required
-                error={form.formState.errors.vehicleManufactureYear}
-              >
-                <Input
-                  id="vehicleManufactureYear"
-                  type="number"
-                  min={1900}
-                  max={new Date().getFullYear() + 1}
-                  placeholder="Ex.: 2023"
-                  {...form.register("vehicleManufactureYear", { valueAsNumber: true })}
-                  className={cn(form.formState.errors.vehicleManufactureYear && "border-destructive")}
-                />
-              </FormField>
-
-              <FormField
-                name="vehicleModelYear"
-                label="Ano do Modelo"
-                required
-                error={form.formState.errors.vehicleModelYear}
-              >
-                <Input
-                  id="vehicleModelYear"
-                  type="number"
-                  min={1900}
-                  max={new Date().getFullYear() + 1}
-                  placeholder="Ex.: 2023"
-                  {...form.register("vehicleModelYear", { valueAsNumber: true })}
-                  className={cn(form.formState.errors.vehicleModelYear && "border-destructive")}
-                />
-              </FormField>
-
-              <FormField
-                name="vehicleColor"
-                label="Cor (hexadecimal)"
-                required
-                error={form.formState.errors.vehicleColor}
-              >
-                <Input
-                  id="vehicleColor"
-                  type="color"
-                  {...form.register("vehicleColor")}
-                  className={cn(form.formState.errors.vehicleColor && "border-destructive")}
-                />
-              </FormField>
-
-              <FormField
-                name="vehicleKilometersDriven"
-                label="Quilometragem"
-                required
-                error={form.formState.errors.vehicleKilometersDriven}
-              >
-                <Input
-                  id="vehicleKilometersDriven"
-                  type="number"
-                  min={0}
-                  placeholder="Ex.: 15000"
-                  {...form.register("vehicleKilometersDriven", { valueAsNumber: true })}
-                  className={cn(form.formState.errors.vehicleKilometersDriven && "border-destructive")}
-                />
-              </FormField>
-            </div>
-          </>
-        )}
-
-        <FormField
-          name="customerCpf"
-          label="Fornecedor/Parceiro"
+          name="vehicleLicensePlate"
+          label="Veículo"
           required
-          error={form.formState.errors.customerCpf}
+          error={form.formState.errors.vehicleLicensePlate}
         >
           <div className="flex gap-2">
             <div className="flex-1">
               <Controller
                 control={form.control}
-                name="customerCpf"
+                name="vehicleLicensePlate"
+                render={({ field }) => (
+                  <SearchableSelect
+                    options={veiculoOptions}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder={loadingVeiculos ? "Carregando…" : "Buscar veículo..."}
+                    disabled={loadingVeiculos}
+                    emptyMessage="Nenhum veículo encontrado"
+                    error={!!form.formState.errors.vehicleLicensePlate}
+                    allowClear
+                  />
+                )}
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => setModalVeiculoOpen(true)}
+              title="Cadastrar novo veículo"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Selecione um veículo existente ou cadastre um novo clicando no botão +.
+          </p>
+        </FormField>
+
+        <FormField
+          name="customerDocument"
+          label="Fornecedor/Parceiro"
+          required
+          error={form.formState.errors.customerDocument}
+        >
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Controller
+                control={form.control}
+                name="customerDocument"
                 render={({ field }) => (
                   <SearchableSelect
                     options={parceiroOptions}
@@ -413,7 +241,7 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
                     placeholder={loadingPartners ? "Carregando…" : "Buscar fornecedor/parceiro..."}
                     disabled={loadingPartners}
                     emptyMessage="Nenhum parceiro encontrado"
-                    error={!!form.formState.errors.customerCpf}
+                    error={!!form.formState.errors.customerDocument}
                     allowClear
                   />
                 )}
@@ -497,7 +325,7 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
           <CardHeader>
             <CardTitle>Registrar compra</CardTitle>
             <CardDescription>
-              Registre a compra de um veículo. Você pode selecionar um veículo existente ou cadastrar um novo, assim como selecionar ou cadastrar um fornecedor/parceiro.
+              Registre a compra de um veículo. Selecione um veículo existente ou cadastre um novo pelo botão +; selecione ou cadastre um fornecedor/parceiro da mesma forma.
             </CardDescription>
           </CardHeader>
           <CardContent>{formContent}</CardContent>
@@ -533,28 +361,7 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
           </DialogHeader>
           <FormVeiculo
             insideModal
-            onSuccess={() => {
-              // Recarregar lista de veículos após cadastro
-              setModalVeiculoOpen(false);
-              api.vehicles
-                .listar(0, 1000)
-                .then((response) => {
-                  setVeiculos(
-                    (response.content || []).map((v) => ({
-                      licensePlate: v.licensePlate,
-                      brand: v.brand,
-                      modelName: v.modelName,
-                    }))
-                  );
-                  // Selecionar o último veículo cadastrado (assumindo que é o mais recente)
-                  if (response.content && response.content.length > 0) {
-                    const latestVehicle = response.content[0]; // Primeiro da lista (mais recente)
-                    form.setValue("vehicleLicensePlate", latestVehicle.licensePlate);
-                    form.setValue("cadastrarVeiculo", false);
-                  }
-                })
-                .catch(() => {});
-            }}
+            onSuccessWithPlate={handleVeiculoCriado}
           />
         </DialogContent>
       </Dialog>

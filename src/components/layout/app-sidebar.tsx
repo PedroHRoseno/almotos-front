@@ -92,9 +92,9 @@ export function AppSidebar() {
             <Image
               src="/logo.png"
               alt="AlMotos"
-              width={140}
-              height={40}
-              className="h-10 w-auto object-contain object-left"
+              width={168}
+              height={48}
+              className="h-12 w-auto object-contain object-left"
               priority
             />
           </Link>
@@ -103,9 +103,9 @@ export function AppSidebar() {
             <Image
               src="/logo.png"
               alt="AlMotos"
-              width={48}
-              height={24}
-              className="h-6 w-auto max-w-[48px] object-contain"
+              width={64}
+              height={32}
+              className="h-8 w-auto max-w-[64px] object-contain"
               priority
             />
           </Link>

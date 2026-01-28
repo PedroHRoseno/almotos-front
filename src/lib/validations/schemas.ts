@@ -5,13 +5,12 @@ const vehicleBrandEnum = z.enum(
   VEHICLE_BRANDS as unknown as [string, ...string[]]
 );
 
-/** Schema de validação para cadastro de Veículo (POST /vehicles) */
+/** Schema de validação para cadastro de Veículo (POST /vehicles). Formato LLL-NNNN (ex.: KIU-1437). */
 export const veiculoSchema = z.object({
   licensePlate: z
     .string()
     .min(1, "Placa é obrigatória")
-    .max(20, "Placa deve ter no máximo 20 caracteres")
-    .regex(/^[A-Z0-9-]+$/i, "Placa inválida"),
+    .regex(/^[A-Z]{3}-[0-9]{4}$/, "Placa deve estar no formato LLL-NNNN (ex.: KIU-1437)"),
   brand: vehicleBrandEnum,
   modelName: z
     .string()
@@ -39,16 +38,16 @@ export const veiculoSchema = z.object({
 
 export type VeiculoFormData = z.infer<typeof veiculoSchema>;
 
-/** Schema de validação para registro de Venda (POST /sales). Back-end usa vehicle.licensePlate, customer.cpf, salePrice. */
+/** Schema de validação para registro de Venda (POST /sales). Back-end usa vehicle.licensePlate, customer.document, salePrice. */
 export const vendaSchema = z.object({
   vehicleLicensePlate: z.string().min(1, "Selecione um veículo"),
-  customerCpf: z
+  customerDocument: z
     .string()
     .min(1, "Selecione um cliente/parceiro")
     .refine((s) => {
-      const digitsOnly = s.replace(/\D/g, "");
-      return digitsOnly.length === 11;
-    }, "CPF inválido - deve ter 11 dígitos"),
+      const d = s.replace(/\D/g, "");
+      return d.length === 11 || d.length === 14;
+    }, "Documento inválido – informe CPF (11 dígitos) ou CNPJ (14 dígitos)"),
   salePrice: z
     .number({ invalid_type_error: "Valor da venda deve ser um número" })
     .min(0.01, "Valor da venda deve ser maior que zero"),
@@ -74,16 +73,16 @@ export const trocaSchema = z
     valorAbsoluto: z
       .number({ invalid_type_error: "Informe o valor em R$" })
       .min(0.01, "Informe o valor da diferença (mín. R$ 0,01)"),
-    customerCpf: z
+    customerDocument: z
       .string()
       .optional()
       .refine(
-        (cpf) => {
-          if (!cpf || cpf.trim() === "") return true;
-          const digitsOnly = cpf.replace(/\D/g, "");
-          return digitsOnly.length === 11;
+        (doc) => {
+          if (!doc || doc.trim() === "") return true;
+          const d = doc.replace(/\D/g, "");
+          return d.length === 11 || d.length === 14;
         },
-        { message: "CPF deve ter 11 dígitos" }
+        { message: "Documento deve ter 11 (CPF) ou 14 (CNPJ) dígitos" }
       ),
   })
   .refine(
@@ -96,20 +95,20 @@ export const trocaSchema = z
 
 export type TrocaFormData = z.infer<typeof trocaSchema>;
 
-/** Schema de validação para Compra (Purchase) */
+/** Schema de validação para Compra (Purchase) — veículo sempre via seletor ou botão + */
 export const compraSchema = z.object({
   vehicleLicensePlate: z
     .string()
     .min(1, "Selecione ou cadastre um veículo"),
-  customerCpf: z
+  customerDocument: z
     .string()
     .min(1, "Selecione ou cadastre um parceiro/fornecedor")
     .refine(
-      (cpf) => {
-        const digitsOnly = cpf.replace(/\D/g, "");
-        return digitsOnly.length === 11;
+      (doc) => {
+        const d = doc.replace(/\D/g, "");
+        return d.length === 11 || d.length === 14;
       },
-      { message: "CPF deve ter 11 dígitos" }
+      { message: "Documento deve ter 11 (CPF) ou 14 (CNPJ) dígitos" }
     ),
   purchasePrice: z
     .number({ invalid_type_error: "Valor da compra deve ser um número" })
@@ -118,35 +117,7 @@ export const compraSchema = z.object({
     .string()
     .min(1, "Data da compra é obrigatória")
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Data deve estar no formato YYYY-MM-DD"),
-  // Campos opcionais para cadastro de veículo
-  cadastrarVeiculo: z.boolean().optional(),
-  vehicleBrand: vehicleBrandEnum.optional(),
-  vehicleModelName: z.string().optional(),
-  vehicleManufactureYear: z.number().optional(),
-  vehicleModelYear: z.number().optional(),
-  vehicleColor: z.string().optional(),
-  vehicleKilometersDriven: z.number().optional(),
-}).refine(
-  (data) => {
-    // Se cadastrarVeiculo for true, os campos do veículo são obrigatórios
-    if (data.cadastrarVeiculo) {
-      return (
-        data.vehicleBrand !== undefined &&
-        data.vehicleModelName !== undefined &&
-        data.vehicleModelName.trim() !== "" &&
-        data.vehicleManufactureYear !== undefined &&
-        data.vehicleModelYear !== undefined &&
-        data.vehicleColor !== undefined &&
-        data.vehicleKilometersDriven !== undefined
-      );
-    }
-    return true;
-  },
-  {
-    message: "Preencha todos os campos do veículo ao cadastrar novo veículo",
-    path: ["vehicleModelName"],
-  }
-);
+});
 
 export type CompraFormData = z.infer<typeof compraSchema>;
 
@@ -164,11 +135,13 @@ const addressSchema = z.object({
 });
 
 export const parceiroSchema = z.object({
-  cpf: z
+  document: z
     .string()
-    .min(1, "CPF é obrigatório")
-    .max(14, "CPF inválido")
-    .refine((s) => s.replace(/\D/g, "").length === 11, "Informe CPF com 11 dígitos"),
+    .min(1, "Documento (CPF/CNPJ) é obrigatório")
+    .refine((s) => {
+      const d = s.replace(/\D/g, "");
+      return d.length === 11 || d.length === 14;
+    }, "Informe CPF (11 dígitos) ou CNPJ (14 dígitos)"),
   name: z.string().min(1, "Nome é obrigatório").max(200, "Nome deve ter no máximo 200 caracteres"),
   phoneNumber1: z
     .string()

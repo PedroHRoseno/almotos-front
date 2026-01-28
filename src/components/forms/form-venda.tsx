@@ -24,18 +24,15 @@ import {
 } from "@/components/ui/card";
 import { vendaSchema, type VendaFormData } from "@/lib/validations/schemas";
 import { api } from "@/lib/api";
+import { digitsOnly } from "@/lib/masks";
 import type { Vehicle, PartnerSummary } from "@/types";
 import { useState, useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { FormParceiro } from "@/components/forms/form-parceiro";
 
-function cpfSomenteDigitos(s: string): string {
-  return s.replace(/\D/g, "");
-}
-
 const defaultValues: Partial<VendaFormData> = {
   vehicleLicensePlate: "",
-  customerCpf: "",
+  customerDocument: "",
   salePrice: 0,
 };
 
@@ -93,27 +90,16 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
   const parceiroOptions: SearchableSelectOption[] = useMemo(
     () =>
       partners.map((p) => {
-        const cpfFormatado = p.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-        return {
-          value: p.cpf,
-          label: `${p.name} - ${cpfFormatado}`,
-          searchText: `${p.name} ${p.cpf} ${cpfFormatado} ${p.city || ""}`,
-        };
+        const d = p.document;
+        const fmt = d.length === 11 ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : d.length === 14 ? d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5") : d;
+        return { value: p.document, label: `${p.name} - ${fmt}`, searchText: `${p.name} ${p.document} ${fmt} ${p.city || ""}` };
       }),
     [partners]
   );
 
-  const handleParceiroCriado = (cpf: string) => {
+  const handleParceiroCriado = (document: string) => {
     setModalParceiroOpen(false);
-    // Recarregar lista de parceiros
-    api.customers
-      .listar(0, 100)
-      .then((response) => {
-        setPartners(response.content || []);
-        // Selecionar o parceiro recém-criado
-        form.setValue("customerCpf", cpf);
-      })
-      .catch(() => {});
+    api.customers.listar(0, 100).then((response) => { setPartners(response.content || []); form.setValue("customerDocument", document); }).catch(() => {});
   };
 
   const onSubmit = async (data: VendaFormData) => {
@@ -122,7 +108,7 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
     try {
       await api.sales.criar({
         vehicle: { licensePlate: data.vehicleLicensePlate },
-        customer: { cpf: cpfSomenteDigitos(data.customerCpf) },
+        customer: { document: digitsOnly(data.customerDocument) },
         salePrice: data.salePrice,
       });
       setSuccess("Venda registrada com sucesso.");
@@ -181,16 +167,16 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
             </FormField>
 
             <FormField
-              name="customerCpf"
+              name="customerDocument"
               label="Cliente/Parceiro"
               required
-              error={form.formState.errors.customerCpf}
+              error={form.formState.errors.customerDocument}
             >
               <div className="flex gap-2">
                 <div className="flex-1">
                   <Controller
                     control={form.control}
-                    name="customerCpf"
+                    name="customerDocument"
                     render={({ field }) => (
                       <SearchableSelect
                         options={parceiroOptions}
@@ -199,7 +185,7 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
                         placeholder={loadingPartners ? "Carregando…" : "Buscar cliente/parceiro..."}
                         disabled={loadingPartners}
                         emptyMessage="Nenhum parceiro encontrado"
-                        error={!!form.formState.errors.customerCpf}
+                        error={!!form.formState.errors.customerDocument}
                         allowClear
                       />
                     )}

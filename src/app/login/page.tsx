@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,14 +38,18 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <div className="flex justify-center mb-4">
-            <div className="rounded-full bg-primary/10 p-3">
-              <Lock className="h-6 w-6 text-primary" />
-            </div>
+        <CardHeader className="space-y-3 text-center">
+          <div className="flex justify-center">
+            <Image
+              src="/logo.png"
+              alt="ALMotos"
+              width={220}
+              height={120}
+              className="object-contain"
+              priority
+            />
           </div>
-          <CardTitle className="text-2xl font-bold">AlMotos</CardTitle>
-          <CardDescription>
+          <CardDescription className="text-base">
             Faça login para acessar o sistema
           </CardDescription>
         </CardHeader>
@@ -92,9 +97,6 @@ export default function LoginPage() {
                 "Entrar"
               )}
             </Button>
-            <div className="text-xs text-center text-muted-foreground mt-4">
-              <p>Usuário padrão: <strong>admin</strong> / <strong>admin123</strong></p>
-            </div>
           </form>
         </CardContent>
       </Card>

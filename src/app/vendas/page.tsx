@@ -39,6 +39,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { api } from "@/lib/api";
+import { formatDocument } from "@/lib/masks";
 import type { SaleResponse } from "@/types";
 import { FormVenda } from "@/components/forms/form-venda";
 import { useDashboard } from "@/contexts/DashboardContext";
@@ -65,9 +66,6 @@ function formatDate(dateString: string): string {
   }
 }
 
-function formatCpf(cpf: string) {
-  return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-}
 
 export default function VendasPage() {
   const [sales, setSales] = useState<SaleResponse[]>([]);
@@ -253,7 +251,7 @@ export default function VendasPage() {
                           <div>
                             <div className="font-medium text-sm md:text-base">{sale.partnerName}</div>
                             <div className="text-xs md:text-sm text-muted-foreground font-mono">
-                              {formatCpf(sale.partnerCpf)}
+                              {formatDocument(sale.partnerDocument)}
                             </div>
                           </div>
                         </TableCell>

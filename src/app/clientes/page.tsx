@@ -29,6 +29,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
+import { formatDocument } from "@/lib/masks";
 import type { PartnerSummary } from "@/types";
 import { FormParceiro } from "@/components/forms/form-parceiro";
 
@@ -42,10 +43,6 @@ export default function ClientesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-
-  const formatCpf = (cpf: string) => {
-    return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-  };
 
   const formatPhone = (phone?: string) => {
     if (!phone) return "-";
@@ -170,9 +167,9 @@ export default function ClientesPage() {
                   </TableHeader>
                   <TableBody>
                     {partners.map((partner) => (
-                      <TableRow key={partner.cpf} className="hover:bg-muted/50">
+                      <TableRow key={partner.document} className="hover:bg-muted/50">
                         <TableCell className="font-mono text-xs md:text-sm">
-                          {formatCpf(partner.cpf)}
+                          {formatDocument(partner.document)}
                         </TableCell>
                         <TableCell className="font-medium text-sm md:text-base">{partner.name}</TableCell>
                         <TableCell className="text-muted-foreground text-xs md:text-sm">
@@ -182,7 +179,7 @@ export default function ClientesPage() {
                           {partner.city || "-"}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Link href={`/clientes/${partner.cpf}`}>
+                          <Link href={`/clientes/${partner.document}`}>
                             <Button variant="ghost" size="sm" className="text-xs md:text-sm">
                               <Eye className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
                               <span className="hidden sm:inline">Detalhes</span>

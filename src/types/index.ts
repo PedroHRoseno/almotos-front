@@ -65,9 +65,9 @@ export interface Address {
   zipCode: string;
 }
 
-/** Cliente/Parceiro (Customer/Partner) */
+/** Cliente/Parceiro (Customer/Partner) – documento: CPF 11 ou CNPJ 14 dígitos */
 export interface Customer {
-  cpf: string;
+  document: string;
   name: string;
   phoneNumber1?: string;
   phoneNumber2?: string;
@@ -76,7 +76,7 @@ export interface Customer {
 
 /** Resumo de parceiro para listagens */
 export interface PartnerSummary {
-  cpf: string;
+  document: string;
   name: string;
   phoneNumber1?: string;
   city?: string;
@@ -84,7 +84,7 @@ export interface PartnerSummary {
 
 /** Detalhes completos do parceiro */
 export interface PartnerDetail {
-  cpf: string;
+  document: string;
   name: string;
   phoneNumber1?: string;
   phoneNumber2?: string;
@@ -190,7 +190,7 @@ export interface SaleResponse {
   vehicleLicensePlate: string;
   vehicleBrand: string;
   vehicleModel: string;
-  partnerCpf: string;
+  partnerDocument: string;
   partnerName: string;
   salePrice: number;
   saleDate: string;
@@ -200,7 +200,7 @@ export interface SaleResponse {
 /** Payload para criar venda – POST /sales. Back-end preenche saleDate. */
 export interface SaleCreate {
   vehicle: { licensePlate: string };
-  customer: { cpf: string };
+  customer: { document: string };
   salePrice: number;
 }
 
@@ -237,7 +237,7 @@ export interface PurchaseResponse {
   vehicleLicensePlate: string;
   vehicleBrand: string;
   vehicleModel: string;
-  partnerCpf: string;
+  partnerDocument: string;
   partnerName: string;
   purchasePrice: number;
   purchaseDate: string;
@@ -247,7 +247,7 @@ export interface PurchaseResponse {
 /** Payload para criar compra – POST /purchases */
 export interface PurchaseCreate {
   vehicle: { licensePlate: string };
-  customer: { cpf: string };
+  customer: { document: string };
   purchasePrice: number;
   purchaseDate: string; // ISO format string (yyyy-MM-dd)
 }
@@ -263,7 +263,7 @@ export interface TrocaInput {
   veiculoEntradaLicensePlate: string;
   veiculoSaidaLicensePlate: string;
   valorDiferenca: number;
-  customerCpf?: string;
+  customerDocument?: string;
 }
 
 /** DTO de resposta de troca do backend */
@@ -275,7 +275,7 @@ export interface ExchangeResponse {
   vehicleSaidaLicensePlate: string;
   vehicleSaidaBrand: string;
   vehicleSaidaModel: string;
-  partnerCpf: string;
+  partnerDocument: string;
   partnerName: string;
   diferencaValor: number;
   exchangeDate: string;
@@ -345,7 +345,7 @@ export interface PurchaseHistoryItem {
   id: number;
   purchaseDate: string;
   purchasePrice: number;
-  partnerCpf: string;
+  partnerDocument: string;
   partnerName: string;
   status: TransactionStatus;
 }
@@ -354,7 +354,7 @@ export interface SaleHistoryItem {
   id: number;
   saleDate: string;
   salePrice: number;
-  partnerCpf: string;
+  partnerDocument: string;
   partnerName: string;
   status: TransactionStatus;
 }
@@ -363,7 +363,7 @@ export interface ExchangeHistoryItem {
   id: number;
   exchangeDate: string;
   diferencaValor: number;
-  partnerCpf: string;
+  partnerDocument: string;
   partnerName: string;
   isIncomingVehicle: boolean; // true se este veículo é o de entrada, false se é o de saída
   status: TransactionStatus;

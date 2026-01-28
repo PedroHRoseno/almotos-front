@@ -43,6 +43,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { api } from "@/lib/api";
+import { formatDocument } from "@/lib/masks";
 import type { PurchaseResponse } from "@/types";
 import { FormCompra } from "@/components/forms/form-compra";
 
@@ -68,9 +69,6 @@ function formatDate(dateString: string): string {
   }
 }
 
-function formatCpf(cpf: string) {
-  return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-}
 
 export default function ComprasPage() {
   const [purchases, setPurchases] = useState<PurchaseResponse[]>([]);
@@ -264,7 +262,7 @@ export default function ComprasPage() {
                           <div>
                             <div className="font-medium text-sm md:text-base">{purchase.partnerName}</div>
                             <div className="text-xs md:text-sm text-muted-foreground font-mono">
-                              {formatCpf(purchase.partnerCpf)}
+                              {formatDocument(purchase.partnerDocument)}
                             </div>
                           </div>
                         </TableCell>

@@ -118,13 +118,17 @@ Isso permite que o frontend faça requisições sem problemas de CORS, já que a
 
 ### No Railway (Backend)
 
-Variáveis de ambiente:
+O backend usa o perfil **prod** (`application-prod.yml`). Variáveis no **serviço do backend**:
+
 ```
-SPRING_DATASOURCE_URL=jdbc:postgresql://...
-SPRING_DATASOURCE_USERNAME=...
-SPRING_DATASOURCE_PASSWORD=...
+SPRING_PROFILES_ACTIVE=prod
+DB_URL=jdbc:postgresql://host:port/database
+DB_USER=postgres
+DB_PASSWORD=senha_do_banco
 CORS_ALLOWED_ORIGINS=https://almotos-front.vercel.app,http://localhost:3000
 ```
+
+Substitua host, port, user e senha pelos valores do PostgreSQL (Variables do serviço Postgres no Railway). O proxy do front usa **somente** `NEXT_PUBLIC_API_URL`; não é mais usado `API_URL`.
 
 ### No Vercel (Frontend)
 
@@ -133,7 +137,7 @@ Variáveis de ambiente:
 NEXT_PUBLIC_API_URL=https://vehicle-sales-manager-v2-kotlin-production.up.railway.app
 ```
 
-**Nota**: Substitua pela URL real do seu backend no Railway.
+**Nota**: Substitua pela URL real do backend no Railway (sem barra no final). Se o repo for monorepo, defina **Root Directory** = `almotos-front`. Para mais detalhes, veja **`VERCEL_RAILWAY_ATUALIZADO.md`** na raiz do repositório.
 
 ## URLs de Exemplo
 

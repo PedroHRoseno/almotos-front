@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { trocaSchema, type TrocaFormData } from "@/lib/validations/schemas";
 import { api } from "@/lib/api";
+import { digitsOnly } from "@/lib/masks";
 import type { Vehicle, PartnerSummary } from "@/types";
 import { useState, useEffect, useMemo } from "react";
 
@@ -25,22 +26,8 @@ const defaultValues: Partial<TrocaFormData> = {
   veiculoSaidaLicensePlate: "",
   tipoDiferenca: "cliente_paga",
   valorAbsoluto: undefined,
-  customerCpf: "",
+  customerDocument: "",
 };
-
-function cpfSomenteDigitos(s: string): string {
-  return s.replace(/\D/g, "");
-}
-
-function formatarCpf(cpf: string): string {
-  const apenasDigitos = cpfSomenteDigitos(cpf);
-  if (apenasDigitos.length <= 3) return apenasDigitos;
-  if (apenasDigitos.length <= 6)
-    return `${apenasDigitos.slice(0, 3)}.${apenasDigitos.slice(3)}`;
-  if (apenasDigitos.length <= 9)
-    return `${apenasDigitos.slice(0, 3)}.${apenasDigitos.slice(3, 6)}.${apenasDigitos.slice(6)}`;
-  return `${apenasDigitos.slice(0, 3)}.${apenasDigitos.slice(3, 6)}.${apenasDigitos.slice(6, 9)}-${apenasDigitos.slice(9, 11)}`;
-}
 
 export interface FormTrocaProps {
   onSuccess?: () => void;
@@ -116,12 +103,9 @@ export function FormTroca({ onSuccess, insideModal }: FormTrocaProps = {}) {
         },
       ];
       partners.forEach((p) => {
-        const cpfFormatado = p.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-        options.push({
-          value: p.cpf,
-          label: `${p.name} - ${cpfFormatado}`,
-          searchText: `${p.name} ${p.cpf} ${cpfFormatado} ${p.city || ""}`,
-        });
+        const d = p.document;
+        const fmt = d.length === 11 ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : d.length === 14 ? d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5") : d;
+        options.push({ value: p.document, label: `${p.name} - ${fmt}`, searchText: `${p.name} ${p.document} ${fmt} ${p.city || ""}` });
       });
       return options;
     },
@@ -132,21 +116,15 @@ export function FormTroca({ onSuccess, insideModal }: FormTrocaProps = {}) {
     setSuccess(null);
     setError(null);
     try {
-      const customerCpfValue = data.customerCpf?.trim();
-      const customerCpf = customerCpfValue && customerCpfValue !== "__NONE__"
-        ? cpfSomenteDigitos(customerCpfValue)
-        : undefined;
-
-      // Valor da diferença: positivo = cliente paga (entrada), negativo = loja paga (saída)
-      const valorDiferenca = data.tipoDiferenca === "cliente_paga"
-        ? Number(data.valorAbsoluto)
-        : -Number(data.valorAbsoluto);
+      const docVal = data.customerDocument?.trim();
+      const customerDocument = docVal && docVal !== "__NONE__" ? digitsOnly(docVal) : undefined;
+      const valorDiferenca = data.tipoDiferenca === "cliente_paga" ? Number(data.valorAbsoluto) : -Number(data.valorAbsoluto);
 
       const payload = {
         veiculoEntradaLicensePlate: data.veiculoEntradaLicensePlate,
         veiculoSaidaLicensePlate: data.veiculoSaidaLicensePlate,
         valorDiferenca,
-        ...(customerCpf && customerCpf.length === 11 ? { customerCpf } : {}),
+        ...(customerDocument && (customerDocument.length === 11 || customerDocument.length === 14) ? { customerDocument } : {}),
       };
 
       await api.exchanges.realizar(payload);
@@ -179,28 +157,25 @@ export function FormTroca({ onSuccess, insideModal }: FormTrocaProps = {}) {
           <div className="grid gap-6 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <FormField
-                name="customerCpf"
-                label="CPF do Parceiro (opcional)"
-                error={form.formState.errors.customerCpf}
+                name="customerDocument"
+                label="Documento do Parceiro (opcional)"
+                error={form.formState.errors.customerDocument}
               >
                 <Controller
                   control={form.control}
-                  name="customerCpf"
+                  name="customerDocument"
                   render={({ field }) => (
                     <SearchableSelect
                       options={parceiroOptions}
                       value={field.value || "__NONE__"}
                       onValueChange={(val) => {
-                        if (val === "__NONE__") {
-                          field.onChange("");
-                        } else {
-                          field.onChange(val);
-                        }
+                        if (val === "__NONE__") field.onChange("");
+                        else field.onChange(val);
                       }}
                       placeholder={loadingPartners ? "Carregando…" : "Buscar parceiro (opcional)..."}
                       disabled={loadingPartners}
                       emptyMessage="Nenhum parceiro encontrado"
-                      error={!!form.formState.errors.customerCpf}
+                      error={!!form.formState.errors.customerDocument}
                       allowClear
                     />
                   )}

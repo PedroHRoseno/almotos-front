@@ -6,6 +6,7 @@ import { ArrowLeft, Edit } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
+import { formatDocument } from "@/lib/masks";
 import type { PartnerDetail } from "@/types";
 import { FormParceiro } from "@/components/forms/form-parceiro";
 import {
@@ -31,7 +32,7 @@ export default function ClienteDetailPage() {
     setLoading(true);
     setError(null);
     api.customers
-      .buscarPorCpf(cpf)
+      .buscarPorDocumento(cpf)
       .then((data) => {
         setPartner(data);
       })
@@ -50,10 +51,6 @@ export default function ClienteDetailPage() {
   const handleEditSuccess = () => {
     setEditModalOpen(false);
     fetchPartnerDetail();
-  };
-
-  const formatCpf = (cpf: string) => {
-    return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
   };
 
   const formatPhone = (phone?: string) => {
@@ -113,7 +110,7 @@ export default function ClienteDetailPage() {
           <CardContent className="space-y-4">
             <div>
               <p className="text-sm font-medium text-muted-foreground">CPF</p>
-              <p className="text-lg">{formatCpf(partner.cpf)}</p>
+              <p className="text-lg">{formatDocument(partner.document)}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Nome</p>
@@ -206,7 +203,7 @@ export default function ClienteDetailPage() {
           <FormParceiro
             insideModal
             initialData={{
-              cpf: partner.cpf,
+              document: partner.document,
               name: partner.name,
               phoneNumber1: partner.phoneNumber1 || "",
               phoneNumber2: partner.phoneNumber2 || "",

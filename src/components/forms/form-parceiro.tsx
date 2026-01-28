@@ -21,13 +21,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { parceiroSchema, type ParceiroFormData } from "@/lib/validations/schemas";
+import { formatDocument, digitsOnly } from "@/lib/masks";
 import { api } from "@/lib/api";
 import { buscarCep } from "@/lib/viacep";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 const defaultValues: Partial<ParceiroFormData> = {
-  cpf: "",
+  document: "",
   name: "",
   phoneNumber1: "",
   phoneNumber2: "",
@@ -36,24 +37,11 @@ const defaultValues: Partial<ParceiroFormData> = {
 
 export interface FormParceiroProps {
   onSuccess?: () => void;
-  onSuccessWithCpf?: (cpf: string) => void;
+  /** Chamado com o documento (CPF/CNPJ) do parceiro recém-criado. */
+  onSuccessWithCpf?: (document: string) => void;
   insideModal?: boolean;
   initialData?: Partial<ParceiroFormData>;
   isEdit?: boolean;
-}
-
-function cpfSomenteDigitos(s: string): string {
-  return s.replace(/\D/g, "");
-}
-
-function formatarCpf(cpf: string): string {
-  const apenasDigitos = cpfSomenteDigitos(cpf);
-  if (apenasDigitos.length <= 3) return apenasDigitos;
-  if (apenasDigitos.length <= 6)
-    return `${apenasDigitos.slice(0, 3)}.${apenasDigitos.slice(3)}`;
-  if (apenasDigitos.length <= 9)
-    return `${apenasDigitos.slice(0, 3)}.${apenasDigitos.slice(3, 6)}.${apenasDigitos.slice(6)}`;
-  return `${apenasDigitos.slice(0, 3)}.${apenasDigitos.slice(3, 6)}.${apenasDigitos.slice(6, 9)}-${apenasDigitos.slice(9, 11)}`;
 }
 
 function formatarCep(cep: string): string {
@@ -141,26 +129,17 @@ export function FormParceiro({
         }
       }
       
+      const docDigits = digitsOnly(data.document);
       const payload = {
-        cpf: cpfSomenteDigitos(data.cpf),
+        document: docDigits,
         name: data.name.trim(),
         phoneNumber1: data.phoneNumber1?.trim() || undefined,
         phoneNumber2: data.phoneNumber2?.trim() || undefined,
         address: addressData,
       };
-      
-      // Debug: log do payload antes de enviar
-      console.log("DEBUG Frontend - Payload a ser enviado:", JSON.stringify(payload, null, 2));
-      console.log("DEBUG Frontend - addressData:", addressData);
-      if (addressData) {
-        console.log("DEBUG Frontend - addressData.city:", addressData.city);
-        console.log("DEBUG Frontend - addressData.number:", addressData.number);
-        console.log("DEBUG Frontend - addressData.state:", addressData.state);
-        console.log("DEBUG Frontend - addressData.zipCode:", addressData.zipCode);
-      }
-      
-      if (isEdit && payload.cpf) {
-        await api.customers.atualizar(payload.cpf, payload);
+
+      if (isEdit && docDigits) {
+        await api.customers.atualizar(docDigits, payload);
         setSuccess("Parceiro atualizado com sucesso.");
         onSuccess?.();
       } else {
@@ -170,9 +149,8 @@ export function FormParceiro({
           form.reset(defaultValues);
           setIncluirEndereco(false);
         }
-        // Chamar callback com CPF se fornecido
         if (onSuccessWithCpf) {
-          onSuccessWithCpf(payload.cpf);
+          onSuccessWithCpf(docDigits);
         } else {
           onSuccess?.();
         }
@@ -197,23 +175,26 @@ export function FormParceiro({
 
       <div className="grid gap-6 sm:grid-cols-2">
         <FormField
-          name="cpf"
-          label="CPF"
+          name="document"
+          label="CPF/CNPJ"
           required
-          error={form.formState.errors.cpf}
+          error={form.formState.errors.document}
         >
-          <Input
-            id="cpf"
-            placeholder="000.000.000-00"
-            disabled={isEdit}
-            {...form.register("cpf", {
-              onChange: (e) => {
-                const formatted = formatarCpf(e.target.value);
-                form.setValue("cpf", formatted);
-              },
-            })}
-            className={cn(form.formState.errors.cpf && "border-destructive")}
-            maxLength={14}
+          <Controller
+            control={form.control}
+            name="document"
+            render={({ field }) => (
+              <Input
+                id="document"
+                placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                disabled={isEdit}
+                value={field.value}
+                onChange={(e) => field.onChange(formatDocument(e.target.value))}
+                onBlur={field.onBlur}
+                className={cn(form.formState.errors.document && "border-destructive")}
+                maxLength={18}
+              />
+            )}
           />
         </FormField>
 

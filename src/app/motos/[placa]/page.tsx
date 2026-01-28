@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
+import { formatDocument } from "@/lib/masks";
 import type { VehicleHistory, VehicleCostItem } from "@/types";
 import {
   Dialog,
@@ -40,9 +41,6 @@ function formatDate(dateString: string): string {
   }
 }
 
-function formatCpf(cpf: string) {
-  return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-}
 
 export default function VeiculoDetailPage() {
   const params = useParams();
@@ -307,7 +305,7 @@ export default function VeiculoDetailPage() {
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {formatDate(purchase.purchaseDate.toString())} • {purchase.partnerName} ({formatCpf(purchase.partnerCpf)})
+                          {formatDate(purchase.purchaseDate.toString())} • {purchase.partnerName} ({formatDocument(purchase.partnerDocument)})
                         </p>
                       </div>
                     </div>
@@ -337,7 +335,7 @@ export default function VeiculoDetailPage() {
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {formatDate(sale.saleDate.toString())} • {sale.partnerName} ({formatCpf(sale.partnerCpf)})
+                          {formatDate(sale.saleDate.toString())} • {sale.partnerName} ({formatDocument(sale.partnerDocument)})
                         </p>
                       </div>
                     </div>
@@ -367,7 +365,7 @@ export default function VeiculoDetailPage() {
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {formatDate(exchange.exchangeDate.toString())} • {exchange.partnerName} ({formatCpf(exchange.partnerCpf)})
+                          {formatDate(exchange.exchangeDate.toString())} • {exchange.partnerName} ({formatDocument(exchange.partnerDocument)})
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           {exchange.isIncomingVehicle ? "Veículo de entrada" : "Veículo de saída"}

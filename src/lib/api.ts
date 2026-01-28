@@ -215,20 +215,20 @@ export const api = {
           ...(search && search.trim() ? { search: search.trim() } : {}),
         },
       }),
-    buscarPorCpf: (cpf: string) =>
-      request<PartnerDetail>(`/partners/${encodeURIComponent(cpf)}`),
+    buscarPorDocumento: (document: string) =>
+      request<PartnerDetail>(`/partners/${encodeURIComponent(document)}`),
     criar: (body: Customer) =>
       request<void>("/partners", {
         method: "POST",
         body: JSON.stringify(body),
       }),
-    atualizar: (cpf: string, body: Customer) =>
-      request<void>(`/partners/${encodeURIComponent(cpf)}`, {
+    atualizar: (document: string, body: Customer) =>
+      request<void>(`/partners/${encodeURIComponent(document)}`, {
         method: "PUT",
         body: JSON.stringify(body),
       }),
-    deletar: (cpf: string) =>
-      request<void>(`/partners/${encodeURIComponent(cpf)}`, {
+    deletar: (document: string) =>
+      request<void>(`/partners/${encodeURIComponent(document)}`, {
         method: "DELETE",
       }),
   },

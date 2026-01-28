@@ -38,6 +38,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { api } from "@/lib/api";
+import { formatDocument } from "@/lib/masks";
 import type { ExchangeResponse } from "@/types";
 import { FormTroca } from "@/components/forms/form-troca";
 import { toast } from "sonner";
@@ -65,9 +66,6 @@ function formatDate(dateString: string): string {
   }
 }
 
-function formatCpf(cpf: string) {
-  return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-}
 
 export default function TrocasPage() {
   const [exchanges, setExchanges] = useState<ExchangeResponse[]>([]);
@@ -221,7 +219,7 @@ export default function TrocasPage() {
                           <div>
                             <div className="font-medium text-sm md:text-base">{exchange.partnerName}</div>
                             <div className="text-xs md:text-sm text-muted-foreground font-mono">
-                              {formatCpf(exchange.partnerCpf)}
+                              {formatDocument(exchange.partnerDocument)}
                             </div>
                           </div>
                         </TableCell>

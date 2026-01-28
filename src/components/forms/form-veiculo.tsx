@@ -15,6 +15,7 @@ import {
 import { FormField } from "@/components/ui/form-field";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { veiculoSchema, type VeiculoFormData } from "@/lib/validations/schemas";
+import { formatLicensePlate } from "@/lib/masks";
 import { api } from "@/lib/api";
 import type { VehicleBrand } from "@/types";
 import { VEHICLE_BRANDS } from "@/types";
@@ -34,10 +35,12 @@ const defaultValues: Partial<VeiculoFormData> = {
 
 export interface FormVeiculoProps {
   onSuccess?: () => void;
+  /** Chamado com a placa do veículo recém-criado; use para selecionar esse veículo no formulário pai. */
+  onSuccessWithPlate?: (licensePlate: string) => void;
   insideModal?: boolean;
 }
 
-export function FormVeiculo({ onSuccess, insideModal }: FormVeiculoProps = {}) {
+export function FormVeiculo({ onSuccess, onSuccessWithPlate, insideModal }: FormVeiculoProps = {}) {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,8 +53,9 @@ export function FormVeiculo({ onSuccess, insideModal }: FormVeiculoProps = {}) {
     setSuccess(null);
     setError(null);
     try {
+      const plateFormatted = formatLicensePlate(data.licensePlate);
       await api.vehicles.criar({
-        licensePlate: data.licensePlate.trim().toUpperCase(),
+        licensePlate: plateFormatted,
         brand: data.brand as VehicleBrand,
         modelName: data.modelName.trim(),
         manufactureYear: data.manufactureYear,
@@ -60,8 +64,10 @@ export function FormVeiculo({ onSuccess, insideModal }: FormVeiculoProps = {}) {
         kilometersDriven: data.kilometersDriven,
         inStock: data.inStock,
       });
+      const plate = formatLicensePlate(data.licensePlate);
       setSuccess("Veículo cadastrado com sucesso.");
       form.reset(defaultValues);
+      onSuccessWithPlate?.(plate);
       onSuccess?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao cadastrar veículo.");
@@ -88,11 +94,20 @@ export function FormVeiculo({ onSuccess, insideModal }: FormVeiculoProps = {}) {
           required
           error={form.formState.errors.licensePlate}
         >
-          <Input
-            id="licensePlate"
-            placeholder="Ex.: ABC-1D23"
-            {...form.register("licensePlate")}
-            className={cn(form.formState.errors.licensePlate && "border-destructive")}
+          <Controller
+            control={form.control}
+            name="licensePlate"
+            render={({ field }) => (
+              <Input
+                id="licensePlate"
+                placeholder="Ex.: KIU-1437"
+                value={field.value}
+                onChange={(e) => field.onChange(formatLicensePlate(e.target.value))}
+                onBlur={field.onBlur}
+                maxLength={8}
+                className={cn(form.formState.errors.licensePlate && "border-destructive")}
+              />
+            )}
           />
         </FormField>
 
