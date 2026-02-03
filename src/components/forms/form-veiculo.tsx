@@ -100,7 +100,7 @@ export function FormVeiculo({ onSuccess, onSuccessWithPlate, insideModal }: Form
             render={({ field }) => (
               <Input
                 id="licensePlate"
-                placeholder="Ex.: KIU-1437"
+                placeholder="Ex.: KIU-1437 ou ABC-1B23"
                 value={field.value}
                 onChange={(e) => field.onChange(formatLicensePlate(e.target.value))}
                 onBlur={field.onBlur}

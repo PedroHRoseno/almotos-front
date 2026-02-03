@@ -5,12 +5,13 @@ const vehicleBrandEnum = z.enum(
   VEHICLE_BRANDS as unknown as [string, ...string[]]
 );
 
-/** Schema de validação para cadastro de Veículo (POST /vehicles). Formato LLL-NNNN (ex.: KIU-1437). */
+/** Schema de validação para cadastro de Veículo (POST /vehicles). Formato LLL-XXXX: tradicional (AAA-9999) ou Mercosul (AAA-1A11). */
 export const veiculoSchema = z.object({
   licensePlate: z
     .string()
     .min(1, "Placa é obrigatória")
-    .regex(/^[A-Z]{3}-[0-9]{4}$/, "Placa deve estar no formato LLL-NNNN (ex.: KIU-1437)"),
+    .length(8, "Placa deve ter 8 caracteres (ex.: KIU-1437 ou ABC-1B23)")
+    .regex(/^[A-Z]{3}-[0-9][A-Z0-9][0-9]{2}$/, "Placa no formato LLL-XXXX: 3 letras, hífen, 1 número, 1 letra ou número, 2 números (ex.: KIU-1437 ou ABC-1B23)"),
   brand: vehicleBrandEnum,
   modelName: z
     .string()
