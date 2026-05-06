@@ -31,7 +31,17 @@ const defaultValues: Partial<VeiculoFormData> = {
   color: "#000000",
   kilometersDriven: 0,
   inStock: true,
+  imageUrlListText: "",
+  published: false,
 };
+
+function parseImageUrlList(text: string | undefined): string[] {
+  if (!text) return [];
+  return text
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
 
 export interface FormVeiculoProps {
   onSuccess?: () => void;
@@ -63,6 +73,8 @@ export function FormVeiculo({ onSuccess, onSuccessWithPlate, insideModal }: Form
         color: data.color.trim().toLowerCase(),
         kilometersDriven: data.kilometersDriven,
         inStock: data.inStock,
+        published: data.published,
+        imageUrlList: parseImageUrlList(data.imageUrlListText),
       });
       const plate = formatLicensePlate(data.licensePlate);
       setSuccess("Veículo cadastrado com sucesso.");
@@ -231,6 +243,59 @@ export function FormVeiculo({ onSuccess, onSuccessWithPlate, insideModal }: Form
                   className="h-4 w-4 rounded border-input"
                 />
                 <span className="text-sm">Sim, veículo disponível em estoque</span>
+              </label>
+            )}
+          />
+        </FormField>
+
+        <FormField
+          name="imageUrlListText"
+          label="URLs de imagens (separadas por vírgula)"
+          error={form.formState.errors.imageUrlListText}
+          className="sm:col-span-2"
+        >
+          <Controller
+            control={form.control}
+            name="imageUrlListText"
+            render={({ field }) => (
+              <Input
+                id="imageUrlListText"
+                placeholder="https://.../foto1.jpg, https://.../foto2.jpg"
+                value={field.value || ""}
+                onChange={(e) => field.onChange(e.target.value)}
+              />
+            )}
+          />
+        </FormField>
+
+        <FormField
+          name="published"
+          label="Publicar no Catálogo Público"
+          error={form.formState.errors.published}
+          className="sm:col-span-2"
+        >
+          <Controller
+            control={form.control}
+            name="published"
+            render={({ field }) => (
+              <label className="flex items-center justify-between rounded-lg border border-input px-3 py-2">
+                <span className="text-sm">Publicar no Catálogo Público</span>
+                <button
+                  type="button"
+                  onClick={() => field.onChange(!field.value)}
+                  className={cn(
+                    "relative h-6 w-11 rounded-full transition-colors",
+                    field.value ? "bg-emerald-500" : "bg-muted"
+                  )}
+                  aria-pressed={field.value}
+                >
+                  <span
+                    className={cn(
+                      "absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform",
+                      field.value ? "translate-x-5" : "translate-x-0.5"
+                    )}
+                  />
+                </button>
               </label>
             )}
           />

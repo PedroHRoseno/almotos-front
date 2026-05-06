@@ -12,6 +12,14 @@ if (process.env.NODE_ENV === "production" && !process.env.NEXT_PUBLIC_API_URL) {
   );
 }
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      // Permite miniaturas no admin vindas de URLs externas (galeria do catálogo)
+      { protocol: "https", hostname: "**" },
+      { protocol: "http", hostname: "localhost" },
+    ],
+  },
+};
 
 export default nextConfig;

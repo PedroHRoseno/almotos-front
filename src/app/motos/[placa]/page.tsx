@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, DollarSign, Calendar, User, Wrench } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, DollarSign, Calendar, User, Wrench, X } from "lucide-react";
+import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +54,11 @@ export default function VeiculoDetailPage() {
   const [costModalOpen, setCostModalOpen] = useState(false);
   const [newCost, setNewCost] = useState({ cost: "", description: "", costDate: "" });
   const [addingCost, setAddingCost] = useState(false);
+  const [images, setImages] = useState<string[]>([]);
+  const [newImageUrl, setNewImageUrl] = useState("");
+  const [imageStatusByUrl, setImageStatusByUrl] = useState<Record<string, "loading" | "ok" | "error">>({});
+  const [savingGallery, setSavingGallery] = useState(false);
+  const [togglingPublished, setTogglingPublished] = useState(false);
 
   const fetchHistory = useCallback(() => {
     setLoading(true);
@@ -73,6 +79,90 @@ export default function VeiculoDetailPage() {
       fetchHistory();
     }
   }, [placa, fetchHistory]);
+
+  useEffect(() => {
+    if (!history) return;
+    const list = history.vehicle.imageUrlList || [];
+    setImages(list);
+    setImageStatusByUrl((prev) => {
+      const next = { ...prev };
+      list.forEach((u) => {
+        if (!next[u]) next[u] = "loading";
+      });
+      return next;
+    });
+  }, [history]);
+
+  const isValidImageUrl = (value: string) => {
+    try {
+      const u = new URL(value);
+      return u.protocol === "http:" || u.protocol === "https:";
+    } catch {
+      return false;
+    }
+  };
+
+  const handleAddImage = () => {
+    const url = newImageUrl.trim();
+    if (!url) return;
+    if (!isValidImageUrl(url)) {
+      toast.error("URL inválida. Use http/https.");
+      return;
+    }
+    if (images.includes(url)) {
+      toast.message("Essa foto já está na lista.");
+      setNewImageUrl("");
+      return;
+    }
+    setImages((prev) => [...prev, url]);
+    setImageStatusByUrl((prev) => ({ ...prev, [url]: "loading" }));
+    setNewImageUrl("");
+    toast.success("Foto adicionada.");
+  };
+
+  const handleRemoveImage = (url: string) => {
+    setImages((prev) => prev.filter((u) => u !== url));
+    setImageStatusByUrl((prev) => {
+      const next = { ...prev };
+      delete next[url];
+      return next;
+    });
+    toast.success("Foto removida.");
+  };
+
+  const handleTogglePublished = async () => {
+    if (!history) return;
+    const v = history.vehicle;
+    const isAvailable = v.status === "DISPONIVEL";
+    const next = !v.published;
+    if (next && !isAvailable) {
+      toast.error("Só é possível publicar veículos disponíveis (em estoque).");
+      return;
+    }
+    setTogglingPublished(true);
+    try {
+      await api.vehicles.atualizarCatalogo(placa, { published: next });
+      toast.success(next ? "Veículo publicado com sucesso!" : "Removido do catálogo.");
+      fetchHistory();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao atualizar publicação");
+    } finally {
+      setTogglingPublished(false);
+    }
+  };
+
+  const handleSaveGallery = async () => {
+    setSavingGallery(true);
+    try {
+      await api.vehicles.atualizarCatalogo(placa, { imageUrlList: images });
+      toast.success("Galeria atualizada com sucesso!");
+      fetchHistory();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar galeria");
+    } finally {
+      setSavingGallery(false);
+    }
+  };
 
   const handleAddCost = async () => {
     if (!newCost.cost || !newCost.description) {
@@ -190,6 +280,126 @@ export default function VeiculoDetailPage() {
                 {vehicle.status === "DISPONIVEL" ? "Disponível" : vehicle.status === "VENDIDO" ? "Vendido" : "Inativo"}
               </Badge>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Vitrine Pública */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Vitrine Pública</CardTitle>
+          <CardDescription>
+            Controle a publicação e as fotos do catálogo público.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">Publicado no Catálogo</p>
+              <p className="text-xs text-muted-foreground">
+                {vehicle.status === "DISPONIVEL"
+                  ? "Disponível para publicação."
+                  : "Veículo vendido/inativo não deve ficar público."}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleTogglePublished}
+              disabled={togglingPublished}
+              className={`relative h-6 w-11 rounded-full border transition-colors disabled:opacity-60 ${
+                vehicle.published
+                  ? "bg-emerald-500 border-emerald-600"
+                  : "bg-zinc-300 border-zinc-400 dark:bg-zinc-700 dark:border-zinc-600"
+              }`}
+              aria-pressed={!!vehicle.published}
+              title={vehicle.published ? "Publicado" : "Não publicado"}
+            >
+              <span
+                className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                  vehicle.published ? "translate-x-[18px]" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="newImageUrl">Adicionar nova URL de foto</Label>
+            <div className="flex gap-2">
+              <Input
+                id="newImageUrl"
+                value={newImageUrl}
+                onChange={(e) => setNewImageUrl(e.target.value)}
+                placeholder="https://.../foto.jpg"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddImage();
+                  }
+                }}
+              />
+              <Button type="button" variant="outline" onClick={handleAddImage} title="Adicionar">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
+              {images.length === 0 ? (
+                <div className="col-span-2 md:col-span-4 text-sm text-muted-foreground">
+                  Nenhuma foto adicionada.
+                </div>
+              ) : (
+                images.map((url) => {
+                  const status = imageStatusByUrl[url] || "loading";
+                  return (
+                    <div key={url} className="relative overflow-hidden rounded-lg border border-border">
+                      <div className="relative aspect-square bg-muted">
+                        {status === "loading" && (
+                          <div className="absolute inset-0 animate-pulse bg-muted" />
+                        )}
+                        {status === "error" ? (
+                          <div className="absolute inset-0 flex items-center justify-center p-2 text-center text-xs text-destructive">
+                            Erro ao carregar
+                          </div>
+                        ) : (
+                          <Image
+                            src={url}
+                            alt="Foto do veículo"
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 50vw, 25vw"
+                            onLoad={() =>
+                              setImageStatusByUrl((prev) => ({ ...prev, [url]: "ok" }))
+                            }
+                            onError={() =>
+                              setImageStatusByUrl((prev) => ({ ...prev, [url]: "error" }))
+                            }
+                          />
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(url)}
+                        className="absolute right-1 top-1 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white hover:bg-black"
+                        title="Remover foto"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <Button onClick={handleSaveGallery} disabled={savingGallery}>
+              {savingGallery ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Salvando…
+                </>
+              ) : (
+                "Salvar Galeria"
+              )}
+            </Button>
           </div>
         </CardContent>
       </Card>

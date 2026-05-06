@@ -36,6 +36,7 @@ const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
 const DEFAULT_PAGE_SIZE = 10;
 
 type StockFilter = "TODOS" | "SIM" | "NAO";
+type PublishedFilter = "TODOS" | "PUBLICADOS" | "NAO_PUBLICADOS";
 
 function formatKm(val: number) {
   return new Intl.NumberFormat("pt-BR").format(val) + " km";
@@ -52,6 +53,7 @@ export default function MotosPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [stockFilter, setStockFilter] = useState<StockFilter>("TODOS");
+  const [publishedFilter, setPublishedFilter] = useState<PublishedFilter>("TODOS");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [totalElements, setTotalElements] = useState(0);
@@ -92,8 +94,10 @@ export default function MotosPage() {
     }
     if (stockFilter === "SIM") list = list.filter((v) => v.inStock || v.status === "DISPONIVEL");
     if (stockFilter === "NAO") list = list.filter((v) => !v.inStock || v.status === "VENDIDO");
+    if (publishedFilter === "PUBLICADOS") list = list.filter((v) => !!v.published);
+    if (publishedFilter === "NAO_PUBLICADOS") list = list.filter((v) => !v.published);
     return list;
-  }, [veiculos, search, stockFilter]);
+  }, [veiculos, search, stockFilter, publishedFilter]);
 
   const handleRefetch = () => {
     fetchVehicles(page, pageSize);
@@ -150,6 +154,22 @@ export default function MotosPage() {
             </SelectContent>
           </Select>
           <Select
+            value={publishedFilter}
+            onValueChange={(v) => {
+              setPublishedFilter(v as PublishedFilter);
+              setPage(0);
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-[210px]">
+              <SelectValue placeholder="Catálogo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todas</SelectItem>
+              <SelectItem value="PUBLICADOS">Motos publicadas</SelectItem>
+              <SelectItem value="NAO_PUBLICADOS">Motos não publicadas</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
             value={String(pageSize)}
             onValueChange={(v) => {
               setPageSize(Number(v) as (typeof PAGE_SIZE_OPTIONS)[number]);
@@ -203,6 +223,7 @@ export default function MotosPage() {
                     <TableHead className="w-28">Placa</TableHead>
                     <TableHead>Marca</TableHead>
                     <TableHead>Modelo</TableHead>
+                    <TableHead className="w-16">Status</TableHead>
                     <TableHead className="w-20">Ano fab.</TableHead>
                     <TableHead className="w-20">Ano mod.</TableHead>
                     <TableHead>Cor</TableHead>
@@ -217,6 +238,18 @@ export default function MotosPage() {
                       <TableCell className="font-medium">{v.licensePlate}</TableCell>
                       <TableCell>{(v.brand ?? "").replace(/_/g, " ")}</TableCell>
                       <TableCell>{v.modelName}</TableCell>
+                      <TableCell>
+                        {v.published ? (
+                          <span title="Publicado no catálogo" className="inline-flex items-center gap-1 text-emerald-600">
+                            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                            <span className="text-xs">Público</span>
+                          </span>
+                        ) : (
+                          <span title="Não publicado" className="text-xs text-muted-foreground">
+                            —
+                          </span>
+                        )}
+                      </TableCell>
                       <TableCell>{v.manufactureYear}</TableCell>
                       <TableCell>{v.modelYear}</TableCell>
                       <TableCell>

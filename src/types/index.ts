@@ -161,6 +161,9 @@ export interface Vehicle {
   kilometersDriven: number;
   status: VehicleStatus;
   inStock: boolean;
+  published?: boolean;
+  description?: string | null;
+  imageUrlList?: string[];
 }
 
 /** Payload para criar veículo – POST /vehicles */
@@ -173,6 +176,9 @@ export interface VehicleCreate {
   color: string;
   kilometersDriven: number;
   inStock: boolean;
+  published?: boolean;
+  description?: string | null;
+  imageUrlList?: string[];
 }
 
 /** Venda (Sale) – GET /sales, POST /sales */

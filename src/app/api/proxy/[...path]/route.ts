@@ -36,6 +36,14 @@ export async function DELETE(
   return handleProxy(request, resolvedParams);
 }
 
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> }
+) {
+  const resolvedParams = await params;
+  return handleProxy(request, resolvedParams);
+}
+
 async function handleProxy(
   request: NextRequest,
   params: { path: string[] }
@@ -113,14 +121,13 @@ async function handleProxy(
 
       clearTimeout(timeoutId);
 
-      // Ler resposta
-      const responseText = await response.text();
-      
-      // Criar resposta Next.js
-      const nextResponse = new NextResponse(responseText, {
-        status: response.status,
-        statusText: response.statusText,
-      });
+      // Para 204/304, não pode haver body
+      const isNoBodyStatus = response.status === 204 || response.status === 304;
+      const responseText = isNoBodyStatus ? "" : await response.text();
+
+      const nextResponse = isNoBodyStatus
+        ? new NextResponse(null, { status: response.status, statusText: response.statusText })
+        : new NextResponse(responseText, { status: response.status, statusText: response.statusText });
 
       // Copiar headers relevantes (exceto CORS)
       response.headers.forEach((value, key) => {

@@ -109,6 +109,8 @@ export const api = {
       request<Vehicle>("/vehicles/search", { params: { licensePlate } }),
     historico: (licensePlate: string) =>
       request<VehicleHistory>(`/vehicles/${encodeURIComponent(licensePlate)}/history`),
+    detalhes: (licensePlate: string) =>
+      request<Vehicle>(`/vehicles/${encodeURIComponent(licensePlate)}`),
     criar: (body: VehicleCreate) =>
       request<void>("/vehicles", {
         method: "POST",
@@ -117,6 +119,11 @@ export const api = {
     atualizar: (body: VehicleCreate) =>
       request<void>("/vehicles", {
         method: "PUT",
+        body: JSON.stringify(body),
+      }),
+    atualizarCatalogo: (licensePlate: string, body: { published?: boolean; imageUrlList?: string[]; description?: string | null }) =>
+      request<void>(`/vehicles/${encodeURIComponent(licensePlate)}/catalog`, {
+        method: "PATCH",
         body: JSON.stringify(body),
       }),
     deletar: (licensePlate: string) =>
