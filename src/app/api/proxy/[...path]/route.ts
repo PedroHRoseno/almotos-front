@@ -44,32 +44,48 @@ export async function PATCH(
   return handleProxy(request, resolvedParams);
 }
 
+/**
+ * Base pública da API Spring (sem path de contexto: rotas são /vehicles, /api/auth/login, etc.).
+ * Remove barra final e sufixo /api (/api/) — configurações comuns que geram 404 no backend.
+ */
+function normalizeBackendBase(raw: string): string {
+  let base = raw.trim();
+  if (!base.startsWith("http://") && !base.startsWith("https://")) {
+    base = `https://${base}`;
+  }
+  base = base.replace(/\/+$/, "");
+  if (base.endsWith("/api")) {
+    base = base.slice(0, -"/api".length);
+  }
+  return base.replace(/\/+$/, "");
+}
+
 async function handleProxy(
   request: NextRequest,
   params: { path: string[] }
 ) {
   try {
-    const apiBase = process.env.NEXT_PUBLIC_API_URL;
+    const apiBase =
+      process.env.NEXT_PUBLIC_API_URL?.trim() ||
+      process.env.BACKEND_URL?.trim();
     if (!apiBase) {
-      console.error("[Proxy] NEXT_PUBLIC_API_URL não está configurado");
+      console.error(
+        "[Proxy] Defina NEXT_PUBLIC_API_URL ou BACKEND_URL (ex.: https://xxx.up.railway.app)"
+      );
       return NextResponse.json(
-        { error: "Backend URL não configurado. Defina NEXT_PUBLIC_API_URL (local: http://localhost:8080, prod: URL do Railway)." },
+        {
+          error: "Backend URL não configurado.",
+          hint: "Na Vercel: NEXT_PUBLIC_API_URL=https://<seu-servico>.up.railway.app (somente domínio, sem /api/ no final).",
+        },
         { status: 500 }
       );
     }
 
     // Construir o caminho completo
     const path = params.path && params.path.length > 0 ? params.path.join("/") : "";
-    
-    // Garantir que apiBase tenha protocolo
-    let backendUrl = apiBase;
-    if (!backendUrl.startsWith("http://") && !backendUrl.startsWith("https://")) {
-      backendUrl = `http://${backendUrl}`;
-    }
-    
-    // Remover barra final se existir
-    backendUrl = backendUrl.replace(/\/$/, "");
-    
+
+    let backendUrl = normalizeBackendBase(apiBase);
+
     const url = new URL(path || "/", backendUrl);
 
     // Copiar query parameters
@@ -112,7 +128,8 @@ async function handleProxy(
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos
 
     try {
-      const response = await fetch(url.toString(), {
+      const targetUrl = url.toString();
+      const response = await fetch(targetUrl, {
         method: request.method,
         headers,
         body: body || undefined,
@@ -120,6 +137,13 @@ async function handleProxy(
       });
 
       clearTimeout(timeoutId);
+
+      if (response.status === 404) {
+        console.warn(
+          `[Proxy] Backend retornou 404. Confira NEXT_PUBLIC_API_URL (deve ser a raiz Railway, não .../api/). Destino:`,
+          targetUrl
+        );
+      }
 
       // Para 204/304, não pode haver body
       const isNoBodyStatus = response.status === 204 || response.status === 304;

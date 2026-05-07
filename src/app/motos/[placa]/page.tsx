@@ -59,6 +59,8 @@ export default function VeiculoDetailPage() {
   const [imageStatusByUrl, setImageStatusByUrl] = useState<Record<string, "loading" | "ok" | "error">>({});
   const [savingGallery, setSavingGallery] = useState(false);
   const [togglingPublished, setTogglingPublished] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [dropActive, setDropActive] = useState(false);
 
   const fetchHistory = useCallback(() => {
     setLoading(true);
@@ -118,6 +120,44 @@ export default function VeiculoDetailPage() {
     setImageStatusByUrl((prev) => ({ ...prev, [url]: "loading" }));
     setNewImageUrl("");
     toast.success("Foto adicionada.");
+  };
+
+  const handleUploadFiles = async (files: FileList | File[]) => {
+    const file = (files as any)[0] as File | undefined;
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Selecione um arquivo de imagem (png/jpg/webp etc).");
+      return;
+    }
+
+    // (opcional) limite simples para evitar uploads gigantes
+    const maxBytes = 8 * 1024 * 1024; // 8MB
+    if (file.size > maxBytes) {
+      toast.error("Imagem muito grande. Limite: 8MB.");
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const { url } = await api.vehicles.uploadImage(file);
+      const trimmed = url.trim();
+      if (!trimmed) {
+        toast.error("Upload retornou uma URL vazia.");
+        return;
+      }
+      if (images.includes(trimmed)) {
+        toast.message("Essa foto já está na galeria.");
+        return;
+      }
+      setImages((prev) => [...prev, trimmed]);
+      setImageStatusByUrl((prev) => ({ ...prev, [trimmed]: "loading" }));
+      toast.success("Imagem enviada e adicionada na galeria.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao enviar imagem");
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const handleRemoveImage = (url: string) => {
@@ -323,7 +363,62 @@ export default function VeiculoDetailPage() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="newImageUrl">Adicionar nova URL de foto</Label>
+            <Label>Upload de imagem (S3)</Label>
+            <div
+              className={`relative flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-6 text-center transition-colors ${
+                dropActive ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20" : "border-border"
+              } ${uploadingImage ? "opacity-60" : ""}`}
+              onDragEnter={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDropActive(true);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDropActive(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDropActive(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDropActive(false);
+                if (uploadingImage) return;
+                const files = e.dataTransfer.files;
+                if (files && files.length > 0) handleUploadFiles(files);
+              }}
+            >
+              <input
+                type="file"
+                accept="image/*"
+                className="absolute inset-0 cursor-pointer opacity-0"
+                disabled={uploadingImage}
+                onChange={(e) => {
+                  const files = e.target.files;
+                  if (files && files.length > 0) handleUploadFiles(files);
+                  // permitir escolher o mesmo arquivo novamente
+                  e.currentTarget.value = "";
+                }}
+              />
+              <div className="text-sm">
+                <p className="font-medium">Clique para selecionar ou arraste uma imagem aqui</p>
+                <p className="text-xs text-muted-foreground">
+                  PNG/JPG/WebP • até 8MB • a URL será adicionada automaticamente na galeria
+                </p>
+              </div>
+              {uploadingImage && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Enviando...
+                </div>
+              )}
+            </div>
+
+            <Label htmlFor="newImageUrl" className="mt-4 block">Adicionar por URL (manual)</Label>
             <div className="flex gap-2">
               <Input
                 id="newImageUrl"

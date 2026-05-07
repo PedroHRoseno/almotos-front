@@ -83,6 +83,39 @@ async function request<T>(
   return res.json() as Promise<T>;
 }
 
+async function uploadMultipart<T>(
+  path: string,
+  formData: FormData,
+  method: "POST" | "PUT" | "PATCH" = "POST"
+): Promise<T> {
+  const base = getBaseUrl();
+  const url = new URL(`${PROXY_PREFIX}${path}`, base);
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  // NÃO definir Content-Type aqui — o browser seta boundary automaticamente.
+
+  const res = await fetch(url.toString(), {
+    method,
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const status = res.status;
+    const text = await res.text();
+    const errorMsg = text || `${res.status} ${res.statusText}`;
+    console.error(`[API] Erro ${status} (${res.url}):`, errorMsg);
+    throw new Error(errorMsg || `Erro ${status}: ${res.statusText}`);
+  }
+
+  if (res.status === 204 || res.headers.get("content-length") === "0") {
+    return undefined as T;
+  }
+  return res.json() as Promise<T>;
+}
+
 /** Helper para construir parâmetros de paginação */
 function buildPaginationParams(page: number = 0, size: number = 20, sort?: string): Record<string, string> {
   const params: Record<string, string> = {
@@ -130,6 +163,12 @@ export const api = {
       request<void>(`/vehicles/${encodeURIComponent(licensePlate)}`, {
         method: "DELETE",
       }),
+    uploadImage: async (file: File) => {
+      const fd = new FormData();
+      fd.append("file", file);
+      // Endpoint do backend usa prefixo /api
+      return uploadMultipart<{ url: string }>("/api/vehicles/images/upload", fd, "POST");
+    },
     custos: {
       listar: (licensePlate: string) =>
         request<VehicleCostItem[]>(`/vehicles/${encodeURIComponent(licensePlate)}/costs`),
