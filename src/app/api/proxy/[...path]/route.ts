@@ -113,11 +113,11 @@ async function handleProxy(
     // Adicionar User-Agent customizado para identificar requisições do proxy
     headers["User-Agent"] = "AlMotos-Frontend-Proxy/1.0";
 
-    // Preparar body se existir
-    let body: string | undefined;
+    // Preparar body se existir (precisa suportar multipart/binary)
+    let body: ArrayBuffer | undefined;
     if (request.method !== "GET" && request.method !== "HEAD") {
       try {
-        body = await request.text();
+        body = await request.arrayBuffer();
       } catch (e) {
         // Se não houver body, continua sem ele
       }
@@ -125,14 +125,15 @@ async function handleProxy(
 
     // Fazer requisição para o backend
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos
+    // Upload pode demorar (cold start do Railway + transferência). 120s é mais seguro.
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 segundos
 
     try {
       const targetUrl = url.toString();
       const response = await fetch(targetUrl, {
         method: request.method,
         headers,
-        body: body || undefined,
+        body: body ? new Uint8Array(body) : undefined,
         signal: controller.signal,
       });
 
