@@ -21,6 +21,7 @@ import type { VehicleBrand } from "@/types";
 import { VEHICLE_BRANDS } from "@/types";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { VehiclePhotoPipeline } from "@/components/vehicle/vehicle-photo-pipeline";
 
 const defaultValues: Partial<VeiculoFormData> = {
   licensePlate: "",
@@ -31,17 +32,8 @@ const defaultValues: Partial<VeiculoFormData> = {
   color: "#000000",
   kilometersDriven: 0,
   inStock: true,
-  imageUrlListText: "",
   published: false,
 };
-
-function parseImageUrlList(text: string | undefined): string[] {
-  if (!text) return [];
-  return text
-    .split(",")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
-}
 
 export interface FormVeiculoProps {
   onSuccess?: () => void;
@@ -53,6 +45,8 @@ export interface FormVeiculoProps {
 export function FormVeiculo({ onSuccess, onSuccessWithPlate, insideModal }: FormVeiculoProps = {}) {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [vehicleImageUrls, setVehicleImageUrls] = useState<string[]>([]);
+  const [photosBlockingSave, setPhotosBlockingSave] = useState(false);
 
   const form = useForm<VeiculoFormData>({
     resolver: zodResolver(veiculoSchema),
@@ -74,11 +68,12 @@ export function FormVeiculo({ onSuccess, onSuccessWithPlate, insideModal }: Form
         kilometersDriven: data.kilometersDriven,
         inStock: data.inStock,
         published: data.published,
-        imageUrlList: parseImageUrlList(data.imageUrlListText),
+        imageUrlList: vehicleImageUrls,
       });
       const plate = formatLicensePlate(data.licensePlate);
       setSuccess("Veículo cadastrado com sucesso.");
       form.reset(defaultValues);
+      setVehicleImageUrls([]);
       onSuccessWithPlate?.(plate);
       onSuccess?.();
     } catch (e) {
@@ -248,25 +243,19 @@ export function FormVeiculo({ onSuccess, onSuccessWithPlate, insideModal }: Form
           />
         </FormField>
 
-        <FormField
-          name="imageUrlListText"
-          label="URLs de imagens (separadas por vírgula)"
-          error={form.formState.errors.imageUrlListText}
-          className="sm:col-span-2"
-        >
-          <Controller
-            control={form.control}
-            name="imageUrlListText"
-            render={({ field }) => (
-              <Input
-                id="imageUrlListText"
-                placeholder="https://.../foto1.jpg, https://.../foto2.jpg"
-                value={field.value || ""}
-                onChange={(e) => field.onChange(e.target.value)}
-              />
-            )}
+        <div className="sm:col-span-2 space-y-2">
+          <p className="text-sm font-medium leading-none">Fotos do catálogo</p>
+          <p className="text-xs text-muted-foreground">
+            Envie imagens ao armazenamento, edite o recorte 4:3 se quiser e use &quot;Finalizar e publicar
+            fotos&quot; antes de cadastrar o veículo.
+          </p>
+          <VehiclePhotoPipeline
+            committedImageUrls={vehicleImageUrls}
+            onCommittedImageUrlsChange={setVehicleImageUrls}
+            onBlockingChange={setPhotosBlockingSave}
+            disabled={form.formState.isSubmitting}
           />
-        </FormField>
+        </div>
 
         <FormField
           name="published"
@@ -303,10 +292,17 @@ export function FormVeiculo({ onSuccess, onSuccessWithPlate, insideModal }: Form
       </div>
 
       <div className="flex justify-end gap-3">
-        <Button type="button" variant="outline" onClick={() => form.reset(defaultValues)}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            form.reset(defaultValues);
+            setVehicleImageUrls([]);
+          }}
+        >
           Limpar
         </Button>
-        <Button type="submit" disabled={form.formState.isSubmitting}>
+        <Button type="submit" disabled={form.formState.isSubmitting || photosBlockingSave}>
           {form.formState.isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

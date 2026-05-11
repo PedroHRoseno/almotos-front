@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, DollarSign, Calendar, User, Wrench, X } from "lucide-react";
-import Image from "next/image";
+import { ArrowLeft, Plus, Trash2, DollarSign, Calendar, User, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,9 +17,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { VehiclePhotoPipeline } from "@/components/vehicle/vehicle-photo-pipeline";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -55,12 +54,9 @@ export default function VeiculoDetailPage() {
   const [newCost, setNewCost] = useState({ cost: "", description: "", costDate: "" });
   const [addingCost, setAddingCost] = useState(false);
   const [images, setImages] = useState<string[]>([]);
-  const [newImageUrl, setNewImageUrl] = useState("");
-  const [imageStatusByUrl, setImageStatusByUrl] = useState<Record<string, "loading" | "ok" | "error">>({});
   const [savingGallery, setSavingGallery] = useState(false);
+  const [galleryBlocking, setGalleryBlocking] = useState(false);
   const [togglingPublished, setTogglingPublished] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [dropActive, setDropActive] = useState(false);
 
   const fetchHistory = useCallback(() => {
     setLoading(true);
@@ -86,89 +82,7 @@ export default function VeiculoDetailPage() {
     if (!history) return;
     const list = history.vehicle.imageUrlList || [];
     setImages(list);
-    setImageStatusByUrl((prev) => {
-      const next = { ...prev };
-      list.forEach((u) => {
-        if (!next[u]) next[u] = "loading";
-      });
-      return next;
-    });
   }, [history]);
-
-  const isValidImageUrl = (value: string) => {
-    try {
-      const u = new URL(value);
-      return u.protocol === "http:" || u.protocol === "https:";
-    } catch {
-      return false;
-    }
-  };
-
-  const handleAddImage = () => {
-    const url = newImageUrl.trim();
-    if (!url) return;
-    if (!isValidImageUrl(url)) {
-      toast.error("URL inválida. Use http/https.");
-      return;
-    }
-    if (images.includes(url)) {
-      toast.message("Essa foto já está na lista.");
-      setNewImageUrl("");
-      return;
-    }
-    setImages((prev) => [...prev, url]);
-    setImageStatusByUrl((prev) => ({ ...prev, [url]: "loading" }));
-    setNewImageUrl("");
-    toast.success("Foto adicionada.");
-  };
-
-  const handleUploadFiles = async (files: FileList | File[]) => {
-    const file = (files as any)[0] as File | undefined;
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Selecione um arquivo de imagem (png/jpg/webp etc).");
-      return;
-    }
-
-    // (opcional) limite simples para evitar uploads gigantes
-    const maxBytes = 8 * 1024 * 1024; // 8MB
-    if (file.size > maxBytes) {
-      toast.error("Imagem muito grande. Limite: 8MB.");
-      return;
-    }
-
-    setUploadingImage(true);
-    try {
-      const { url } = await api.vehicles.uploadImage(file);
-      const trimmed = url.trim();
-      if (!trimmed) {
-        toast.error("Upload retornou uma URL vazia.");
-        return;
-      }
-      if (images.includes(trimmed)) {
-        toast.message("Essa foto já está na galeria.");
-        return;
-      }
-      setImages((prev) => [...prev, trimmed]);
-      setImageStatusByUrl((prev) => ({ ...prev, [trimmed]: "loading" }));
-      toast.success("Imagem enviada e adicionada na galeria.");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Erro ao enviar imagem");
-    } finally {
-      setUploadingImage(false);
-    }
-  };
-
-  const handleRemoveImage = (url: string) => {
-    setImages((prev) => prev.filter((u) => u !== url));
-    setImageStatusByUrl((prev) => {
-      const next = { ...prev };
-      delete next[url];
-      return next;
-    });
-    toast.success("Foto removida.");
-  };
 
   const handleTogglePublished = async () => {
     if (!history) return;
@@ -362,137 +276,29 @@ export default function VeiculoDetailPage() {
             </button>
           </div>
 
-          <div className="space-y-2">
-            <Label>Upload de imagem (S3)</Label>
-            <div
-              className={`relative flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-6 text-center transition-colors ${
-                dropActive ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20" : "border-border"
-              } ${uploadingImage ? "opacity-60" : ""}`}
-              onDragEnter={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setDropActive(true);
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setDropActive(true);
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setDropActive(false);
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setDropActive(false);
-                if (uploadingImage) return;
-                const files = e.dataTransfer.files;
-                if (files && files.length > 0) handleUploadFiles(files);
-              }}
+          <div className="space-y-3">
+            <Label>Fotos do catálogo (S3)</Label>
+            <VehiclePhotoPipeline
+              committedImageUrls={images}
+              onCommittedImageUrlsChange={setImages}
+              onBlockingChange={setGalleryBlocking}
+            />
+            <p className="text-xs text-muted-foreground">
+              Adicione várias imagens, edite o recorte 4:3 se necessário, publique na fila e depois salve a galeria no
+              veículo.
+            </p>
+            <Button
+              type="button"
+              onClick={handleSaveGallery}
+              disabled={savingGallery || galleryBlocking}
             >
-              <input
-                type="file"
-                accept="image/*"
-                className="absolute inset-0 cursor-pointer opacity-0"
-                disabled={uploadingImage}
-                onChange={(e) => {
-                  const files = e.target.files;
-                  if (files && files.length > 0) handleUploadFiles(files);
-                  // permitir escolher o mesmo arquivo novamente
-                  e.currentTarget.value = "";
-                }}
-              />
-              <div className="text-sm">
-                <p className="font-medium">Clique para selecionar ou arraste uma imagem aqui</p>
-                <p className="text-xs text-muted-foreground">
-                  PNG/JPG/WebP • até 8MB • a URL será adicionada automaticamente na galeria
-                </p>
-              </div>
-              {uploadingImage && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Enviando...
-                </div>
-              )}
-            </div>
-
-            <Label htmlFor="newImageUrl" className="mt-4 block">Adicionar por URL (manual)</Label>
-            <div className="flex gap-2">
-              <Input
-                id="newImageUrl"
-                value={newImageUrl}
-                onChange={(e) => setNewImageUrl(e.target.value)}
-                placeholder="https://.../foto.jpg"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleAddImage();
-                  }
-                }}
-              />
-              <Button type="button" variant="outline" onClick={handleAddImage} title="Adicionar">
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
-              {images.length === 0 ? (
-                <div className="col-span-2 md:col-span-4 text-sm text-muted-foreground">
-                  Nenhuma foto adicionada.
-                </div>
-              ) : (
-                images.map((url) => {
-                  const status = imageStatusByUrl[url] || "loading";
-                  return (
-                    <div key={url} className="relative overflow-hidden rounded-lg border border-border">
-                      <div className="relative aspect-square bg-muted">
-                        {status === "loading" && (
-                          <div className="absolute inset-0 animate-pulse bg-muted" />
-                        )}
-                        {status === "error" ? (
-                          <div className="absolute inset-0 flex items-center justify-center p-2 text-center text-xs text-destructive">
-                            Erro ao carregar
-                          </div>
-                        ) : (
-                          <Image
-                            src={url}
-                            alt="Foto do veículo"
-                            fill
-                            className="object-cover"
-                            sizes="(max-width: 768px) 50vw, 25vw"
-                            onLoad={() =>
-                              setImageStatusByUrl((prev) => ({ ...prev, [url]: "ok" }))
-                            }
-                            onError={() =>
-                              setImageStatusByUrl((prev) => ({ ...prev, [url]: "error" }))
-                            }
-                          />
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(url)}
-                        className="absolute right-1 top-1 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white hover:bg-black"
-                        title="Remover foto"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            <Button onClick={handleSaveGallery} disabled={savingGallery}>
               {savingGallery ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Salvando…
                 </>
               ) : (
-                "Salvar Galeria"
+                "Salvar galeria"
               )}
             </Button>
           </div>

@@ -116,6 +116,50 @@ async function uploadMultipart<T>(
   return res.json() as Promise<T>;
 }
 
+function getProxyVehicleImageUploadUrl(): string {
+  const base =
+    typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+  return new URL(`${PROXY_PREFIX}/api/vehicles/images/upload`, base).toString();
+}
+
+/** Upload multipart com progresso (XHR); use na fila de fotos do veículo. */
+export function uploadVehicleImageWithProgress(
+  file: File,
+  onProgress: (percent: number) => void
+): Promise<{ url: string }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", getProxyVehicleImageUploadUrl());
+    const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.upload.onprogress = (ev) => {
+      if (ev.lengthComputable) {
+        onProgress(Math.min(100, Math.round((ev.loaded / ev.total) * 100)));
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText || "{}") as { url?: string };
+          if (!data?.url) {
+            reject(new Error("Resposta sem URL"));
+            return;
+          }
+          resolve({ url: data.url });
+        } catch {
+          reject(new Error("Resposta inválida do servidor"));
+        }
+      } else {
+        reject(new Error(xhr.responseText || `${xhr.status}`));
+      }
+    };
+    xhr.onerror = () => reject(new Error("Falha de rede"));
+    const fd = new FormData();
+    fd.append("file", file);
+    xhr.send(fd);
+  });
+}
+
 /** Helper para construir parâmetros de paginação */
 function buildPaginationParams(page: number = 0, size: number = 20, sort?: string): Record<string, string> {
   const params: Record<string, string> = {

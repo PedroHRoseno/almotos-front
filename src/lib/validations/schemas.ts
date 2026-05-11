@@ -35,10 +35,6 @@ export const veiculoSchema = z.object({
     .number({ invalid_type_error: "Quilometragem deve ser um número" })
     .min(0, "Quilometragem não pode ser negativa"),
   inStock: z.boolean(),
-  imageUrlListText: z
-    .string()
-    .optional()
-    .or(z.literal("")),
   published: z.boolean().default(false),
 });
 
