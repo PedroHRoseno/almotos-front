@@ -72,8 +72,16 @@ async function request<T>(
     console.error(`[API] Erro ${status} (${res.url}):`, errorMsg);
     
     if ((status === 401 || status === 403) && shouldRedirectOnAuthError()) {
+      // IMPORTANTE: logar antes de redirecionar, senão em produção vira "falha silenciosa".
+      console.error(
+        "[Auth] Redirecionando para /login por erro de autenticação.",
+        { status, url: res.url, body: errorMsg }
+      );
       clearStoredAuth();
-      window.location.href = "/login";
+      // Pequeno delay para o log aparecer antes do navigation.
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 150);
     }
     
     throw new Error(errorMsg || `Erro ${status}: ${res.statusText}`);

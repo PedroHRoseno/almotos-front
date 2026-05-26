@@ -18,6 +18,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     }
 
     if (!hasValidSession()) {
+      console.error("[AuthGuard] Sem sessão válida. Redirecionando para /login.", {
+        pathname,
+      });
       router.replace("/login");
     }
   }, [authReady, pathname, router]);
