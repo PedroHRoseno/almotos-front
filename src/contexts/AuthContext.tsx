@@ -1,7 +1,12 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { clearStoredAuth, getValidStoredToken } from "@/lib/auth-token";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
+import {
+  clearStoredAuth,
+  getStoredUser,
+  getValidStoredToken,
+  hasValidSession,
+} from "@/lib/auth-token";
 
 interface User {
   username: string;
@@ -19,28 +24,34 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function readSessionFromStorage(): { token: string; user: User } | null {
+  const token = getValidStoredToken();
+  const user = getStoredUser();
+  if (!token || !user) return null;
+  return { token, user };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
 
-  useEffect(() => {
-    const storedToken = getValidStoredToken();
-    const storedUser = localStorage.getItem("auth_user");
-
-    if (storedToken && storedUser) {
-      try {
-        setToken(storedToken);
-        setUser(JSON.parse(storedUser));
-      } catch {
-        clearStoredAuth();
-      }
-    } else if (!storedToken) {
+  const syncFromStorage = useCallback(() => {
+    const session = readSessionFromStorage();
+    if (session) {
+      setToken(session.token);
+      setUser(session.user);
+    } else {
+      setToken(null);
+      setUser(null);
       clearStoredAuth();
     }
-
-    setAuthReady(true);
   }, []);
+
+  useEffect(() => {
+    syncFromStorage();
+    setAuthReady(true);
+  }, [syncFromStorage]);
 
   const login = async (username: string, password: string) => {
     const response = await fetch("/api/proxy/api/auth/login", {
@@ -59,11 +70,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await response.json();
     const userData = { username: data.username, role: data.role };
 
-    setToken(data.token);
-    setUser(userData);
-
     localStorage.setItem("auth_token", data.token);
     localStorage.setItem("auth_user", JSON.stringify(userData));
+
+    setToken(data.token);
+    setUser(userData);
   };
 
   const logout = () => {
@@ -80,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         authReady,
         login,
         logout,
-        isAuthenticated: authReady && !!token,
+        isAuthenticated: authReady && hasValidSession(),
       }}
     >
       {children}

@@ -3,22 +3,24 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { hasValidSession } from "@/lib/auth-token";
 import { Loader2 } from "lucide-react";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, authReady } = useAuth();
+  const { authReady } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const sessionActive = authReady && hasValidSession();
 
   useEffect(() => {
     if (!authReady || pathname === "/login") {
       return;
     }
 
-    if (!isAuthenticated) {
-      router.push("/login");
+    if (!hasValidSession()) {
+      router.replace("/login");
     }
-  }, [isAuthenticated, authReady, router, pathname]);
+  }, [authReady, pathname, router]);
 
   if (!authReady) {
     return (
@@ -28,8 +30,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Mostrar loading enquanto verifica autenticação
-  if (pathname !== "/login" && !isAuthenticated) {
+  if (pathname !== "/login" && !sessionActive) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
