@@ -174,10 +174,20 @@ function buildPaginationParams(page: number = 0, size: number = 20, sort?: strin
 
 export const api = {
   vehicles: {
-    listar: (page: number = 0, size: number = 20) =>
-      request<PageResponse<Vehicle>>("/vehicles", {
-        params: buildPaginationParams(page, size, "licensePlate"),
-      }),
+    listar: (
+      page: number = 0,
+      size: number = 20,
+      options?: { search?: string; inStock?: boolean; published?: boolean }
+    ) => {
+      const params: Record<string, string> = {
+        ...buildPaginationParams(page, size, "createdAt,desc"),
+      };
+      const search = options?.search?.trim();
+      if (search) params.search = search;
+      if (options?.inStock !== undefined) params.inStock = String(options.inStock);
+      if (options?.published !== undefined) params.published = String(options.published);
+      return request<PageResponse<Vehicle>>("/vehicles", { params });
+    },
     listarDisponiveis: (page: number = 0, size: number = 20) =>
       request<PageResponse<Vehicle>>("/vehicles/available", {
         params: buildPaginationParams(page, size, "licensePlate"),

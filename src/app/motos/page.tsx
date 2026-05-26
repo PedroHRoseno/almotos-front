@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Bike, Plus, Search, ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ import type { Vehicle } from "@/types";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
 const DEFAULT_PAGE_SIZE = 10;
+const SEARCH_DEBOUNCE_MS = 400;
 
 type StockFilter = "TODOS" | "SIM" | "NAO";
 type PublishedFilter = "TODOS" | "PUBLICADOS" | "NAO_PUBLICADOS";
@@ -47,11 +48,24 @@ function isHexColor(s: string | null | undefined): boolean {
   return !!s && HEX_REGEX.test(s);
 }
 
+function stockFilterToInStock(filter: StockFilter): boolean | undefined {
+  if (filter === "SIM") return true;
+  if (filter === "NAO") return false;
+  return undefined;
+}
+
+function publishedFilterToPublished(filter: PublishedFilter): boolean | undefined {
+  if (filter === "PUBLICADOS") return true;
+  if (filter === "NAO_PUBLICADOS") return false;
+  return undefined;
+}
+
 export default function MotosPage() {
   const [veiculos, setVeiculos] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
-  const [search, setSearch] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [stockFilter, setStockFilter] = useState<StockFilter>("TODOS");
   const [publishedFilter, setPublishedFilter] = useState<PublishedFilter>("TODOS");
   const [page, setPage] = useState(0);
@@ -59,10 +73,24 @@ export default function MotosPage() {
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
-  const fetchVehicles = useCallback((pageNum: number = 0, size: number = pageSize) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setPage(0);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const fetchVehicles = useCallback(() => {
     setLoading(true);
+    const search = debouncedSearchTerm.trim() || undefined;
     api.vehicles
-      .listar(pageNum, size)
+      .listar(page, pageSize, {
+        search,
+        inStock: stockFilterToInStock(stockFilter),
+        published: publishedFilterToPublished(publishedFilter),
+      })
       .then((response) => {
         setVeiculos(response.content || []);
         setTotalElements(response.totalElements || 0);
@@ -74,39 +102,25 @@ export default function MotosPage() {
         setTotalPages(0);
       })
       .finally(() => setLoading(false));
-  }, [pageSize]);
+  }, [page, pageSize, debouncedSearchTerm, stockFilter, publishedFilter]);
 
   useEffect(() => {
-    fetchVehicles(page, pageSize);
-  }, [page, pageSize, fetchVehicles]);
-
-  const filtered = useMemo(() => {
-    let list = veiculos;
-    const q = search.trim().toLowerCase();
-    if (q) {
-      list = list.filter(
-        (v) =>
-          v.licensePlate.toLowerCase().includes(q) ||
-          v.brand.toLowerCase().includes(q) ||
-          v.modelName.toLowerCase().includes(q) ||
-          (v.color && v.color.toLowerCase().includes(q))
-      );
-    }
-    if (stockFilter === "SIM") list = list.filter((v) => v.inStock || v.status === "DISPONIVEL");
-    if (stockFilter === "NAO") list = list.filter((v) => !v.inStock || v.status === "VENDIDO");
-    if (publishedFilter === "PUBLICADOS") list = list.filter((v) => !!v.published);
-    if (publishedFilter === "NAO_PUBLICADOS") list = list.filter((v) => !v.published);
-    return list;
-  }, [veiculos, search, stockFilter, publishedFilter]);
+    fetchVehicles();
+  }, [fetchVehicles]);
 
   const handleRefetch = () => {
-    fetchVehicles(page, pageSize);
+    fetchVehicles();
   };
 
   const handleCadastroSuccess = () => {
     setModalOpen(false);
     handleRefetch();
   };
+
+  const hasActiveFilters =
+    debouncedSearchTerm.trim() !== "" ||
+    stockFilter !== "TODOS" ||
+    publishedFilter !== "TODOS";
 
   return (
     <div className="space-y-6">
@@ -128,12 +142,9 @@ export default function MotosPage() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Buscar por placa, marca, modelo ou cor…"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(0);
-              }}
+              placeholder="Buscar por placa, marca ou modelo…"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9"
             />
           </div>
@@ -194,20 +205,22 @@ export default function MotosPage() {
             <div className="flex items-center justify-center py-16 text-muted-foreground">
               Carregando…
             </div>
-          ) : filtered.length === 0 ? (
+          ) : veiculos.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-muted-foreground">
               <Bike className="h-10 w-10" />
               <p>
-                {filtered.length === 0 && veiculos.length === 0
+                {!hasActiveFilters
                   ? "Nenhum veículo cadastrado."
                   : "Nenhum resultado para os filtros aplicados."}
               </p>
-              {filtered.length === 0 && veiculos.length > 0 && (
+              {hasActiveFilters && (
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setSearch("");
+                    setSearchTerm("");
+                    setDebouncedSearchTerm("");
                     setStockFilter("TODOS");
+                    setPublishedFilter("TODOS");
                     setPage(0);
                   }}
                 >
@@ -233,7 +246,7 @@ export default function MotosPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((v) => (
+                  {veiculos.map((v) => (
                     <TableRow key={v.licensePlate}>
                       <TableCell className="font-medium">{v.licensePlate}</TableCell>
                       <TableCell>{(v.brand ?? "").replace(/_/g, " ")}</TableCell>
