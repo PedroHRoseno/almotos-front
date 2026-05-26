@@ -59,7 +59,16 @@ async function request<T>(
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
-  
+
+  if (typeof window !== "undefined") {
+    const rawTokenPresent = !!localStorage.getItem("auth_token");
+    console.debug("[API] →", init.method || "GET", url.pathname, {
+      authorizationAttached: !!token,
+      tokenPresentInStorage: rawTokenPresent,
+      tokenPreview: token ? `${token.slice(0, 12)}…` : null,
+    });
+  }
+
   const res = await fetch(url.toString(), {
     ...init,
     headers,

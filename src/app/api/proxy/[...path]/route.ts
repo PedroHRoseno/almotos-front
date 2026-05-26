@@ -93,30 +93,47 @@ async function handleProxy(
       url.searchParams.set(key, value);
     });
 
-    // Preparar headers (remover headers CORS e de origem)
-    const headers: Record<string, string> = {};
+    // Headers que NUNCA encaminhamos para o backend (evita duplicidade, loops e header inválido).
+    const BANNED_HEADERS = new Set([
+      "host",
+      "origin",
+      "referer",
+      "connection",
+      "content-length",
+      "transfer-encoding",
+      "accept-encoding",
+    ]);
+
+    // Usamos Headers (case-insensitive) ao invés de objeto plano para evitar
+    // "Authorization" + "authorization" virarem duas entradas e o backend ler
+    // "Bearer x, Bearer x" (header malformado → 401).
+    const outHeaders = new Headers();
     request.headers.forEach((value, key) => {
-      // Filtrar headers que não devem ser encaminhados
-      const lowerKey = key.toLowerCase();
-      if (
-        lowerKey !== "host" &&
-        lowerKey !== "origin" &&
-        lowerKey !== "referer" &&
-        !lowerKey.startsWith("sec-") &&
-        !lowerKey.startsWith("x-forwarded-") &&
-        !lowerKey.startsWith("x-vercel-")
-      ) {
-        headers[key] = value;
-      }
+      const lower = key.toLowerCase();
+      if (BANNED_HEADERS.has(lower)) return;
+      if (lower.startsWith("sec-")) return;
+      if (lower.startsWith("x-forwarded-")) return;
+      if (lower.startsWith("x-vercel-")) return;
+      outHeaders.set(key, value);
     });
 
-    // Garantir encaminhamento do JWT (alguns ambientes normalizam o header em minúsculas)
+    // Encaminhar Authorization de forma explícita e única.
     const authorization = request.headers.get("authorization");
     if (authorization) {
-      headers["Authorization"] = authorization;
+      outHeaders.set("Authorization", authorization);
+    } else {
+      outHeaders.delete("Authorization");
     }
 
-    headers["User-Agent"] = "AlMotos-Frontend-Proxy/1.0";
+    outHeaders.set("User-Agent", "AlMotos-Frontend-Proxy/1.0");
+
+    // Diagnóstico (aparece nos Function Logs da Vercel). Não imprime o token completo.
+    const authPreview = authorization
+      ? `${authorization.slice(0, 18)}…(${authorization.length} chars)`
+      : "<ausente>";
+    console.log(
+      `[Proxy] ${request.method} ${url.pathname} | Authorization=${authPreview}`
+    );
 
     // Preparar body se existir (precisa suportar multipart/binary)
     let body: ArrayBuffer | undefined;
@@ -137,7 +154,7 @@ async function handleProxy(
       const targetUrl = url.toString();
       const response = await fetch(targetUrl, {
         method: request.method,
-        headers,
+        headers: outHeaders,
         body: body ? new Uint8Array(body) : undefined,
         signal: controller.signal,
       });
@@ -148,6 +165,12 @@ async function handleProxy(
         console.warn(
           `[Proxy] Backend retornou 404. Confira NEXT_PUBLIC_API_URL (deve ser a raiz Railway, não .../api/). Destino:`,
           targetUrl
+        );
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        console.warn(
+          `[Proxy] Backend retornou ${response.status} para ${url.pathname} | Authorization enviado=${!!authorization}`
         );
       }
 
