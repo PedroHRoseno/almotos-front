@@ -126,6 +126,9 @@ async function handleProxy(
     }
 
     outHeaders.set("User-Agent", "AlMotos-Frontend-Proxy/1.0");
+    // Evita resposta gzip do Railway; o fetch do Node descomprime, mas repassar
+    // Content-Encoding quebrava o browser (ERR_CONTENT_DECODING_FAILED).
+    outHeaders.set("Accept-Encoding", "identity");
 
     // Diagnóstico (aparece nos Function Logs da Vercel). Não imprime o token completo.
     const authPreview = authorization
@@ -182,15 +185,21 @@ async function handleProxy(
         ? new NextResponse(null, { status: response.status, statusText: response.statusText })
         : new NextResponse(responseText, { status: response.status, statusText: response.statusText });
 
-      // Copiar headers relevantes (exceto CORS)
+      // fetch() do Node já descomprime gzip/br — não repassar Content-Encoding/Length
+      // ou o browser tenta descomprimir de novo → ERR_CONTENT_DECODING_FAILED (200 OK).
+      const BANNED_RESPONSE_HEADERS = new Set([
+        "access-control-allow-origin",
+        "access-control-allow-methods",
+        "access-control-allow-headers",
+        "access-control-allow-credentials",
+        "content-encoding",
+        "content-length",
+        "transfer-encoding",
+      ]);
+
       response.headers.forEach((value, key) => {
         const lowerKey = key.toLowerCase();
-        if (
-          lowerKey !== "access-control-allow-origin" &&
-          lowerKey !== "access-control-allow-methods" &&
-          lowerKey !== "access-control-allow-headers" &&
-          lowerKey !== "access-control-allow-credentials"
-        ) {
+        if (!BANNED_RESPONSE_HEADERS.has(lowerKey)) {
           nextResponse.headers.set(key, value);
         }
       });
