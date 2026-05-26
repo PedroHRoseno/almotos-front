@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { clearStoredAuth, getValidStoredToken } from "@/lib/auth-token";
 
 interface User {
   username: string;
@@ -10,6 +11,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   token: string | null;
+  authReady: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   isAuthenticated: boolean;
@@ -20,16 +22,24 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
-    // Carregar do localStorage ao inicializar
-    const storedToken = localStorage.getItem("auth_token");
+    const storedToken = getValidStoredToken();
     const storedUser = localStorage.getItem("auth_user");
 
     if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
+      try {
+        setToken(storedToken);
+        setUser(JSON.parse(storedUser));
+      } catch {
+        clearStoredAuth();
+      }
+    } else if (!storedToken) {
+      clearStoredAuth();
     }
+
+    setAuthReady(true);
   }, []);
 
   const login = async (username: string, password: string) => {
@@ -59,8 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     setToken(null);
     setUser(null);
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("auth_user");
+    clearStoredAuth();
   };
 
   return (
@@ -68,9 +77,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         token,
+        authReady,
         login,
         logout,
-        isAuthenticated: !!token,
+        isAuthenticated: authReady && !!token,
       }}
     >
       {children}

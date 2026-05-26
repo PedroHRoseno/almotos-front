@@ -6,21 +6,27 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, authReady } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    // Não proteger a rota de login
-    if (pathname === "/login") {
+    if (!authReady || pathname === "/login") {
       return;
     }
 
-    // Verificar autenticação para todas as outras rotas
     if (!isAuthenticated) {
       router.push("/login");
     }
-  }, [isAuthenticated, router, pathname]);
+  }, [isAuthenticated, authReady, router, pathname]);
+
+  if (!authReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   // Mostrar loading enquanto verifica autenticação
   if (pathname !== "/login" && !isAuthenticated) {

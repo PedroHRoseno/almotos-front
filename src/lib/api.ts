@@ -26,6 +26,11 @@ import type {
   StoreTransaction,
   StoreTransactionCreate,
 } from "@/types";
+import {
+  clearStoredAuth,
+  getValidStoredToken,
+  shouldRedirectOnAuthError,
+} from "@/lib/auth-token";
 
 /** Proxy local (/api/proxy/*) evita CORS; rewrites encaminham para o back-end. */
 const PROXY_PREFIX = "/api/proxy";
@@ -45,8 +50,7 @@ async function request<T>(
     Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
   }
   
-  // Adicionar token de autenticação se existir
-  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  const token = typeof window !== "undefined" ? getValidStoredToken() : null;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(init.headers as Record<string, string>),
@@ -67,10 +71,8 @@ async function request<T>(
     const errorMsg = text || `${res.status} ${res.statusText}`;
     console.error(`[API] Erro ${status} (${res.url}):`, errorMsg);
     
-    // 401/403: token ausente, expirado ou inválido (Spring costuma responder 403 sem auth)
-    if ((status === 401 || status === 403) && typeof window !== "undefined") {
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("auth_user");
+    if ((status === 401 || status === 403) && shouldRedirectOnAuthError()) {
+      clearStoredAuth();
       window.location.href = "/login";
     }
     
@@ -91,7 +93,7 @@ async function uploadMultipart<T>(
   const base = getBaseUrl();
   const url = new URL(`${PROXY_PREFIX}${path}`, base);
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+  const token = typeof window !== "undefined" ? getValidStoredToken() : null;
   const headers: Record<string, string> = {};
   if (token) headers["Authorization"] = `Bearer ${token}`;
   // NÃO definir Content-Type aqui — o browser seta boundary automaticamente.
@@ -130,7 +132,7 @@ export function uploadVehicleImageWithProgress(
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", getProxyVehicleImageUploadUrl());
-    const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+    const token = typeof window !== "undefined" ? getValidStoredToken() : null;
     if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
     xhr.upload.onprogress = (ev) => {
       if (ev.lengthComputable) {
