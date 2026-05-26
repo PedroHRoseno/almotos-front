@@ -67,8 +67,8 @@ async function request<T>(
     const errorMsg = text || `${res.status} ${res.statusText}`;
     console.error(`[API] Erro ${status} (${res.url}):`, errorMsg);
     
-    // Se for erro 401 (não autorizado), limpar token e redirecionar para login
-    if (status === 401 && typeof window !== "undefined") {
+    // 401/403: token ausente, expirado ou inválido (Spring costuma responder 403 sem auth)
+    if ((status === 401 || status === 403) && typeof window !== "undefined") {
       localStorage.removeItem("auth_token");
       localStorage.removeItem("auth_user");
       window.location.href = "/login";

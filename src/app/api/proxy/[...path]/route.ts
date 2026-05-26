@@ -110,7 +110,12 @@ async function handleProxy(
       }
     });
 
-    // Adicionar User-Agent customizado para identificar requisições do proxy
+    // Garantir encaminhamento do JWT (alguns ambientes normalizam o header em minúsculas)
+    const authorization = request.headers.get("authorization");
+    if (authorization) {
+      headers["Authorization"] = authorization;
+    }
+
     headers["User-Agent"] = "AlMotos-Frontend-Proxy/1.0";
 
     // Preparar body se existir (precisa suportar multipart/binary)
