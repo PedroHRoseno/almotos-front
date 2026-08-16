@@ -80,14 +80,13 @@ async function request<T>(
     const errorMsg = text || `${res.status} ${res.statusText}`;
     console.error(`[API] Erro ${status} (${res.url}):`, errorMsg);
     
-    if ((status === 401 || status === 403) && shouldRedirectOnAuthError()) {
-      // IMPORTANTE: logar antes de redirecionar, senão em produção vira "falha silenciosa".
-      console.error(
-        "[Auth] Redirecionando para /login por erro de autenticação.",
-        { status, url: res.url, body: errorMsg }
-      );
+    // Apenas 401 = sessão inválida/ausente. 403/400/500 não devem deslogar o usuário.
+    if (status === 401 && shouldRedirectOnAuthError()) {
+      console.error("[Auth] Sessão inválida (401). Redirecionando para /login.", {
+        url: res.url,
+        body: errorMsg,
+      });
       clearStoredAuth();
-      // Pequeno delay para o log aparecer antes do navigation.
       setTimeout(() => {
         window.location.href = "/login";
       }, 150);

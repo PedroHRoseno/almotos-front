@@ -31,6 +31,7 @@ import {
 import { FormVeiculo } from "@/components/forms/form-veiculo";
 import { api } from "@/lib/api";
 import type { Vehicle } from "@/types";
+import { toast } from "sonner";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
 const DEFAULT_PAGE_SIZE = 10;
@@ -96,7 +97,13 @@ export default function MotosPage() {
         setTotalElements(response.totalElements || 0);
         setTotalPages(response.totalPages || 0);
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        console.error("[Motos] Erro ao carregar veículos:", err);
+        toast.error(
+          err instanceof Error && err.message
+            ? `Erro ao carregar veículos: ${err.message}`
+            : "Erro ao carregar veículos. Tente novamente."
+        );
         setVeiculos([]);
         setTotalElements(0);
         setTotalPages(0);
