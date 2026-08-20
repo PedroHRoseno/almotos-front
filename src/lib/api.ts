@@ -221,8 +221,8 @@ export const api = {
         method: "POST",
         body: JSON.stringify(body),
       }),
-    atualizar: (body: VehicleCreate) =>
-      request<void>("/vehicles", {
+    atualizar: (licensePlate: string, body: VehicleCreate) =>
+      request<void>(`/vehicles/${encodeURIComponent(licensePlate)}`, {
         method: "PUT",
         body: JSON.stringify(body),
       }),
