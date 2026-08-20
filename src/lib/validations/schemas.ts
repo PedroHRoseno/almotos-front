@@ -37,6 +37,14 @@ export const veiculoSchema = z.object({
   inStock: z.boolean(),
   published: z.boolean().default(false),
   description: z.string().max(2000, "Descrição deve ter no máximo 2000 caracteres").optional().or(z.literal("")),
+  codigoFipe: z.string().max(16).optional().nullable(),
+  suggestedPrice: z
+    .number({ invalid_type_error: "Preço sugerido deve ser um número" })
+    .min(0, "Preço sugerido não pode ser negativo")
+    .optional()
+    .nullable(),
+  internalTags: z.array(z.string().min(1).max(80)).default([]),
+  publicTags: z.array(z.string().min(1).max(80)).default([]),
 });
 
 export type VeiculoFormData = z.infer<typeof veiculoSchema>;

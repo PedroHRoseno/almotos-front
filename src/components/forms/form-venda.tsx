@@ -4,7 +4,6 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import type { SearchableSelectOption } from "@/components/ui/searchable-select";
 import {
@@ -15,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FormField } from "@/components/ui/form-field";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import {
   Card,
   CardContent,
@@ -27,7 +27,6 @@ import { api } from "@/lib/api";
 import { digitsOnly } from "@/lib/masks";
 import type { Vehicle, PartnerSummary } from "@/types";
 import { useState, useEffect, useMemo } from "react";
-import { cn } from "@/lib/utils";
 import { FormParceiro } from "@/components/forms/form-parceiro";
 
 const defaultValues: Partial<VendaFormData> = {
@@ -212,14 +211,19 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
               required
               error={form.formState.errors.salePrice}
             >
-              <Input
-                id="salePrice"
-                type="number"
-                step="0.01"
-                min={0.01}
-                placeholder="Ex.: 18500,00"
-                {...form.register("salePrice", { valueAsNumber: true })}
-                className={cn(form.formState.errors.salePrice && "border-destructive")}
+              <Controller
+                control={form.control}
+                name="salePrice"
+                render={({ field }) => (
+                  <CurrencyInput
+                    id="salePrice"
+                    placeholder="R$ 0,00"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    onBlur={field.onBlur}
+                    error={!!form.formState.errors.salePrice}
+                  />
+                )}
               />
             </FormField>
           </div>

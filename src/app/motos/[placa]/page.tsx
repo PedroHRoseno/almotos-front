@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
-import { formatDocument, formatLicensePlate } from "@/lib/masks";
+import { formatDocument, formatLicensePlate, formatBRL } from "@/lib/masks";
 import type { VehicleHistory } from "@/types";
 import {
   Dialog,
@@ -21,12 +21,10 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { VehiclePhotoPipeline } from "@/components/vehicle/vehicle-photo-pipeline";
 import { FormVeiculo } from "@/components/forms/form-veiculo";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 function formatCurrency(value: number): string {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(value);
+  return formatBRL(value);
 }
 
 function formatDate(dateString: string): string {
@@ -52,7 +50,11 @@ export default function VeiculoDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [costModalOpen, setCostModalOpen] = useState(false);
-  const [newCost, setNewCost] = useState({ cost: "", description: "", costDate: "" });
+  const [newCost, setNewCost] = useState<{
+    cost: number | undefined;
+    description: string;
+    costDate: string;
+  }>({ cost: undefined, description: "", costDate: "" });
   const [addingCost, setAddingCost] = useState(false);
   const [images, setImages] = useState<string[]>([]);
   const [savingGallery, setSavingGallery] = useState(false);
@@ -129,13 +131,13 @@ export default function VeiculoDetailPage() {
     setAddingCost(true);
     try {
       await api.vehicles.custos.criar(placa, {
-        cost: Number(newCost.cost),
+        cost: newCost.cost,
         description: newCost.description,
         costDate: newCost.costDate || undefined,
       });
       toast.success("Custo adicionado com sucesso!");
       setCostModalOpen(false);
-      setNewCost({ cost: "", description: "", costDate: "" });
+      setNewCost({ cost: undefined, description: "", costDate: "" });
       fetchHistory();
     } catch (error) {
       toast.error(
@@ -245,7 +247,37 @@ export default function VeiculoDetailPage() {
                 {vehicle.status === "DISPONIVEL" ? "Disponível" : vehicle.status === "VENDIDO" ? "Vendido" : "Inativo"}
               </Badge>
             </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Preço sugerido</p>
+              <p className="text-lg font-semibold tabular-nums">
+                {vehicle.suggestedPrice != null ? formatCurrency(vehicle.suggestedPrice) : "—"}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Código FIPE</p>
+              <p className="text-lg font-semibold">{vehicle.codigoFipe || "—"}</p>
+            </div>
           </div>
+          {(vehicle.internalTags?.length || vehicle.publicTags?.length) ? (
+            <div className="mt-4 space-y-2">
+              {vehicle.internalTags && vehicle.internalTags.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-ink-subtle">Internas</span>
+                  {vehicle.internalTags.map((tag) => (
+                    <Badge key={tag.id} variant="warning">{tag.name}</Badge>
+                  ))}
+                </div>
+              )}
+              {vehicle.publicTags && vehicle.publicTags.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-ink-subtle">Públicas</span>
+                  {vehicle.publicTags.map((tag) => (
+                    <Badge key={tag.id} variant="success">{tag.name}</Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -520,13 +552,11 @@ export default function VeiculoDetailPage() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="cost">Valor (R$)</Label>
-              <Input
+              <CurrencyInput
                 id="cost"
-                type="number"
-                step="0.01"
-                placeholder="0.00"
+                placeholder="R$ 0,00"
                 value={newCost.cost}
-                onChange={(e) => setNewCost({ ...newCost, cost: e.target.value })}
+                onValueChange={(cost) => setNewCost({ ...newCost, cost })}
               />
             </div>
             <div className="space-y-2">

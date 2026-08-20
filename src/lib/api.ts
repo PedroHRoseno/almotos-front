@@ -25,6 +25,9 @@ import type {
   FinancialMovement,
   StoreTransaction,
   StoreTransactionCreate,
+  FipeModelsResponse,
+  FipeCodigoResponse,
+  VehicleTag,
 } from "@/types";
 import {
   clearStoredAuth,
@@ -254,6 +257,31 @@ export const api = {
           method: "DELETE",
         }),
     },
+  },
+
+  fipe: {
+    models: (brand: string, q?: string) =>
+      request<FipeModelsResponse>("/fipe/models", {
+        params: { brand, ...(q?.trim() ? { q: q.trim() } : {}) },
+      }),
+    codigo: (brand: string, codigoModelo: string, year?: number) =>
+      request<FipeCodigoResponse>("/fipe/codigo", {
+        params: {
+          brand,
+          codigoModelo,
+          ...(year != null ? { year: String(year) } : {}),
+        },
+      }),
+  },
+
+  tags: {
+    listar: (visibility?: "INTERNAL" | "PUBLIC", q?: string) =>
+      request<VehicleTag[]>("/tags", {
+        params: {
+          ...(visibility ? { visibility } : {}),
+          ...(q?.trim() ? { q: q.trim() } : {}),
+        },
+      }),
   },
 
   sales: {

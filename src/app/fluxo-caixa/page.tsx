@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
+import { formatBRL } from "@/lib/masks";
 import type { FinancialMovement, StoreTransactionCreate, TransactionCategory } from "@/types";
 import {
   Dialog,
@@ -25,13 +26,11 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 function formatCurrency(value: number): string {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(value);
+  return formatBRL(value);
 }
 
 function formatDate(dateString: string): string {
@@ -413,16 +412,14 @@ export default function FluxoCaixaPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="value">Valor (R$)</Label>
-              <Input
+              <CurrencyInput
                 id="value"
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={newTransaction.value || ""}
-                onChange={(e) =>
+                placeholder="R$ 0,00"
+                value={newTransaction.value || undefined}
+                onValueChange={(value) =>
                   setNewTransaction({
                     ...newTransaction,
-                    value: Number(e.target.value),
+                    value: value ?? 0,
                   })
                 }
               />

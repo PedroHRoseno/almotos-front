@@ -66,3 +66,33 @@ export function isValidDocument(value: string): boolean {
   const d = digitsOnly(value || "");
   return d.length === 11 || d.length === 14;
 }
+
+const brlFormatter = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+});
+
+/** Formata número para BRL (ex.: 18000 → R$ 18.000,00). */
+export function formatBRL(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return "";
+  return brlFormatter.format(value);
+}
+
+/**
+ * Interpreta o texto digitado como reais.
+ * Dígitos viram a parte inteira (18000 → 18000). Vírgula abre os centavos.
+ */
+export function parseBRLInput(raw: string): number | undefined {
+  const text = (raw || "").trim();
+  if (!text) return undefined;
+  const negative = text.includes("-");
+  const cleaned = text.replace(/[^\d,]/g, "");
+  if (!cleaned) return undefined;
+  const [intRaw, ...rest] = cleaned.split(",");
+  const intDigits = (intRaw || "").replace(/\D/g, "");
+  if (!intDigits && rest.length === 0) return undefined;
+  const cents = (rest.join("") || "").replace(/\D/g, "").slice(0, 2);
+  const asNumber = Number(`${intDigits || "0"}.${cents.padEnd(2, "0")}`);
+  if (Number.isNaN(asNumber)) return undefined;
+  return negative ? -asNumber : asNumber;
+}

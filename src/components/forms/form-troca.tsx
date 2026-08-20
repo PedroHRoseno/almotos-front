@@ -4,10 +4,10 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import type { SearchableSelectOption } from "@/components/ui/searchable-select";
 import { FormField } from "@/components/ui/form-field";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import {
   Card,
   CardContent,
@@ -275,14 +275,19 @@ export function FormTroca({ onSuccess, insideModal }: FormTrocaProps = {}) {
               required
               error={form.formState.errors.valorAbsoluto}
             >
-              <Input
-                id="valorAbsoluto"
-                type="number"
-                step="0.01"
-                min={0}
-                placeholder="Ex.: 5.000,00"
-                {...form.register("valorAbsoluto", { valueAsNumber: true })}
-                className={form.formState.errors.valorAbsoluto ? "border-destructive" : ""}
+              <Controller
+                control={form.control}
+                name="valorAbsoluto"
+                render={({ field }) => (
+                  <CurrencyInput
+                    id="valorAbsoluto"
+                    placeholder="R$ 0,00"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    onBlur={field.onBlur}
+                    error={!!form.formState.errors.valorAbsoluto}
+                  />
+                )}
               />
               <p className="mt-1 text-xs text-muted-foreground">
                 Informe apenas o valor em R$. O tipo (quem paga) já está definido acima.

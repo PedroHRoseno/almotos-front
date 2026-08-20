@@ -6,6 +6,7 @@ import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormField } from "@/components/ui/form-field";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -269,14 +270,19 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
             required
             error={form.formState.errors.purchasePrice}
           >
-            <Input
-              id="purchasePrice"
-              type="number"
-              step="0.01"
-              min={0.01}
-              placeholder="Ex.: 15000,00"
-              {...form.register("purchasePrice", { valueAsNumber: true })}
-              className={cn(form.formState.errors.purchasePrice && "border-destructive")}
+            <Controller
+              control={form.control}
+              name="purchasePrice"
+              render={({ field }) => (
+                <CurrencyInput
+                  id="purchasePrice"
+                  placeholder="R$ 0,00"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  onBlur={field.onBlur}
+                  error={!!form.formState.errors.purchasePrice}
+                />
+              )}
             />
           </FormField>
 

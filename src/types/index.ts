@@ -151,19 +151,29 @@ export interface StoreTransactionCreate {
 }
 
 /** Veículo (Vehicle) – GET /vehicles, POST /vehicles */
+export interface VehicleTag {
+  id: string;
+  name: string;
+  visibility: "INTERNAL" | "PUBLIC";
+}
+
 export interface Vehicle {
   licensePlate: string;
   brand: VehicleBrand;
   modelName: string;
+  codigoFipe?: string | null;
   manufactureYear: number;
   modelYear: number;
   color: string;
   kilometersDriven: number;
+  suggestedPrice?: number | null;
   status: VehicleStatus;
   inStock: boolean;
   published?: boolean;
   description?: string | null;
   imageUrlList?: string[];
+  internalTags?: VehicleTag[];
+  publicTags?: VehicleTag[];
 }
 
 /** Payload para criar veículo – POST /vehicles */
@@ -171,14 +181,34 @@ export interface VehicleCreate {
   licensePlate: string;
   brand: VehicleBrand;
   modelName: string;
+  codigoFipe?: string | null;
   manufactureYear: number;
   modelYear: number;
   color: string;
   kilometersDriven: number;
+  suggestedPrice?: number | null;
   inStock: boolean;
   published?: boolean;
   description?: string | null;
   imageUrlList?: string[];
+  internalTags?: string[];
+  publicTags?: string[];
+}
+
+export interface FipeModel {
+  nome: string;
+  codigoModelo: string;
+}
+
+export interface FipeModelsResponse {
+  available: boolean;
+  items: FipeModel[];
+}
+
+export interface FipeCodigoResponse {
+  available: boolean;
+  codigoFipe?: string | null;
+  nome?: string | null;
 }
 
 /** Venda (Sale) – GET /sales, POST /sales */

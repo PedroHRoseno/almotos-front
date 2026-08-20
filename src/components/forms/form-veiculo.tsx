@@ -22,6 +22,9 @@ import type { Vehicle, VehicleBrand } from "@/types";
 import { VEHICLE_BRANDS } from "@/types";
 import { cn } from "@/lib/utils";
 import { VehiclePhotoPipeline } from "@/components/vehicle/vehicle-photo-pipeline";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { FipeModelAutocomplete } from "@/components/forms/fipe-model-autocomplete";
+import { TagInput } from "@/components/forms/tag-input";
 
 const emptyDefaults: Partial<VeiculoFormData> = {
   licensePlate: "",
@@ -34,6 +37,10 @@ const emptyDefaults: Partial<VeiculoFormData> = {
   inStock: true,
   published: false,
   description: "",
+  codigoFipe: null,
+  suggestedPrice: undefined,
+  internalTags: [],
+  publicTags: [],
 };
 
 function valuesFromVehicle(vehicle: Vehicle): VeiculoFormData {
@@ -48,6 +55,10 @@ function valuesFromVehicle(vehicle: Vehicle): VeiculoFormData {
     inStock: vehicle.inStock,
     published: Boolean(vehicle.published),
     description: vehicle.description ?? "",
+    codigoFipe: vehicle.codigoFipe ?? null,
+    suggestedPrice: vehicle.suggestedPrice ?? undefined,
+    internalTags: (vehicle.internalTags ?? []).map((tag) => tag.name),
+    publicTags: (vehicle.publicTags ?? []).map((tag) => tag.name),
   };
 }
 
@@ -128,14 +139,18 @@ export function FormVeiculo({
       licensePlate: plateFormatted,
       brand: data.brand as VehicleBrand,
       modelName: data.modelName.trim(),
+      codigoFipe: data.codigoFipe?.trim() || null,
       manufactureYear: data.manufactureYear,
       modelYear: data.modelYear,
       color: data.color.trim().toLowerCase(),
       kilometersDriven: data.kilometersDriven,
+      suggestedPrice: data.suggestedPrice ?? null,
       inStock: data.inStock,
       published: data.published,
       description: data.description?.trim() || null,
       imageUrlList,
+      internalTags: data.internalTags ?? [],
+      publicTags: data.publicTags ?? [],
     };
 
     try {
@@ -213,7 +228,13 @@ export function FormVeiculo({
             control={form.control}
             name="brand"
             render={({ field }) => (
-              <Select value={field.value} onValueChange={field.onChange}>
+              <Select
+                value={field.value}
+                onValueChange={(next) => {
+                  field.onChange(next);
+                  form.setValue("codigoFipe", null);
+                }}
+              >
                 <SelectTrigger
                   id="brand"
                   className={cn(form.formState.errors.brand && "border-destructive")}
@@ -233,11 +254,23 @@ export function FormVeiculo({
         </FormField>
 
         <FormField name="modelName" label="Modelo" required error={form.formState.errors.modelName}>
-          <Input
-            id="modelName"
-            placeholder="Ex.: Civic"
-            {...form.register("modelName")}
-            className={cn(form.formState.errors.modelName && "border-destructive")}
+          <Controller
+            control={form.control}
+            name="modelName"
+            render={({ field }) => (
+              <FipeModelAutocomplete
+                id="modelName"
+                brand={form.watch("brand")}
+                year={form.watch("modelYear")}
+                value={field.value}
+                codigoFipe={form.watch("codigoFipe")}
+                error={!!form.formState.errors.modelName}
+                onModelChange={(modelName, codigoFipe) => {
+                  field.onChange(modelName);
+                  form.setValue("codigoFipe", codigoFipe);
+                }}
+              />
+            )}
           />
         </FormField>
 
@@ -336,6 +369,76 @@ export function FormVeiculo({
               Fora de estoque o SoR marca como vendido e remove a publicação no catálogo.
             </p>
           )}
+        </FormField>
+
+        <FormField
+          name="suggestedPrice"
+          label="Preço sugerido"
+          error={form.formState.errors.suggestedPrice}
+        >
+          <Controller
+            control={form.control}
+            name="suggestedPrice"
+            render={({ field }) => (
+              <CurrencyInput
+                id="suggestedPrice"
+                placeholder="R$ 0,00"
+                value={field.value}
+                onValueChange={field.onChange}
+                onBlur={field.onBlur}
+                error={!!form.formState.errors.suggestedPrice}
+              />
+            )}
+          />
+          <p className="text-xs text-ink-subtle">
+            Valor público do catálogo. A IA de atendimento usa este número — não inventa preço.
+          </p>
+        </FormField>
+
+        <FormField
+          name="internalTags"
+          label="Tags internas"
+          error={form.formState.errors.internalTags}
+          className="sm:col-span-2"
+        >
+          <Controller
+            control={form.control}
+            name="internalTags"
+            render={({ field }) => (
+              <TagInput
+                id="internalTags"
+                visibility="INTERNAL"
+                value={field.value ?? []}
+                onChange={field.onChange}
+                placeholder="Ex.: Consignado, Aguardando peça"
+              />
+            )}
+          />
+          <p className="text-xs text-ink-subtle">Só o painel admin vê estas tags.</p>
+        </FormField>
+
+        <FormField
+          name="publicTags"
+          label="Tags públicas"
+          error={form.formState.errors.publicTags}
+          className="sm:col-span-2"
+        >
+          <Controller
+            control={form.control}
+            name="publicTags"
+            render={({ field }) => (
+              <TagInput
+                id="publicTags"
+                visibility="PUBLIC"
+                value={field.value ?? []}
+                onChange={field.onChange}
+                placeholder="Ex.: Único dono, Placa Mercosul"
+              />
+            )}
+          />
+          <p className="text-xs text-ink-subtle">
+            Aparecem no catálogo e na API pública para a IA.
+          </p>
         </FormField>
 
         <FormField
