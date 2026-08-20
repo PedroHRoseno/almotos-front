@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, DollarSign, Calendar, User, Loader2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, DollarSign, Calendar, User, Loader2, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
-import { formatDocument } from "@/lib/masks";
-import type { VehicleHistory, VehicleCostItem } from "@/types";
+import { formatDocument, formatLicensePlate } from "@/lib/masks";
+import type { VehicleHistory } from "@/types";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,7 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { VehiclePhotoPipeline } from "@/components/vehicle/vehicle-photo-pipeline";
+import { FormVeiculo } from "@/components/forms/form-veiculo";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -57,6 +58,7 @@ export default function VeiculoDetailPage() {
   const [savingGallery, setSavingGallery] = useState(false);
   const [galleryBlocking, setGalleryBlocking] = useState(false);
   const [togglingPublished, setTogglingPublished] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const fetchHistory = useCallback(() => {
     setLoading(true);
@@ -194,19 +196,28 @@ export default function VeiculoDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={() => router.push("/motos")}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Voltar
-        </Button>
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
-            {vehicle.brand} {vehicle.modelName}
-          </h1>
-          <p className="text-sm md:text-base text-muted-foreground">
-            Placa: {vehicle.licensePlate}
-          </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" onClick={() => router.push("/motos")}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Voltar
+          </Button>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
+              {(vehicle.brand ?? "").replace(/_/g, " ")}
+            </p>
+            <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight text-ink">
+              {vehicle.modelName}
+            </h1>
+            <p className="text-sm md:text-base text-ink-muted tabular-nums">
+              Placa: {vehicle.licensePlate}
+            </p>
+          </div>
         </div>
+        <Button variant="outline" onClick={() => setEditOpen(true)} className="shrink-0">
+          <Pencil className="mr-2 h-4 w-4" />
+          Editar dados
+        </Button>
       </div>
 
       {/* Informações do Veículo */}
@@ -552,6 +563,34 @@ export default function VeiculoDetailPage() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent showClose className="max-h-[90vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar veículo</DialogTitle>
+            <DialogDescription>
+              Atualize os dados estruturais, inclusive a placa. Fotos continuam no card da vitrine.
+            </DialogDescription>
+          </DialogHeader>
+          <FormVeiculo
+            mode="edit"
+            vehicle={vehicle}
+            currentPlate={placa}
+            includePhotos={false}
+            insideModal
+            onSuccessWithPlate={(nextPlate) => {
+              setEditOpen(false);
+              const next = formatLicensePlate(nextPlate);
+              const current = formatLicensePlate(placa);
+              if (next !== current) {
+                router.replace(`/motos/${encodeURIComponent(next)}`);
+              } else {
+                fetchHistory();
+              }
+            }}
+          />
         </DialogContent>
       </Dialog>
     </div>

@@ -12,13 +12,13 @@ export function MainContent({ children }: { children: React.ReactNode }) {
   return (
     <main
       className={cn(
-        "min-h-screen transition-[padding] duration-300 ease-in-out",
+          "min-h-screen bg-canvas transition-[padding] duration-300 ease-out-expo",
         !isLoginPage && collapsed && "pl-[72px]",
         !isLoginPage && !collapsed && "pl-64",
         "max-md:pl-0 max-md:pt-16"
       )}
     >
-      <div className={cn("container mx-auto", !isLoginPage && "p-4 md:p-6")}>
+      <div className={cn("mx-auto w-full max-w-[1400px]", !isLoginPage && "p-4 md:p-6 lg:p-8")}>
         {children}
       </div>
     </main>

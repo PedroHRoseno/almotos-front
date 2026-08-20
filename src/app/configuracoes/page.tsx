@@ -5,7 +5,7 @@ export default function ConfiguracoesPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
+        <h1 className="font-display text-3xl font-extrabold tracking-tight text-ink">Configurações</h1>
         <p className="text-muted-foreground">
           Ajuste preferências e parâmetros do sistema.
         </p>

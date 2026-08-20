@@ -74,7 +74,7 @@ export function AppSidebar() {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-sidebar-border bg-sidebar transition-all duration-300 ease-in-out",
+          "fixed left-0 top-0 z-40 flex h-screen flex-col border-r border-line-soft bg-canvas-soft transition-all duration-300 ease-out-expo",
           collapsed ? "w-[72px]" : "w-64",
           "max-md:translate-x-[-100%]",
           mobileOpen && "max-md:translate-x-0"
@@ -83,7 +83,7 @@ export function AppSidebar() {
       {/* Header */}
       <div
         className={cn(
-          "flex border-b border-sidebar-border px-4",
+          "flex border-b border-line-soft px-4",
           collapsed ? "h-16 flex-col items-center justify-center gap-0.5 py-2" : "h-16 flex-row items-center justify-between"
         )}
       >
@@ -115,7 +115,7 @@ export function AppSidebar() {
             variant="ghost"
             size="icon"
             className={cn(
-              "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground max-md:hidden",
+              "text-ink-muted hover:bg-surface-hover hover:text-ink max-md:hidden",
               collapsed && "h-8 w-8"
             )}
             onClick={toggle}
@@ -130,7 +130,7 @@ export function AppSidebar() {
           <Button
             variant="ghost"
             size="icon"
-            className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:hidden"
+            className="text-ink-muted hover:bg-surface-hover hover:text-ink md:hidden"
             onClick={() => setMobileOpen(false)}
             aria-label="Fechar menu"
           >
@@ -143,16 +143,19 @@ export function AppSidebar() {
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         <ul className="space-y-1">
           {menuItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive =
+              item.href === "/"
+                ? pathname === "/"
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <li key={item.href}>
                 <Link
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                    "flex items-center gap-3 rounded-full px-3 py-2.5 text-sm font-medium transition-colors duration-200 ease-out-expo",
                     isActive
-                      ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                      ? "bg-brand/15 text-brand"
+                      : "text-ink-muted hover:bg-surface-hover hover:text-ink",
                     collapsed && "justify-center px-2"
                   )}
                   title={collapsed ? item.title : undefined}
@@ -167,16 +170,16 @@ export function AppSidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-sidebar-border p-4">
+      <div className="border-t border-line-soft p-4">
         {!collapsed ? (
           <div className="space-y-2">
-            <p className="text-xs text-sidebar-foreground/80">
+            <p className="text-xs text-ink-subtle">
               Sistema de Gestão de Motos v1.0
             </p>
             <Button
               variant="ghost"
               size="sm"
-              className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              className="w-full justify-start text-ink-muted hover:bg-surface-hover hover:text-ink"
               onClick={() => {
                 logout();
                 window.location.href = "/login";
@@ -191,7 +194,7 @@ export function AppSidebar() {
             <Button
               variant="ghost"
               size="icon"
-              className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              className="text-ink-muted hover:bg-surface-hover hover:text-ink"
               onClick={() => {
                 logout();
                 window.location.href = "/login";

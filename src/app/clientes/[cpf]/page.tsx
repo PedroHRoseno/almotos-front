@@ -91,7 +91,7 @@ export default function ClienteDetailPage() {
             Voltar
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">{partner.name}</h1>
+            <h1 className="font-display text-3xl font-extrabold tracking-tight text-ink">{partner.name}</h1>
             <p className="text-muted-foreground">Detalhes do parceiro</p>
           </div>
         </div>

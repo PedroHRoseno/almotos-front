@@ -36,6 +36,7 @@ export const veiculoSchema = z.object({
     .min(0, "Quilometragem não pode ser negativa"),
   inStock: z.boolean(),
   published: z.boolean().default(false),
+  description: z.string().max(2000, "Descrição deve ter no máximo 2000 caracteres").optional().or(z.literal("")),
 });
 
 export type VeiculoFormData = z.infer<typeof veiculoSchema>;

@@ -96,7 +96,7 @@ export function SearchableSelect<T extends string = string>({
         role="combobox"
         aria-expanded={open}
         className={cn(
-          "w-full justify-between",
+          "w-full justify-between rounded-xl",
           !selectedOption && "text-muted-foreground",
           error && "border-destructive",
           disabled && "cursor-not-allowed opacity-50"
@@ -119,7 +119,7 @@ export function SearchableSelect<T extends string = string>({
       </Button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-md">
+        <div className="absolute z-50 mt-1 w-full rounded-xl border border-line bg-surface">
           <div className="p-2">
             <Input
               placeholder="Digite para buscar..."
@@ -139,8 +139,8 @@ export function SearchableSelect<T extends string = string>({
                 <div
                   key={String(option.value)}
                   className={cn(
-                    "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
-                    value === option.value && "bg-accent text-accent-foreground"
+                    "relative flex cursor-pointer select-none items-center rounded-lg px-2 py-1.5 text-sm outline-none hover:bg-surface-hover hover:text-ink",
+                    value === option.value && "bg-surface-hover text-ink"
                   )}
                   onClick={() => handleSelect(option.value)}
                 >

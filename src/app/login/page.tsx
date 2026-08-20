@@ -42,7 +42,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
+    <div className="min-h-screen flex items-center justify-center bg-canvas p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-3 text-center">
           <div className="flex justify-center">
@@ -55,7 +55,7 @@ export default function LoginPage() {
               priority
             />
           </div>
-          <CardDescription className="text-base">
+          <CardDescription className="text-base text-ink-muted">
             Faça login para acessar o sistema
           </CardDescription>
         </CardHeader>

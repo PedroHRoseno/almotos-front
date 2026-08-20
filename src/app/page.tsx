@@ -103,8 +103,8 @@ export default function DashboardPage() {
   return (
     <div className="space-y-4 md:space-y-8">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-sm md:text-base text-muted-foreground">
+        <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight text-ink">Dashboard</h1>
+        <p className="text-sm md:text-base text-ink-muted">
           Bem-vindo ao sistema de gerenciamento de motos AlMotos.
         </p>
       </div>
@@ -115,7 +115,7 @@ export default function DashboardPage() {
             <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-2">
               <CardTitle className="text-sm font-medium truncate min-w-0">{stat.title}</CardTitle>
               <div className="flex items-center gap-1 shrink-0">
-                <stat.icon className="h-4 w-4 text-muted-foreground" />
+              <stat.icon className="h-4 w-4 text-ink-subtle" />
                 {stat.tooltip && (
                   <TooltipProvider>
                     <Tooltip>
@@ -131,7 +131,7 @@ export default function DashboardPage() {
               </div>
             </CardHeader>
             <CardContent className="min-w-0">
-              <div className={`min-w-0 break-words text-base sm:text-lg md:text-xl xl:text-2xl font-bold ${stat.valueColor || ""}`} title={typeof stat.value === "string" ? stat.value : undefined}>
+              <div className={`min-w-0 break-words text-base sm:text-lg md:text-xl xl:text-2xl font-bold tabular-nums ${stat.valueColor || "text-ink"}`} title={typeof stat.value === "string" ? stat.value : undefined}>
                 {stat.value}
               </div>
               <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{stat.description}</p>

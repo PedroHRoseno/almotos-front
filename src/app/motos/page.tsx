@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Bike, Plus, Search, ChevronLeft, ChevronRight, Eye } from "lucide-react";
+import { Bike, Plus, Search, ChevronLeft, ChevronRight, Eye, Pencil } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FormVeiculo } from "@/components/forms/form-veiculo";
+import { FilterChip } from "@/components/ui/filter-chip";
 import { api } from "@/lib/api";
 import type { Vehicle } from "@/types";
 import { toast } from "sonner";
@@ -64,7 +65,9 @@ function publishedFilterToPublished(filter: PublishedFilter): boolean | undefine
 export default function MotosPage() {
   const [veiculos, setVeiculos] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modal, setModal] = useState<{ type: "create" } | { type: "edit"; vehicle: Vehicle } | null>(
+    null
+  );
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [stockFilter, setStockFilter] = useState<StockFilter>("TODOS");
@@ -120,7 +123,7 @@ export default function MotosPage() {
   };
 
   const handleCadastroSuccess = () => {
-    setModalOpen(false);
+    setModal(null);
     handleRefetch();
   };
 
@@ -133,21 +136,21 @@ export default function MotosPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Motos</h1>
-          <p className="text-muted-foreground">
+          <h1 className="font-display text-3xl font-extrabold tracking-tight text-ink">Motos</h1>
+          <p className="text-ink-muted">
             Gerencie o inventário de motos. Pesquise, filtre e cadastre novos veículos.
           </p>
         </div>
-        <Button onClick={() => setModalOpen(true)} className="shrink-0">
+        <Button onClick={() => setModal({ type: "create" })} className="shrink-0">
           <Plus className="mr-2 h-4 w-4" />
           Cadastrar veículo
         </Button>
       </div>
 
-      <div className="rounded-lg border bg-card">
-        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
+      <div className="rounded-card border border-line-soft bg-surface">
+        <div className="flex flex-col gap-4 p-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-subtle" />
             <Input
               placeholder="Buscar por placa, marca ou modelo…"
               value={searchTerm}
@@ -155,65 +158,93 @@ export default function MotosPage() {
               className="pl-9"
             />
           </div>
-          <Select
-            value={stockFilter}
-            onValueChange={(v) => {
-              setStockFilter(v as StockFilter);
-              setPage(0);
-            }}
-          >
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Estoque" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="TODOS">Todos</SelectItem>
-              <SelectItem value="SIM">Em estoque</SelectItem>
-              <SelectItem value="NAO">Fora de estoque</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            value={publishedFilter}
-            onValueChange={(v) => {
-              setPublishedFilter(v as PublishedFilter);
-              setPage(0);
-            }}
-          >
-            <SelectTrigger className="w-full sm:w-[210px]">
-              <SelectValue placeholder="Catálogo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="TODOS">Todas</SelectItem>
-              <SelectItem value="PUBLICADOS">Motos publicadas</SelectItem>
-              <SelectItem value="NAO_PUBLICADOS">Motos não publicadas</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            value={String(pageSize)}
-            onValueChange={(v) => {
-              setPageSize(Number(v) as (typeof PAGE_SIZE_OPTIONS)[number]);
-              setPage(0);
-            }}
-          >
-            <SelectTrigger className="w-full sm:w-[140px]">
-              <SelectValue placeholder="Por página" />
-            </SelectTrigger>
-            <SelectContent>
-              {PAGE_SIZE_OPTIONS.map((n) => (
-                <SelectItem key={n} value={String(n)}>
-                  {n} por página
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar estoque">
+              <FilterChip
+                active={stockFilter === "TODOS"}
+                onClick={() => {
+                  setStockFilter("TODOS");
+                  setPage(0);
+                }}
+              >
+                Todos
+              </FilterChip>
+              <FilterChip
+                active={stockFilter === "SIM"}
+                onClick={() => {
+                  setStockFilter("SIM");
+                  setPage(0);
+                }}
+              >
+                Em estoque
+              </FilterChip>
+              <FilterChip
+                active={stockFilter === "NAO"}
+                onClick={() => {
+                  setStockFilter("NAO");
+                  setPage(0);
+                }}
+              >
+                Fora de estoque
+              </FilterChip>
+            </div>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar catálogo">
+              <FilterChip
+                active={publishedFilter === "TODOS"}
+                onClick={() => {
+                  setPublishedFilter("TODOS");
+                  setPage(0);
+                }}
+              >
+                Todas
+              </FilterChip>
+              <FilterChip
+                active={publishedFilter === "PUBLICADOS"}
+                onClick={() => {
+                  setPublishedFilter("PUBLICADOS");
+                  setPage(0);
+                }}
+              >
+                Publicadas
+              </FilterChip>
+              <FilterChip
+                active={publishedFilter === "NAO_PUBLICADOS"}
+                onClick={() => {
+                  setPublishedFilter("NAO_PUBLICADOS");
+                  setPage(0);
+                }}
+              >
+                Não publicadas
+              </FilterChip>
+            </div>
+            <Select
+              value={String(pageSize)}
+              onValueChange={(v) => {
+                setPageSize(Number(v) as (typeof PAGE_SIZE_OPTIONS)[number]);
+                setPage(0);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-[140px]">
+                <SelectValue placeholder="Por página" />
+              </SelectTrigger>
+              <SelectContent>
+                {PAGE_SIZE_OPTIONS.map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n} por página
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         <div className="border-t">
           {loading ? (
-            <div className="flex items-center justify-center py-16 text-muted-foreground">
+            <div className="flex items-center justify-center py-16 text-ink-muted">
               Carregando…
             </div>
           ) : veiculos.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-muted-foreground">
+            <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-ink-muted">
               <Bike className="h-10 w-10" />
               <p>
                 {!hasActiveFilters
@@ -249,13 +280,13 @@ export default function MotosPage() {
                     <TableHead>Cor</TableHead>
                     <TableHead className="text-right">Quilometragem</TableHead>
                     <TableHead className="w-28">Estoque</TableHead>
-                    <TableHead className="w-24">Ações</TableHead>
+                    <TableHead className="w-28">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {veiculos.map((v) => (
                     <TableRow key={v.licensePlate}>
-                      <TableCell className="font-medium">{v.licensePlate}</TableCell>
+                      <TableCell className="font-medium tabular-nums">{v.licensePlate}</TableCell>
                       <TableCell>{(v.brand ?? "").replace(/_/g, " ")}</TableCell>
                       <TableCell>{v.modelName}</TableCell>
                       <TableCell>
@@ -270,8 +301,8 @@ export default function MotosPage() {
                           </span>
                         )}
                       </TableCell>
-                      <TableCell>{v.manufactureYear}</TableCell>
-                      <TableCell>{v.modelYear}</TableCell>
+                      <TableCell className="tabular-nums">{v.manufactureYear}</TableCell>
+                      <TableCell className="tabular-nums">{v.modelYear}</TableCell>
                       <TableCell>
                         {v.color && isHexColor(v.color) ? (
                           <span
@@ -283,7 +314,7 @@ export default function MotosPage() {
                           "—"
                         )}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-right tabular-nums">
                         {formatKm(v.kilometersDriven)}
                       </TableCell>
                       <TableCell>
@@ -292,11 +323,22 @@ export default function MotosPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Link href={`/motos/${v.licensePlate}`}>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Ver detalhes">
-                            <Eye className="h-4 w-4" />
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="Editar veículo"
+                            onClick={() => setModal({ type: "edit", vehicle: v })}
+                          >
+                            <Pencil className="h-4 w-4" />
                           </Button>
-                        </Link>
+                          <Link href={`/motos/${v.licensePlate}`}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Ver detalhes">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -383,15 +425,30 @@ export default function MotosPage() {
         </div>
       </div>
 
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent showClose className="max-h-[90vh] overflow-y-auto">
+      <Dialog open={modal !== null} onOpenChange={(open) => !open && setModal(null)}>
+        <DialogContent showClose className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Cadastrar veículo</DialogTitle>
+            <DialogTitle>
+              {modal?.type === "edit" ? "Editar veículo" : "Cadastrar veículo"}
+            </DialogTitle>
             <DialogDescription>
-              Preencha os dados do veículo para adicionar ao estoque.
+              {modal?.type === "edit"
+                ? "Atualize os dados estruturais, inclusive a placa."
+                : "Preencha os dados do veículo para adicionar ao estoque."}
             </DialogDescription>
           </DialogHeader>
-          <FormVeiculo insideModal onSuccess={handleCadastroSuccess} />
+          {modal?.type === "edit" ? (
+            <FormVeiculo
+              key={modal.vehicle.licensePlate}
+              mode="edit"
+              vehicle={modal.vehicle}
+              currentPlate={modal.vehicle.licensePlate}
+              insideModal
+              onSuccess={handleCadastroSuccess}
+            />
+          ) : (
+            <FormVeiculo insideModal onSuccess={handleCadastroSuccess} />
+          )}
         </DialogContent>
       </Dialog>
     </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
@@ -17,13 +18,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { veiculoSchema, type VeiculoFormData } from "@/lib/validations/schemas";
 import { formatLicensePlate } from "@/lib/masks";
 import { api } from "@/lib/api";
-import type { VehicleBrand } from "@/types";
+import type { Vehicle, VehicleBrand } from "@/types";
 import { VEHICLE_BRANDS } from "@/types";
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { VehiclePhotoPipeline } from "@/components/vehicle/vehicle-photo-pipeline";
 
-const defaultValues: Partial<VeiculoFormData> = {
+const emptyDefaults: Partial<VeiculoFormData> = {
   licensePlate: "",
   brand: "HONDA",
   modelName: "",
@@ -33,65 +33,155 @@ const defaultValues: Partial<VeiculoFormData> = {
   kilometersDriven: 0,
   inStock: true,
   published: false,
+  description: "",
 };
 
+function valuesFromVehicle(vehicle: Vehicle): VeiculoFormData {
+  return {
+    licensePlate: formatLicensePlate(vehicle.licensePlate),
+    brand: vehicle.brand,
+    modelName: vehicle.modelName,
+    manufactureYear: vehicle.manufactureYear,
+    modelYear: vehicle.modelYear,
+    color: vehicle.color,
+    kilometersDriven: vehicle.kilometersDriven,
+    inStock: vehicle.inStock,
+    published: Boolean(vehicle.published),
+    description: vehicle.description ?? "",
+  };
+}
+
+function apiErrorMessage(error: unknown, fallback: string): string {
+  if (!(error instanceof Error)) return fallback;
+  const raw = error.message.trim();
+  try {
+    const parsed = JSON.parse(raw) as { error?: unknown; detail?: unknown };
+    if (typeof parsed.error === "string" && parsed.error) return parsed.error;
+    if (typeof parsed.detail === "string" && parsed.detail) return parsed.detail;
+  } catch {
+    /* texto puro */
+  }
+  return raw || fallback;
+}
+
 export interface FormVeiculoProps {
+  mode?: "create" | "edit";
+  /** Snapshot do GET/listagem; obrigatório em `edit`. */
+  vehicle?: Vehicle;
+  /** Placa usada no path do PUT. Default: `vehicle.licensePlate`. */
+  currentPlate?: string;
+  /** Na página de detalhe, a galeria fica no PATCH /catalog — não reabrir o pipeline aqui. */
+  includePhotos?: boolean;
   onSuccess?: () => void;
-  /** Chamado com a placa do veículo recém-criado; use para selecionar esse veículo no formulário pai. */
+  /** Chamado com a placa resultante (nova, se alterada). */
   onSuccessWithPlate?: (licensePlate: string) => void;
   insideModal?: boolean;
 }
 
-export function FormVeiculo({ onSuccess, onSuccessWithPlate, insideModal }: FormVeiculoProps = {}) {
+export function FormVeiculo({
+  mode = "create",
+  vehicle,
+  currentPlate,
+  includePhotos,
+  onSuccess,
+  onSuccessWithPlate,
+  insideModal,
+}: FormVeiculoProps = {}) {
+  const isEdit = mode === "edit";
+  const showPhotos = includePhotos ?? true;
+  const plateForPath = currentPlate ?? vehicle?.licensePlate ?? "";
+
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [vehicleImageUrls, setVehicleImageUrls] = useState<string[]>([]);
+  const [vehicleImageUrls, setVehicleImageUrls] = useState<string[]>(
+    vehicle?.imageUrlList ?? []
+  );
   const [photosBlockingSave, setPhotosBlockingSave] = useState(false);
 
   const form = useForm<VeiculoFormData>({
     resolver: zodResolver(veiculoSchema),
-    defaultValues,
+    defaultValues: vehicle ? valuesFromVehicle(vehicle) : emptyDefaults,
   });
+
+  useEffect(() => {
+    if (isEdit && vehicle) {
+      form.reset(valuesFromVehicle(vehicle));
+      setVehicleImageUrls(vehicle.imageUrlList ?? []);
+    }
+  }, [form, isEdit, vehicle]);
+
+  const watchedPlate = form.watch("licensePlate");
+  const watchedInStock = form.watch("inStock");
+  const plateChanged = useMemo(() => {
+    if (!isEdit || !plateForPath) return false;
+    return formatLicensePlate(watchedPlate || "") !== formatLicensePlate(plateForPath);
+  }, [isEdit, plateForPath, watchedPlate]);
 
   const onSubmit = async (data: VeiculoFormData) => {
     setSuccess(null);
     setError(null);
+    const plateFormatted = formatLicensePlate(data.licensePlate);
+    const imageUrlList = showPhotos
+      ? vehicleImageUrls
+      : vehicle?.imageUrlList ?? [];
+    const body = {
+      licensePlate: plateFormatted,
+      brand: data.brand as VehicleBrand,
+      modelName: data.modelName.trim(),
+      manufactureYear: data.manufactureYear,
+      modelYear: data.modelYear,
+      color: data.color.trim().toLowerCase(),
+      kilometersDriven: data.kilometersDriven,
+      inStock: data.inStock,
+      published: data.published,
+      description: data.description?.trim() || null,
+      imageUrlList,
+    };
+
     try {
-      const plateFormatted = formatLicensePlate(data.licensePlate);
-      await api.vehicles.criar({
-        licensePlate: plateFormatted,
-        brand: data.brand as VehicleBrand,
-        modelName: data.modelName.trim(),
-        manufactureYear: data.manufactureYear,
-        modelYear: data.modelYear,
-        color: data.color.trim().toLowerCase(),
-        kilometersDriven: data.kilometersDriven,
-        inStock: data.inStock,
-        published: data.published,
-        imageUrlList: vehicleImageUrls,
-      });
-      const plate = formatLicensePlate(data.licensePlate);
-      setSuccess("Veículo cadastrado com sucesso.");
-      form.reset(defaultValues);
-      setVehicleImageUrls([]);
-      onSuccessWithPlate?.(plate);
+      if (isEdit) {
+        if (!plateForPath) {
+          setError("Placa atual ausente. Recarregue a página.");
+          return;
+        }
+        await api.vehicles.atualizar(plateForPath, body);
+        setSuccess("Veículo atualizado com sucesso.");
+      } else {
+        await api.vehicles.criar(body);
+        setSuccess("Veículo cadastrado com sucesso.");
+        form.reset(emptyDefaults);
+        setVehicleImageUrls([]);
+      }
+      onSuccessWithPlate?.(plateFormatted);
       onSuccess?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Erro ao cadastrar veículo.");
+      setError(
+        apiErrorMessage(
+          e,
+          isEdit ? "Erro ao atualizar veículo." : "Erro ao cadastrar veículo."
+        )
+      );
     }
   };
 
   const formContent = (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
       {success && (
-        <div className="rounded-md bg-green-50 dark:bg-green-950/30 p-3 text-sm text-green-800 dark:text-green-200">
+        <div className="rounded-xl bg-emerald-500/10 p-3 text-sm text-emerald-300">
           {success}
         </div>
       )}
       {error && (
-        <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+        <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
           {error}
         </div>
+      )}
+
+      {plateChanged && (
+        <p className="rounded-xl border border-line bg-surface p-3 text-sm text-ink-muted">
+          A identidade do veículo não muda: compras, vendas e trocas continuam
+          vinculadas. Só a placa cadastral é corrigida.
+        </p>
       )}
 
       <div className="grid gap-6 sm:grid-cols-2">
@@ -192,7 +282,7 @@ export function FormVeiculo({ onSuccess, onSuccessWithPlate, insideModal }: Form
                   id="color"
                   value={field.value}
                   onChange={(e) => field.onChange(e.target.value)}
-                  className="h-10 w-14 cursor-pointer rounded border border-input bg-transparent p-1"
+                  className="h-11 w-14 cursor-pointer rounded-xl border border-line bg-transparent p-1"
                   title="Selecionar cor"
                 />
                 <Input
@@ -235,27 +325,52 @@ export function FormVeiculo({ onSuccess, onSuccessWithPlate, insideModal }: Form
                   id="inStock"
                   checked={field.value}
                   onChange={(e) => field.onChange(e.target.checked)}
-                  className="h-4 w-4 rounded border-input"
+                  className="h-4 w-4 rounded border-line"
                 />
-                <span className="text-sm">Sim, veículo disponível em estoque</span>
+                <span className="text-sm text-ink">Sim, veículo disponível em estoque</span>
               </label>
+            )}
+          />
+          {isEdit && watchedInStock === false && (
+            <p className="text-xs text-ink-subtle">
+              Fora de estoque o SoR marca como vendido e remove a publicação no catálogo.
+            </p>
+          )}
+        </FormField>
+
+        <FormField
+          name="description"
+          label="Descrição (opcional)"
+          error={form.formState.errors.description}
+          className="sm:col-span-2"
+        >
+          <textarea
+            id="description"
+            rows={3}
+            placeholder="Observações internas ou texto da vitrine"
+            {...form.register("description")}
+            className={cn(
+              "flex w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-subtle focus-visible:border-brand focus-visible:outline-none",
+              form.formState.errors.description && "border-destructive"
             )}
           />
         </FormField>
 
-        <div className="sm:col-span-2 space-y-2">
-          <p className="text-sm font-medium leading-none">Fotos do catálogo</p>
-          <p className="text-xs text-muted-foreground">
-            Envie imagens ao armazenamento, edite o recorte 4:3 se quiser e use &quot;Finalizar e publicar
-            fotos&quot; antes de cadastrar o veículo.
-          </p>
-          <VehiclePhotoPipeline
-            committedImageUrls={vehicleImageUrls}
-            onCommittedImageUrlsChange={setVehicleImageUrls}
-            onBlockingChange={setPhotosBlockingSave}
-            disabled={form.formState.isSubmitting}
-          />
-        </div>
+        {showPhotos && (
+          <div className="sm:col-span-2 space-y-2">
+            <p className="text-sm font-medium leading-none text-ink-muted">Fotos do catálogo</p>
+            <p className="text-xs text-ink-subtle">
+              Envie imagens ao armazenamento, edite o recorte 4:3 se quiser e use &quot;Finalizar e publicar
+              fotos&quot; antes de salvar o veículo.
+            </p>
+            <VehiclePhotoPipeline
+              committedImageUrls={vehicleImageUrls}
+              onCommittedImageUrlsChange={setVehicleImageUrls}
+              onBlockingChange={setPhotosBlockingSave}
+              disabled={form.formState.isSubmitting}
+            />
+          </div>
+        )}
 
         <FormField
           name="published"
@@ -267,8 +382,8 @@ export function FormVeiculo({ onSuccess, onSuccessWithPlate, insideModal }: Form
             control={form.control}
             name="published"
             render={({ field }) => (
-              <label className="flex items-center justify-between rounded-lg border border-input px-3 py-2">
-                <span className="text-sm">Publicar no Catálogo Público</span>
+              <label className="flex items-center justify-between rounded-xl border border-line px-3 py-2">
+                <span className="text-sm text-ink">Publicar no Catálogo Público</span>
                 <button
                   type="button"
                   onClick={() => field.onChange(!field.value)}
@@ -292,22 +407,26 @@ export function FormVeiculo({ onSuccess, onSuccessWithPlate, insideModal }: Form
       </div>
 
       <div className="flex justify-end gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => {
-            form.reset(defaultValues);
-            setVehicleImageUrls([]);
-          }}
-        >
-          Limpar
-        </Button>
+        {!isEdit && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              form.reset(emptyDefaults);
+              setVehicleImageUrls([]);
+            }}
+          >
+            Limpar
+          </Button>
+        )}
         <Button type="submit" disabled={form.formState.isSubmitting || photosBlockingSave}>
           {form.formState.isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Cadastrando…
+              {isEdit ? "Salvando…" : "Cadastrando…"}
             </>
+          ) : isEdit ? (
+            "Salvar alterações"
           ) : (
             "Cadastrar veículo"
           )}
@@ -321,9 +440,11 @@ export function FormVeiculo({ onSuccess, onSuccessWithPlate, insideModal }: Form
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Cadastrar veículo</CardTitle>
+        <CardTitle>{isEdit ? "Editar veículo" : "Cadastrar veículo"}</CardTitle>
         <CardDescription>
-          Preencha os dados do veículo para adicionar ao estoque.
+          {isEdit
+            ? "Atualize os dados estruturais, inclusive a placa."
+            : "Preencha os dados do veículo para adicionar ao estoque."}
         </CardDescription>
       </CardHeader>
       <CardContent>{formContent}</CardContent>

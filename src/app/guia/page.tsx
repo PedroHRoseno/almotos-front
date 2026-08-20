@@ -8,7 +8,7 @@ export default function GuiaPage() {
   return (
     <div className="space-y-8 max-w-4xl">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
+        <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight text-ink flex items-center gap-2">
           <BookOpen className="h-8 w-8" />
           Guia do Sistema AlMotos
         </h1>

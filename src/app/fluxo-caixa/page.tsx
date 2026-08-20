@@ -162,7 +162,7 @@ export default function FluxoCaixaPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Fluxo de Caixa</h1>
+          <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight text-ink">Fluxo de Caixa</h1>
           <p className="text-sm md:text-base text-muted-foreground">
             Visualize todas as movimentações financeiras da loja
           </p>
