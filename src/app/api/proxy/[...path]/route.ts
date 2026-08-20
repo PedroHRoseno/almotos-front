@@ -44,20 +44,53 @@ export async function PATCH(
   return handleProxy(request, resolvedParams);
 }
 
+function sanitizeEnvUrl(raw: string | undefined): string {
+  if (!raw) return "";
+  return raw
+    .replace(/^\uFEFF/, "")
+    .trim()
+    .replace(/^['"]+|['"]+$/g, "")
+    .trim();
+}
+
 /**
- * Base pública da API Spring (sem path de contexto: rotas são /vehicles, /api/auth/login, etc.).
- * Remove barra final e sufixo /api (/api/) — configurações comuns que geram 404 no backend.
+ * Origem absoluta do SoR (sem path). Remove barra final e sufixo /api —
+ * configurações comuns que geram 404 ou `Invalid URL` no `new URL`.
+ * BACKEND_URL (runtime) tem prioridade sobre NEXT_PUBLIC_API_URL (inlined no build).
  */
-function normalizeBackendBase(raw: string): string {
-  let base = raw.trim();
-  if (!base.startsWith("http://") && !base.startsWith("https://")) {
-    base = `https://${base}`;
+function resolveBackendOrigin():
+  | { ok: true; origin: string }
+  | { ok: false; reason: string; rawLength: number } {
+  const raw =
+    sanitizeEnvUrl(process.env.BACKEND_URL) ||
+    sanitizeEnvUrl(process.env.API_URL) ||
+    sanitizeEnvUrl(process.env.NEXT_PUBLIC_API_URL);
+
+  if (!raw) {
+    return { ok: false, reason: "variável ausente", rawLength: 0 };
   }
-  base = base.replace(/\/+$/, "");
-  if (base.endsWith("/api")) {
-    base = base.slice(0, -"/api".length);
+
+  let candidate = raw;
+  if (!/^https?:\/\//i.test(candidate)) {
+    candidate = `https://${candidate}`;
   }
-  return base.replace(/\/+$/, "");
+  candidate = candidate.replace(/\/+$/, "");
+  if (candidate.toLowerCase().endsWith("/api")) {
+    candidate = candidate.slice(0, -"/api".length).replace(/\/+$/, "");
+  }
+
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return { ok: false, reason: "protocolo inválido", rawLength: raw.length };
+    }
+    if (!parsed.hostname) {
+      return { ok: false, reason: "hostname vazio", rawLength: raw.length };
+    }
+    return { ok: true, origin: parsed.origin };
+  } catch {
+    return { ok: false, reason: "URL absoluta inválida", rawLength: raw.length };
+  }
 }
 
 async function handleProxy(
@@ -65,28 +98,25 @@ async function handleProxy(
   params: { path: string[] }
 ) {
   try {
-    const apiBase =
-      process.env.NEXT_PUBLIC_API_URL?.trim() ||
-      process.env.BACKEND_URL?.trim();
-    if (!apiBase) {
+    const resolved = resolveBackendOrigin();
+    if (!resolved.ok) {
       console.error(
-        "[Proxy] Defina NEXT_PUBLIC_API_URL ou BACKEND_URL (ex.: https://xxx.up.railway.app)"
+        `[Proxy] Base do SoR inválida (${resolved.reason}, ${resolved.rawLength} chars). Defina BACKEND_URL ou NEXT_PUBLIC_API_URL.`
       );
       return NextResponse.json(
         {
-          error: "Backend URL não configurado.",
-          hint: "Na Vercel: NEXT_PUBLIC_API_URL=https://<seu-servico>.up.railway.app (somente domínio, sem /api/ no final).",
+          error: "Backend URL inválida no proxy.",
+          hint: "Na Vercel: BACKEND_URL ou NEXT_PUBLIC_API_URL = https://api.almotoscaruaru.com.br (origem absoluta, sem /api no final). Depois, Redeploy.",
+          reason: resolved.reason,
         },
         { status: 500 }
       );
     }
 
-    // Construir o caminho completo
-    const path = params.path && params.path.length > 0 ? params.path.join("/") : "";
-
-    let backendUrl = normalizeBackendBase(apiBase);
-
-    const url = new URL(path || "/", backendUrl);
+    const path =
+      params.path && params.path.length > 0 ? params.path.join("/") : "";
+    const url = new URL(resolved.origin);
+    url.pathname = `/${path}`.replace(/\/{2,}/g, "/");
 
     // Copiar query parameters
     request.nextUrl.searchParams.forEach((value, key) => {
@@ -135,7 +165,7 @@ async function handleProxy(
       ? `${authorization.slice(0, 18)}…(${authorization.length} chars)`
       : "<ausente>";
     console.log(
-      `[Proxy] ${request.method} ${url.pathname} | Authorization=${authPreview}`
+      `[Proxy] ${request.method} ${url.pathname} → ${resolved.origin} | Authorization=${authPreview}`
     );
 
     // Preparar body se existir (precisa suportar multipart/binary)
