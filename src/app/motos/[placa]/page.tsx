@@ -329,7 +329,7 @@ export default function VeiculoDetailPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Custos Adicionais</p>
-              <p className="text-xl font-bold text-orange-600">{formatCurrency(totalCosts)}</p>
+              <p className="text-xl font-bold text-brand">{formatCurrency(totalCosts)}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Vendas (Ativas)</p>

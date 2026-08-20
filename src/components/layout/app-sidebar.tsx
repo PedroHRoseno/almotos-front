@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "./sidebar-provider";
 import { useAuth } from "@/contexts/AuthContext";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { LogOut } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -173,6 +174,7 @@ export function AppSidebar() {
       <div className="border-t border-line-soft p-4">
         {!collapsed ? (
           <div className="space-y-2">
+            <ThemeToggle placement="top-start" />
             <p className="text-xs text-ink-subtle">
               Sistema de Gestão de Motos v1.0
             </p>
@@ -190,7 +192,8 @@ export function AppSidebar() {
             </Button>
           </div>
         ) : (
-          <div className="flex justify-center">
+          <div className="flex flex-col items-center gap-2">
+            <ThemeToggle placement="top-start" />
             <Button
               variant="ghost"
               size="icon"

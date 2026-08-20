@@ -139,7 +139,7 @@ export default function RelatoriosPage() {
                   <Wrench className="h-4 w-4 text-muted-foreground shrink-0" />
                 </CardHeader>
                 <CardContent className="min-w-0">
-                  <div className="min-w-0 break-words text-base sm:text-lg md:text-xl xl:text-2xl font-bold text-orange-600 dark:text-orange-400" title={formatCurrency(report.totalCustos)}>
+                  <div className="min-w-0 break-words text-base sm:text-lg md:text-xl xl:text-2xl font-bold text-brand" title={formatCurrency(report.totalCustos)}>
                     {formatCurrency(report.totalCustos)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">

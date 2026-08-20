@@ -72,7 +72,7 @@ export default function DashboardPage() {
       description: "Soma de todos os custos adicionais (manutenção, documentação, etc.)",
       tooltip: "Total de custos adicionais registrados para todos os veículos. Esses custos são subtraídos do saldo líquido.",
       icon: Wrench,
-      valueColor: "text-orange-600 dark:text-orange-400",
+      valueColor: "text-brand",
     },
     {
       title: "Despesas Operacionais",

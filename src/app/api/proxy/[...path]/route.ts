@@ -211,6 +211,20 @@ async function handleProxy(
       const isNoBodyStatus = response.status === 204 || response.status === 304;
       const responseText = isNoBodyStatus ? "" : await response.text();
 
+      if (response.status === 404 && /Application not found/i.test(responseText)) {
+        console.warn(
+          `[Proxy] Railway: Application not found. Destino ${targetUrl} não é o SoR FastAPI.`
+        );
+        return NextResponse.json(
+          {
+            error: "Backend Railway não encontrado.",
+            hint: "O proxy está apontando para o hostname antigo do Kotlin. Na Vercel, defina BACKEND_URL e NEXT_PUBLIC_API_URL = https://api.almotoscaruaru.com.br e faça Redeploy.",
+            destination: resolved.origin,
+          },
+          { status: 502 }
+        );
+      }
+
       const nextResponse = isNoBodyStatus
         ? new NextResponse(null, { status: response.status, statusText: response.statusText })
         : new NextResponse(responseText, { status: response.status, statusText: response.statusText });
