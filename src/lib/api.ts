@@ -211,7 +211,7 @@ export const api = {
         params: buildPaginationParams(page, size, "licensePlate"),
       }),
     buscarPorPlaca: (licensePlate: string) =>
-      request<Vehicle>("/vehicles/search", { params: { licensePlate } }),
+      request<Vehicle>(`/vehicles/${encodeURIComponent(licensePlate)}`),
     historico: (licensePlate: string) =>
       request<VehicleHistory>(`/vehicles/${encodeURIComponent(licensePlate)}/history`),
     detalhes: (licensePlate: string) =>
