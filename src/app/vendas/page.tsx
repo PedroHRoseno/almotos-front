@@ -135,7 +135,7 @@ export default function VendasPage() {
 
     setDeleting(true);
     try {
-      await api.sales.deletar(saleToDelete.id);
+      await api.sales.cancelar(saleToDelete.id);
       toast.success("Venda cancelada com sucesso. O veículo foi revertido para disponível.");
       setDeleteDialogOpen(false);
       setSaleToDelete(null);
