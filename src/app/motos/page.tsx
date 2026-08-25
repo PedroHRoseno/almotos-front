@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Bike, Plus, Search, ChevronLeft, ChevronRight, Eye, Pencil } from "lucide-react";
+import { Bike, Plus, Search, ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -31,6 +32,7 @@ import {
 import { FormVeiculo } from "@/components/forms/form-veiculo";
 import { FilterChip } from "@/components/ui/filter-chip";
 import { api } from "@/lib/api";
+import { formatBRL, formatLicensePlate } from "@/lib/masks";
 import type { Vehicle } from "@/types";
 import { toast } from "sonner";
 
@@ -63,11 +65,10 @@ function publishedFilterToPublished(filter: PublishedFilter): boolean | undefine
 }
 
 export default function MotosPage() {
+  const router = useRouter();
   const [veiculos, setVeiculos] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState<{ type: "create" } | { type: "edit"; vehicle: Vehicle } | null>(
-    null
-  );
+  const [modal, setModal] = useState<{ type: "create" } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [stockFilter, setStockFilter] = useState<StockFilter>("TODOS");
@@ -118,13 +119,9 @@ export default function MotosPage() {
     fetchVehicles();
   }, [fetchVehicles]);
 
-  const handleRefetch = () => {
-    fetchVehicles();
-  };
-
-  const handleCadastroSuccess = () => {
+  const handleCadastroSuccess = (licensePlate: string) => {
     setModal(null);
-    handleRefetch();
+    router.push(`/motos/${encodeURIComponent(formatLicensePlate(licensePlate))}`);
   };
 
   const hasActiveFilters =
@@ -279,6 +276,7 @@ export default function MotosPage() {
                     <TableHead className="w-20">Ano mod.</TableHead>
                     <TableHead>Cor</TableHead>
                     <TableHead className="text-right">Quilometragem</TableHead>
+                    <TableHead className="text-right">Preço sugerido</TableHead>
                     <TableHead className="w-28">Estoque</TableHead>
                     <TableHead className="w-28">Ações</TableHead>
                   </TableRow>
@@ -317,6 +315,9 @@ export default function MotosPage() {
                       <TableCell className="text-right tabular-nums">
                         {formatKm(v.kilometersDriven)}
                       </TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {v.suggestedPrice != null ? formatBRL(v.suggestedPrice) : "—"}
+                      </TableCell>
                       <TableCell>
                         <Badge variant={v.inStock ? "success" : "secondary"}>
                           {v.inStock ? "Em estoque" : "Fora"}
@@ -324,17 +325,8 @@ export default function MotosPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            title="Editar veículo"
-                            onClick={() => setModal({ type: "edit", vehicle: v })}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
                           <Link href={`/motos/${v.licensePlate}`}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Ver detalhes">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" title="Abrir ficha">
                               <Eye className="h-4 w-4" />
                             </Button>
                           </Link>
@@ -428,27 +420,17 @@ export default function MotosPage() {
       <Dialog open={modal !== null} onOpenChange={(open) => !open && setModal(null)}>
         <DialogContent showClose className="max-h-[90vh] max-w-2xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>
-              {modal?.type === "edit" ? "Editar veículo" : "Cadastrar veículo"}
-            </DialogTitle>
+            <DialogTitle>Cadastrar veículo</DialogTitle>
             <DialogDescription>
-              {modal?.type === "edit"
-                ? "Atualize os dados estruturais, inclusive a placa."
-                : "Preencha os dados do veículo para adicionar ao estoque."}
+              Preencha os dados do veículo. Fotos e recorte ficam na ficha depois do cadastro.
             </DialogDescription>
           </DialogHeader>
-          {modal?.type === "edit" ? (
-            <FormVeiculo
-              key={modal.vehicle.licensePlate}
-              mode="edit"
-              vehicle={modal.vehicle}
-              currentPlate={modal.vehicle.licensePlate}
-              insideModal
-              onSuccess={handleCadastroSuccess}
-            />
-          ) : (
-            <FormVeiculo insideModal onSuccess={handleCadastroSuccess} />
-          )}
+          <FormVeiculo
+            insideModal
+            includePhotos={false}
+            includeCatalogFields
+            onSuccessWithPlate={handleCadastroSuccess}
+          />
         </DialogContent>
       </Dialog>
     </div>

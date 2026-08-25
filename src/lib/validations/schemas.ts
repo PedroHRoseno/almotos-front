@@ -33,6 +33,7 @@ export const veiculoSchema = z.object({
     .regex(/^#[0-9A-Fa-f]{6}$/, "Informe uma cor em hexadecimal (ex.: #ff0000)"),
   kilometersDriven: z
     .number({ invalid_type_error: "Quilometragem deve ser um número" })
+    .int("Quilometragem deve ser um número inteiro")
     .min(0, "Quilometragem não pode ser negativa"),
   inStock: z.boolean(),
   published: z.boolean().default(false),

@@ -96,3 +96,20 @@ export function parseBRLInput(raw: string): number | undefined {
   if (Number.isNaN(asNumber)) return undefined;
   return negative ? -asNumber : asNumber;
 }
+
+const kmFormatter = new Intl.NumberFormat("pt-BR");
+
+/** Formata inteiro com milhar pt-BR (25000 → 25.000). */
+export function formatKmInput(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return "";
+  return kmFormatter.format(Math.trunc(Math.abs(value)));
+}
+
+/** Interpreta texto de km (só dígitos / milhar) como inteiro ≥ 0. */
+export function parseKmInput(raw: string): number | undefined {
+  const d = digitsOnly(raw || "");
+  if (!d) return undefined;
+  const n = Number(d);
+  if (!Number.isFinite(n) || n < 0) return undefined;
+  return Math.trunc(n);
+}

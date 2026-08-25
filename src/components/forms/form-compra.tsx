@@ -362,11 +362,13 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
           <DialogHeader>
             <DialogTitle>Cadastrar Novo Veículo</DialogTitle>
             <DialogDescription>
-              Cadastre um novo veículo para realizar a compra. Após o cadastro, ele será automaticamente selecionado.
+              Cadastre um novo veículo para realizar a compra. Fotos e recorte ficam na ficha do veículo depois.
             </DialogDescription>
           </DialogHeader>
           <FormVeiculo
             insideModal
+            includePhotos={false}
+            includeCatalogFields
             onSuccessWithPlate={handleVeiculoCriado}
           />
         </DialogContent>

@@ -7,6 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
+const PRESET_TAGS: Record<"INTERNAL" | "PUBLIC", string[]> = {
+  PUBLIC: ["Único dono", "IPVA pago", "Revisada", "Abs", "Pronto para transferir"],
+  INTERNAL: ["Negociável", "Destaque vitrine", "Aguardando documentação"],
+};
+
 type TagInputProps = {
   id?: string;
   visibility: "INTERNAL" | "PUBLIC";
@@ -26,6 +31,7 @@ export function TagInput({
 }: TagInputProps) {
   const [draft, setDraft] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [catalog, setCatalog] = useState<string[]>(PRESET_TAGS[visibility]);
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const selected = useMemo(
@@ -42,6 +48,29 @@ export function TagInput({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.tags
+      .listar(visibility)
+      .then((rows) => {
+        if (cancelled) return;
+        const fromApi = rows.map((row) => row.name);
+        const merged = [...PRESET_TAGS[visibility]];
+        for (const name of fromApi) {
+          if (!merged.some((item) => item.toLowerCase() === name.trim().toLowerCase())) {
+            merged.push(name);
+          }
+        }
+        setCatalog(merged);
+      })
+      .catch(() => {
+        if (!cancelled) setCatalog(PRESET_TAGS[visibility]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [visibility]);
 
   useEffect(() => {
     const query = draft.trim();
@@ -82,8 +111,24 @@ export function TagInput({
     onChange(value.filter((tag) => tag !== name));
   };
 
+  const shortcuts = catalog.filter((name) => !selected.has(name.trim().toLowerCase()));
+
   return (
     <div ref={containerRef} className="space-y-2">
+      {shortcuts.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {shortcuts.slice(0, 12).map((name) => (
+            <button
+              key={name}
+              type="button"
+              className="rounded-full border border-dashed border-line px-2 py-0.5 text-xs text-ink-muted hover:border-brand hover:text-ink"
+              onClick={() => addTag(name)}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
       <div
         className={cn(
           "flex min-h-11 flex-wrap items-center gap-1.5 rounded-xl border border-line bg-surface px-2 py-1.5",

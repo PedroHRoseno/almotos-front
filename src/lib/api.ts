@@ -27,7 +27,10 @@ import type {
   StoreTransactionCreate,
   FipeModelsResponse,
   FipeCodigoResponse,
+  FipeAnosResponse,
+  FipeConsultaResponse,
   VehicleTag,
+  InternalUser,
 } from "@/types";
 import {
   clearStoredAuth,
@@ -271,6 +274,43 @@ export const api = {
           codigoModelo,
           ...(year != null ? { year: String(year) } : {}),
         },
+      }),
+    anos: (brand: string, codigoModelo: string) =>
+      request<FipeAnosResponse>("/fipe/anos", {
+        params: { brand, codigoModelo },
+      }),
+    consulta: (brand: string, codigoModelo: string, year: number) =>
+      request<FipeConsultaResponse>("/fipe/consulta", {
+        params: { brand, codigoModelo, year: String(year) },
+      }),
+  },
+
+  users: {
+    listar: () => request<InternalUser[]>("/users"),
+    criar: (body: { username: string; password: string; role: string }) =>
+      request<InternalUser>("/users", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    atualizarPapel: (id: number, role: string) =>
+      request<InternalUser>(`/users/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ role }),
+      }),
+    redefinirSenha: (id: number, password: string) =>
+      request<void>(`/users/${id}/password`, {
+        method: "PATCH",
+        body: JSON.stringify({ password }),
+      }),
+    deletar: (id: number) =>
+      request<void>(`/users/${id}`, { method: "DELETE" }),
+  },
+
+  auth: {
+    alterarMinhaSenha: (body: { currentPassword: string; newPassword: string }) =>
+      request<void>("/api/auth/me/password", {
+        method: "PATCH",
+        body: JSON.stringify(body),
       }),
   },
 

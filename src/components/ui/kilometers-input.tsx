@@ -1,12 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { formatBRL, parseBRLInput } from "@/lib/masks";
+import { formatKmInput, parseKmInput } from "@/lib/masks";
 import { cn } from "@/lib/utils";
 
-export interface CurrencyInputProps
+export interface KilometersInputProps
   extends Omit<React.ComponentProps<"input">, "type" | "value" | "onChange"> {
   value: number | null | undefined;
   onValueChange: (value: number | undefined) => void;
@@ -31,7 +30,7 @@ function selectionCoversAll(input: HTMLInputElement): boolean {
   return input.value.length > 0 && start === 0 && end === input.value.length;
 }
 
-export function CurrencyInput({
+export function KilometersInput({
   value,
   onValueChange,
   error,
@@ -39,8 +38,8 @@ export function CurrencyInput({
   onBlur,
   onKeyDown,
   ...props
-}: CurrencyInputProps) {
-  const display = value != null && !Number.isNaN(value) ? formatBRL(value) : "";
+}: KilometersInputProps) {
+  const display = formatKmInput(value);
 
   return (
     <div className="relative">
@@ -49,13 +48,11 @@ export function CurrencyInput({
         inputMode="numeric"
         autoComplete="off"
         value={display}
-        className={cn("tabular-nums pr-9", error && "border-destructive", className)}
-        onChange={() => {
-          /* valor controlado por keydown para não reinterpretar R$ 18.000,00 */
-        }}
+        className={cn("tabular-nums pr-10", error && "border-destructive", className)}
+        onChange={() => undefined}
         onPaste={(event) => {
           event.preventDefault();
-          onValueChange(parseBRLInput(event.clipboardData.getData("text")));
+          onValueChange(parseKmInput(event.clipboardData.getData("text")));
         }}
         onKeyDown={(event) => {
           onKeyDown?.(event);
@@ -81,16 +78,9 @@ export function CurrencyInput({
         }}
         onBlur={onBlur}
       />
-      {value != null && !Number.isNaN(value) ? (
-        <button
-          type="button"
-          aria-label="Limpar preço"
-          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-ink-subtle hover:bg-surface-hover hover:text-ink"
-          onClick={() => onValueChange(undefined)}
-        >
-          <X className="h-4 w-4" />
-        </button>
-      ) : null}
+      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-ink-subtle">
+        km
+      </span>
     </div>
   );
 }

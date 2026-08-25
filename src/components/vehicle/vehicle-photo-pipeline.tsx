@@ -84,13 +84,88 @@ export function VehiclePhotoPipeline({
     [cropTargetId, pending]
   );
 
-  const blocking = batchUploading || pending.length > 0;
+  const blocking = batchUploading;
   useEffect(() => {
     onBlockingChange?.(blocking);
   }, [blocking, onBlockingChange]);
 
+  const inflightRef = useRef(0);
+  const dragIndexRef = useRef<number | null>(null);
+  const committedRef = useRef(committedImageUrls);
+  committedRef.current = committedImageUrls;
   const pendingRef = useRef(pending);
   pendingRef.current = pending;
+
+  const startInflight = () => {
+    inflightRef.current += 1;
+    setBatchUploading(true);
+  };
+  const endInflight = () => {
+    inflightRef.current = Math.max(0, inflightRef.current - 1);
+    if (inflightRef.current === 0) setBatchUploading(false);
+  };
+
+  const uploadItem = useCallback(
+    async (item: PendingItem) => {
+      startInflight();
+      setPending((prev) =>
+        prev.map((p) =>
+          p.id === item.id
+            ? { ...p, uploadStatus: "uploading", uploadProgress: 0, errorMessage: undefined }
+            : p
+        )
+      );
+      try {
+        let fileToSend: File;
+        if (item.isEdited) {
+          const dim = await readImageNaturalSize(item.file);
+          fileToSend = await processImage(item.file, {
+            x: 0,
+            y: 0,
+            width: dim.width,
+            height: dim.height,
+          });
+        } else {
+          fileToSend = await processImage(
+            item.file,
+            defaultCropAreaPixels(item.naturalWidth, item.naturalHeight, ASPECT)
+          );
+        }
+        const { url } = await uploadVehicleImageWithProgress(fileToSend, (pct) => {
+          setPending((prev) =>
+            prev.map((p) => (p.id === item.id ? { ...p, uploadProgress: pct } : p))
+          );
+        });
+        const trimmed = url.trim();
+        if (!trimmed) throw new Error("URL vazia no retorno do servidor.");
+        const current = committedRef.current;
+        if (!current.includes(trimmed)) {
+          const nextUrls = [...current, trimmed];
+          committedRef.current = nextUrls;
+          onCommittedImageUrlsChange(nextUrls);
+        }
+        setPending((prev) => {
+          const cur = prev.find((p) => p.id === item.id);
+          if (cur) revokePreview(cur.previewUrl);
+          return prev.filter((p) => p.id !== item.id);
+        });
+        toast.success("Foto enviada.");
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Erro no upload";
+        setPending((prev) =>
+          prev.map((p) =>
+            p.id === item.id
+              ? { ...p, uploadStatus: "error", uploadProgress: 0, errorMessage: msg }
+              : p
+          )
+        );
+        toast.error(`${item.file.name}: ${msg}`);
+      } finally {
+        endInflight();
+      }
+    },
+    [onCommittedImageUrlsChange]
+  );
   useEffect(() => {
     return () => {
       pendingRef.current.forEach((p) => revokePreview(p.previewUrl));
@@ -130,11 +205,11 @@ export function VehiclePhotoPipeline({
       }
       if (next.length === 0) return;
       setPending((prev) => [...prev, ...next]);
-      toast.success(
-        next.length === 1 ? "1 imagem adicionada à fila." : `${next.length} imagens adicionadas à fila.`
-      );
+      next.forEach((item) => {
+        void uploadItem(item);
+      });
     },
-    [disabled]
+    [disabled, uploadItem]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -206,110 +281,28 @@ export function VehiclePhotoPipeline({
     try {
       const newFile = await processImage(cropTarget.file, croppedPixelsRef.current);
       const dim = await readImageNaturalSize(newFile);
-      setPending((prev) =>
-        prev.map((p) => {
-          if (p.id !== cropTarget.id) return p;
-          revokePreview(p.previewUrl);
-          return {
-            ...p,
-            file: newFile,
-            previewUrl: URL.createObjectURL(newFile),
-            naturalWidth: dim.width,
-            naturalHeight: dim.height,
-            isEdited: true,
-            uploadProgress: 0,
-            uploadStatus: "idle" as const,
-            errorMessage: undefined,
-          };
-        })
-      );
+      const nextPreview = URL.createObjectURL(newFile);
+      revokePreview(cropTarget.previewUrl);
+      const updated: PendingItem = {
+        ...cropTarget,
+        file: newFile,
+        previewUrl: nextPreview,
+        naturalWidth: dim.width,
+        naturalHeight: dim.height,
+        isEdited: true,
+        uploadProgress: 0,
+        uploadStatus: "idle",
+        errorMessage: undefined,
+      };
+      setPending((prev) => prev.map((p) => (p.id === cropTarget.id ? updated : p)));
       setCropOpen(false);
       setCropTargetId(null);
       setCropImageSrc(null);
-      toast.success("Imagem atualizada na fila.");
+      void uploadItem(updated);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao processar imagem");
     } finally {
       setCropping(false);
-    }
-  };
-
-  const finalizeAndPublish = async () => {
-    if (pending.length === 0) {
-      toast.message("Não há fotos na fila para enviar.");
-      return;
-    }
-    setBatchUploading(true);
-    const snapshot = [...pending];
-    let nextCommitted = [...committedImageUrls];
-    let successCount = 0;
-
-    for (const item of snapshot) {
-      setPending((prev) => {
-        if (!prev.some((p) => p.id === item.id)) return prev;
-        return prev.map((p) =>
-          p.id === item.id
-            ? { ...p, uploadStatus: "uploading", uploadProgress: 0, errorMessage: undefined }
-            : p
-        );
-      });
-
-      try {
-        let fileToSend: File;
-        if (item.isEdited) {
-          const dim = await readImageNaturalSize(item.file);
-          fileToSend = await processImage(item.file, {
-            x: 0,
-            y: 0,
-            width: dim.width,
-            height: dim.height,
-          });
-        } else {
-          const cropPixels = defaultCropAreaPixels(
-            item.naturalWidth,
-            item.naturalHeight,
-            ASPECT
-          );
-          fileToSend = await processImage(item.file, cropPixels);
-        }
-
-        const { url } = await uploadVehicleImageWithProgress(fileToSend, (pct) => {
-          setPending((prev) =>
-            prev.map((p) => (p.id === item.id ? { ...p, uploadProgress: pct } : p))
-          );
-        });
-        const trimmed = url.trim();
-        if (!trimmed) throw new Error("URL vazia no retorno do servidor.");
-        if (!nextCommitted.includes(trimmed)) {
-          nextCommitted = [...nextCommitted, trimmed];
-          onCommittedImageUrlsChange(nextCommitted);
-        }
-        successCount += 1;
-        setPending((prev) => {
-          const cur = prev.find((p) => p.id === item.id);
-          if (cur) revokePreview(cur.previewUrl);
-          return prev.filter((p) => p.id !== item.id);
-        });
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : "Erro no upload";
-        setPending((prev) =>
-          prev.map((p) =>
-            p.id === item.id
-              ? { ...p, uploadStatus: "error", uploadProgress: 0, errorMessage: msg }
-              : p
-          )
-        );
-        toast.error(`${item.file.name}: ${msg}`);
-      }
-    }
-
-    setBatchUploading(false);
-    if (successCount > 0) {
-      toast.success(
-        successCount === 1
-          ? "1 foto publicada no veículo."
-          : `${successCount} fotos publicadas no veículo.`
-      );
     }
   };
 
@@ -329,7 +322,7 @@ export function VehiclePhotoPipeline({
         <div className="text-sm">
           <p className="font-medium">Arraste imagens ou clique para selecionar</p>
           <p className="text-xs text-muted-foreground">
-            Várias fotos • PNG/JPG/WebP • até 8MB • enquadramento 4:3 ao publicar
+            Várias fotos • PNG/JPG/WebP • até 8MB • recorte 4:3 e envio automáticos
           </p>
         </div>
       </div>
@@ -341,8 +334,28 @@ export function VehiclePhotoPipeline({
             {committedImageUrls.map((url, idx) => (
               <div
                 key={`${url}-${idx}`}
-                className="relative overflow-hidden rounded-lg border border-border bg-muted"
+                draggable
+                onDragStart={() => {
+                  dragIndexRef.current = idx;
+                }}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const from = dragIndexRef.current;
+                  dragIndexRef.current = null;
+                  if (from == null || from === idx) return;
+                  const copy = [...committedImageUrls];
+                  const [moved] = copy.splice(from, 1);
+                  copy.splice(idx, 0, moved);
+                  onCommittedImageUrlsChange(copy);
+                }}
+                className="relative cursor-grab overflow-hidden rounded-lg border border-border bg-muted active:cursor-grabbing"
               >
+                {idx === 0 && (
+                  <span className="absolute left-1 top-1 z-10 rounded-full bg-brand px-2 py-0.5 text-[10px] font-semibold text-white">
+                    Capa
+                  </span>
+                )}
                 <div className="relative aspect-[4/3] w-full">
                   {/* eslint-disable-next-line @next/next/no-img-element -- URLs dinâmicas S3/blob */}
                   <img src={url} alt="" className="h-full w-full object-cover" />
@@ -460,36 +473,21 @@ export function VehiclePhotoPipeline({
               </div>
             ))}
           </div>
-          <Button
-            type="button"
-            className="w-full sm:w-auto"
-            disabled={batchUploading || pending.length === 0}
-            onClick={finalizeAndPublish}
-          >
-            {batchUploading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Publicando fotos…
-              </>
-            ) : (
-              "Finalizar e Publicar Fotos"
-            )}
-          </Button>
           <p className="text-xs text-muted-foreground">
-            As fotos são enviadas ao armazenamento e as URLs entram na lista do veículo. Use
-            &quot;Editar&quot; para ajustar o recorte 4:3 antes de publicar.
+            O envio começa ao soltar as fotos (recorte 4:3 automático). Use Editar só se o
+            upload ainda não começou ou falhou. Arraste as miniaturas para ordenar; a primeira é a capa.
           </p>
         </div>
       )}
 
       <Dialog open={cropOpen} onOpenChange={(o) => !cropping && setCropOpen(o)}>
-        <DialogContent className="max-w-lg" showClose={!cropping}>
+        <DialogContent className="max-w-4xl" showClose={!cropping}>
           <DialogHeader>
             <DialogTitle>Editar enquadramento</DialogTitle>
-            <DialogDescription>Proporção fixa 4:3. Arraste e use o zoom.</DialogDescription>
+            <DialogDescription>Proporção fixa 4:3. Arraste e use o zoom. Ao confirmar, a foto é enviada.</DialogDescription>
           </DialogHeader>
           {cropImageSrc && (
-            <div className="relative h-[280px] w-full overflow-hidden rounded-md bg-black md:h-[320px]">
+            <div className="relative h-[420px] w-full overflow-hidden rounded-md bg-black md:h-[480px]">
               <Cropper
                 image={cropImageSrc}
                 crop={crop}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
@@ -18,12 +18,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { veiculoSchema, type VeiculoFormData } from "@/lib/validations/schemas";
 import { formatLicensePlate } from "@/lib/masks";
 import { api } from "@/lib/api";
-import type { Vehicle, VehicleBrand } from "@/types";
+import type { FipeConsultaResponse, Vehicle, VehicleBrand } from "@/types";
 import { VEHICLE_BRANDS } from "@/types";
 import { cn } from "@/lib/utils";
 import { VehiclePhotoPipeline } from "@/components/vehicle/vehicle-photo-pipeline";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { KilometersInput } from "@/components/ui/kilometers-input";
 import { FipeModelAutocomplete } from "@/components/forms/fipe-model-autocomplete";
+import { FipeConsultaCard } from "@/components/forms/fipe-consulta-card";
 import { TagInput } from "@/components/forms/tag-input";
 
 const emptyDefaults: Partial<VeiculoFormData> = {
@@ -83,6 +85,8 @@ export interface FormVeiculoProps {
   currentPlate?: string;
   /** Na página de detalhe, a galeria fica no PATCH /catalog — não reabrir o pipeline aqui. */
   includePhotos?: boolean;
+  /** Publicação e descrição ficam no card Vitrine da ficha. */
+  includeCatalogFields?: boolean;
   onSuccess?: () => void;
   /** Chamado com a placa resultante (nova, se alterada). */
   onSuccessWithPlate?: (licensePlate: string) => void;
@@ -93,13 +97,15 @@ export function FormVeiculo({
   mode = "create",
   vehicle,
   currentPlate,
-  includePhotos,
+  includePhotos = false,
+  includeCatalogFields = true,
   onSuccess,
   onSuccessWithPlate,
   insideModal,
 }: FormVeiculoProps = {}) {
   const isEdit = mode === "edit";
-  const showPhotos = includePhotos ?? true;
+  const showPhotos = includePhotos;
+  const showCatalogFields = includeCatalogFields;
   const plateForPath = currentPlate ?? vehicle?.licensePlate ?? "";
 
   const [success, setSuccess] = useState<string | null>(null);
@@ -108,25 +114,59 @@ export function FormVeiculo({
     vehicle?.imageUrlList ?? []
   );
   const [photosBlockingSave, setPhotosBlockingSave] = useState(false);
+  const [codigoModelo, setCodigoModelo] = useState<string | null>(null);
+  const [fipeConsulta, setFipeConsulta] = useState<FipeConsultaResponse | null>(null);
+  const [fipeLoading, setFipeLoading] = useState(false);
 
   const form = useForm<VeiculoFormData>({
     resolver: zodResolver(veiculoSchema),
     defaultValues: vehicle ? valuesFromVehicle(vehicle) : emptyDefaults,
   });
 
+  const loadedPlateRef = useRef<string | null>(
+    vehicle ? formatLicensePlate(vehicle.licensePlate) : null
+  );
+
   useEffect(() => {
-    if (isEdit && vehicle) {
-      form.reset(valuesFromVehicle(vehicle));
-      setVehicleImageUrls(vehicle.imageUrlList ?? []);
-    }
+    if (!isEdit || !vehicle) return;
+    const nextPlate = formatLicensePlate(vehicle.licensePlate);
+    if (loadedPlateRef.current === nextPlate) return;
+    loadedPlateRef.current = nextPlate;
+    form.reset(valuesFromVehicle(vehicle));
+    setVehicleImageUrls(vehicle.imageUrlList ?? []);
   }, [form, isEdit, vehicle]);
 
   const watchedPlate = form.watch("licensePlate");
   const watchedInStock = form.watch("inStock");
+  const watchedBrand = form.watch("brand");
+  const watchedModelYear = form.watch("modelYear");
   const plateChanged = useMemo(() => {
     if (!isEdit || !plateForPath) return false;
     return formatLicensePlate(watchedPlate || "") !== formatLicensePlate(plateForPath);
   }, [isEdit, plateForPath, watchedPlate]);
+
+  useEffect(() => {
+    if (!watchedBrand || !codigoModelo || !watchedModelYear) {
+      setFipeConsulta(null);
+      return;
+    }
+    let cancelled = false;
+    setFipeLoading(true);
+    api.fipe
+      .consulta(watchedBrand, codigoModelo, watchedModelYear)
+      .then((res) => {
+        if (!cancelled) setFipeConsulta(res);
+      })
+      .catch(() => {
+        if (!cancelled) setFipeConsulta({ available: false });
+      })
+      .finally(() => {
+        if (!cancelled) setFipeLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [watchedBrand, codigoModelo, watchedModelYear]);
 
   const onSubmit = async (data: VeiculoFormData) => {
     setSuccess(null);
@@ -146,8 +186,10 @@ export function FormVeiculo({
       kilometersDriven: data.kilometersDriven,
       suggestedPrice: data.suggestedPrice ?? null,
       inStock: data.inStock,
-      published: data.published,
-      description: data.description?.trim() || null,
+      published: showCatalogFields ? data.published : Boolean(vehicle?.published),
+      description: showCatalogFields
+        ? data.description?.trim() || null
+        : vehicle?.description ?? null,
       imageUrlList,
       internalTags: data.internalTags ?? [],
       publicTags: data.publicTags ?? [],
@@ -233,6 +275,8 @@ export function FormVeiculo({
                 onValueChange={(next) => {
                   field.onChange(next);
                   form.setValue("codigoFipe", null);
+                  setCodigoModelo(null);
+                  setFipeConsulta(null);
                 }}
               >
                 <SelectTrigger
@@ -265,9 +309,12 @@ export function FormVeiculo({
                 value={field.value}
                 codigoFipe={form.watch("codigoFipe")}
                 error={!!form.formState.errors.modelName}
-                onModelChange={(modelName, codigoFipe) => {
+                onModelChange={(modelName, codigoFipe, nextCodigoModelo) => {
                   field.onChange(modelName);
                   form.setValue("codigoFipe", codigoFipe);
+                  if (nextCodigoModelo !== undefined) {
+                    setCodigoModelo(nextCodigoModelo);
+                  }
                 }}
               />
             )}
@@ -336,14 +383,19 @@ export function FormVeiculo({
           required
           error={form.formState.errors.kilometersDriven}
         >
-          <Input
-            id="kilometersDriven"
-            type="number"
-            step="1"
-            min={0}
-            placeholder="Ex.: 25000"
-            {...form.register("kilometersDriven", { valueAsNumber: true })}
-            className={cn(form.formState.errors.kilometersDriven && "border-destructive")}
+          <Controller
+            control={form.control}
+            name="kilometersDriven"
+            render={({ field }) => (
+              <KilometersInput
+                id="kilometersDriven"
+                placeholder="Ex.: 25.000"
+                value={field.value}
+                onValueChange={(next) => field.onChange(next ?? 0)}
+                onBlur={field.onBlur}
+                error={!!form.formState.errors.kilometersDriven}
+              />
+            )}
           />
         </FormField>
 
@@ -395,6 +447,18 @@ export function FormVeiculo({
           </p>
         </FormField>
 
+        {(fipeLoading || fipeConsulta) && (
+          <div className="sm:col-span-2">
+            <FipeConsultaCard
+              data={fipeConsulta}
+              loading={fipeLoading}
+              onUseSuggestedPrice={(valor) =>
+                form.setValue("suggestedPrice", valor, { shouldDirty: true })
+              }
+            />
+          </div>
+        )}
+
         <FormField
           name="internalTags"
           label="Tags internas"
@@ -441,6 +505,7 @@ export function FormVeiculo({
           </p>
         </FormField>
 
+        {showCatalogFields && (
         <FormField
           name="description"
           label="Descrição (opcional)"
@@ -458,13 +523,13 @@ export function FormVeiculo({
             )}
           />
         </FormField>
+        )}
 
         {showPhotos && (
           <div className="sm:col-span-2 space-y-2">
             <p className="text-sm font-medium leading-none text-ink-muted">Fotos do catálogo</p>
             <p className="text-xs text-ink-subtle">
-              Envie imagens ao armazenamento, edite o recorte 4:3 se quiser e use &quot;Finalizar e publicar
-              fotos&quot; antes de salvar o veículo.
+              As fotos sobem ao soltar (recorte 4:3 automático). Arraste para ordenar; a primeira é a capa.
             </p>
             <VehiclePhotoPipeline
               committedImageUrls={vehicleImageUrls}
@@ -475,6 +540,7 @@ export function FormVeiculo({
           </div>
         )}
 
+        {showCatalogFields && (
         <FormField
           name="published"
           label="Publicar no Catálogo Público"
@@ -507,6 +573,7 @@ export function FormVeiculo({
             )}
           />
         </FormField>
+        )}
       </div>
 
       <div className="flex justify-end gap-3">

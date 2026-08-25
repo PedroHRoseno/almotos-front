@@ -18,6 +18,7 @@ import {
   X,
   ArrowUpDown,
   BookOpen,
+  BadgeDollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ import { useState, useEffect } from "react";
 const menuItems = [
   { title: "Dashboard", href: "/", icon: LayoutDashboard },
   { title: "Veículos", href: "/motos", icon: Bike },
+  { title: "Consulta FIPE", href: "/consulta-fipe", icon: BadgeDollarSign },
   { title: "Clientes", href: "/clientes", icon: Users },
   { title: "Compras", href: "/compras", icon: ShoppingBag },
   { title: "Vendas", href: "/vendas", icon: ShoppingCart },
@@ -43,7 +45,7 @@ const menuItems = [
 export function AppSidebar() {
   const pathname = usePathname();
   const { collapsed, toggle } = useSidebar();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   // Fechar sidebar mobile ao mudar de rota
@@ -175,6 +177,12 @@ export function AppSidebar() {
         {!collapsed ? (
           <div className="space-y-2">
             <ThemeToggle placement="top-start" />
+            {user ? (
+              <p className="truncate text-xs text-ink-muted">
+                {user.username}
+                <span className="text-ink-subtle"> · {user.role}</span>
+              </p>
+            ) : null}
             <p className="text-xs text-ink-subtle">
               Sistema de Gestão de Motos v1.0
             </p>

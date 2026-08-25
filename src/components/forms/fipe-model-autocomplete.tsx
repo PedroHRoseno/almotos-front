@@ -15,7 +15,11 @@ type FipeModelAutocompleteProps = {
   codigoFipe?: string | null;
   error?: boolean;
   disabled?: boolean;
-  onModelChange: (modelName: string, codigoFipe: string | null) => void;
+  onModelChange: (
+    modelName: string,
+    codigoFipe: string | null,
+    codigoModelo?: string | null
+  ) => void;
 };
 
 export function FipeModelAutocomplete({
@@ -86,10 +90,10 @@ export function FipeModelAutocomplete({
       .codigo(brand, codigoModelo, year)
       .then((res) => {
         if (cancelled) return;
-        onModelChange(value, res.available ? res.codigoFipe ?? null : null);
+        onModelChange(value, res.available ? res.codigoFipe ?? null : null, codigoModelo);
       })
       .catch(() => {
-        if (!cancelled) onModelChange(value, null);
+        if (!cancelled) onModelChange(value, null, codigoModelo);
       })
       .finally(() => {
         if (!cancelled) setResolving(false);
@@ -105,15 +109,15 @@ export function FipeModelAutocomplete({
     selectedCodeRef.current = item.codigoModelo;
     setOpen(false);
     if (!year) {
-      onModelChange(item.nome, null);
+      onModelChange(item.nome, null, item.codigoModelo);
       return;
     }
     setResolving(true);
     try {
       const res = await api.fipe.codigo(brand, item.codigoModelo, year);
-      onModelChange(item.nome, res.available ? res.codigoFipe ?? null : null);
+      onModelChange(item.nome, res.available ? res.codigoFipe ?? null : null, item.codigoModelo);
     } catch {
-      onModelChange(item.nome, null);
+      onModelChange(item.nome, null, item.codigoModelo);
     } finally {
       setResolving(false);
     }
@@ -131,7 +135,7 @@ export function FipeModelAutocomplete({
         onFocus={() => setOpen(true)}
         onChange={(event) => {
           selectedCodeRef.current = null;
-          onModelChange(event.target.value, null);
+          onModelChange(event.target.value, null, null);
           setOpen(true);
         }}
       />

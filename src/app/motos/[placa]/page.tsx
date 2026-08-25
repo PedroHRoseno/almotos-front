@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, DollarSign, Calendar, User, Loader2, Pencil } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, DollarSign, Calendar, User, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,7 +60,7 @@ export default function VeiculoDetailPage() {
   const [savingGallery, setSavingGallery] = useState(false);
   const [galleryBlocking, setGalleryBlocking] = useState(false);
   const [togglingPublished, setTogglingPublished] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
+  const [descriptionDraft, setDescriptionDraft] = useState("");
 
   const fetchHistory = useCallback(() => {
     setLoading(true);
@@ -86,6 +86,7 @@ export default function VeiculoDetailPage() {
     if (!history) return;
     const list = history.vehicle.imageUrlList || [];
     setImages(list);
+    setDescriptionDraft(history.vehicle.description ?? "");
   }, [history]);
 
   const handleTogglePublished = async () => {
@@ -112,8 +113,11 @@ export default function VeiculoDetailPage() {
   const handleSaveGallery = async () => {
     setSavingGallery(true);
     try {
-      await api.vehicles.atualizarCatalogo(placa, { imageUrlList: images });
-      toast.success("Galeria atualizada com sucesso!");
+      await api.vehicles.atualizarCatalogo(placa, {
+        imageUrlList: images,
+        description: descriptionDraft.trim() || null,
+      });
+      toast.success("Vitrine atualizada com sucesso!");
       fetchHistory();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao salvar galeria");
@@ -216,70 +220,24 @@ export default function VeiculoDetailPage() {
             </p>
           </div>
         </div>
-        <Button variant="outline" onClick={() => setEditOpen(true)} className="shrink-0">
-          <Pencil className="mr-2 h-4 w-4" />
-          Editar dados
-        </Button>
       </div>
 
-      {/* Informações do Veículo */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Informações do Veículo</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Ano Fabricação</p>
-              <p className="text-lg font-semibold">{vehicle.manufactureYear}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Ano Modelo</p>
-              <p className="text-lg font-semibold">{vehicle.modelYear}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Quilometragem</p>
-              <p className="text-lg font-semibold">{vehicle.kilometersDriven.toLocaleString("pt-BR")} km</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Status</p>
-              <Badge variant={vehicle.status === "DISPONIVEL" ? "success" : vehicle.status === "VENDIDO" ? "secondary" : "warning"}>
-                {vehicle.status === "DISPONIVEL" ? "Disponível" : vehicle.status === "VENDIDO" ? "Vendido" : "Inativo"}
-              </Badge>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Preço sugerido</p>
-              <p className="text-lg font-semibold tabular-nums">
-                {vehicle.suggestedPrice != null ? formatCurrency(vehicle.suggestedPrice) : "—"}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Código FIPE</p>
-              <p className="text-lg font-semibold">{vehicle.codigoFipe || "—"}</p>
-            </div>
-          </div>
-          {(vehicle.internalTags?.length || vehicle.publicTags?.length) ? (
-            <div className="mt-4 space-y-2">
-              {vehicle.internalTags && vehicle.internalTags.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs text-ink-subtle">Internas</span>
-                  {vehicle.internalTags.map((tag) => (
-                    <Badge key={tag.id} variant="warning">{tag.name}</Badge>
-                  ))}
-                </div>
-              )}
-              {vehicle.publicTags && vehicle.publicTags.length > 0 && (
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs text-ink-subtle">Públicas</span>
-                  {vehicle.publicTags.map((tag) => (
-                    <Badge key={tag.id} variant="success">{tag.name}</Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
+      <FormVeiculo
+        mode="edit"
+        vehicle={vehicle}
+        currentPlate={placa}
+        includePhotos={false}
+        includeCatalogFields={false}
+        onSuccessWithPlate={(nextPlate) => {
+          const next = formatLicensePlate(nextPlate);
+          const current = formatLicensePlate(placa);
+          if (next !== current) {
+            router.replace(`/motos/${encodeURIComponent(next)}`);
+          } else {
+            fetchHistory();
+          }
+        }}
+      />
 
       {/* Vitrine Pública */}
       <Card>
@@ -319,6 +277,18 @@ export default function VeiculoDetailPage() {
             </button>
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="vitrine-description">Descrição da vitrine</Label>
+            <textarea
+              id="vitrine-description"
+              rows={3}
+              value={descriptionDraft}
+              onChange={(e) => setDescriptionDraft(e.target.value)}
+              placeholder="Texto público do catálogo"
+              className="flex w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-ink-subtle focus-visible:border-brand focus-visible:outline-none"
+            />
+          </div>
+
           <div className="space-y-3">
             <Label>Fotos do catálogo (S3)</Label>
             <VehiclePhotoPipeline
@@ -327,8 +297,7 @@ export default function VeiculoDetailPage() {
               onBlockingChange={setGalleryBlocking}
             />
             <p className="text-xs text-muted-foreground">
-              Adicione várias imagens, edite o recorte 4:3 se necessário, publique na fila e depois salve a galeria no
-              veículo.
+              As fotos sobem ao soltar. Arraste para ordenar (a primeira é a capa) e salve a vitrine no veículo.
             </p>
             <Button
               type="button"
@@ -341,7 +310,7 @@ export default function VeiculoDetailPage() {
                   Salvando…
                 </>
               ) : (
-                "Salvar galeria"
+                "Salvar vitrine"
               )}
             </Button>
           </div>
@@ -593,34 +562,6 @@ export default function VeiculoDetailPage() {
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent showClose className="max-h-[90vh] max-w-2xl overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Editar veículo</DialogTitle>
-            <DialogDescription>
-              Atualize os dados estruturais, inclusive a placa. Fotos continuam no card da vitrine.
-            </DialogDescription>
-          </DialogHeader>
-          <FormVeiculo
-            mode="edit"
-            vehicle={vehicle}
-            currentPlate={placa}
-            includePhotos={false}
-            insideModal
-            onSuccessWithPlate={(nextPlate) => {
-              setEditOpen(false);
-              const next = formatLicensePlate(nextPlate);
-              const current = formatLicensePlate(placa);
-              if (next !== current) {
-                router.replace(`/motos/${encodeURIComponent(next)}`);
-              } else {
-                fetchHistory();
-              }
-            }}
-          />
         </DialogContent>
       </Dialog>
     </div>

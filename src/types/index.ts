@@ -211,6 +211,37 @@ export interface FipeCodigoResponse {
   nome?: string | null;
 }
 
+export interface FipeAno {
+  codigoAno: string;
+  nome: string;
+}
+
+export interface FipeAnosResponse {
+  available: boolean;
+  items: FipeAno[];
+}
+
+export interface FipeConsultaResponse {
+  available: boolean;
+  valor?: number | null;
+  valorTexto?: string | null;
+  marca?: string | null;
+  modelo?: string | null;
+  anoModelo?: number | null;
+  combustivel?: string | null;
+  siglaCombustivel?: string | null;
+  codigoFipe?: string | null;
+  mesReferencia?: string | null;
+  tipoVeiculo?: number | null;
+  dataConsulta?: string | null;
+}
+
+export interface InternalUser {
+  id: number;
+  username: string;
+  role: "ADMIN" | "USER" | string;
+}
+
 /** Venda (Sale) – GET /sales, POST /sales */
 export interface Sale {
   id?: number;
