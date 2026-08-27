@@ -22,6 +22,8 @@ export interface SearchableSelectProps<T = string> {
   className?: string;
   error?: boolean;
   allowClear?: boolean;
+  /** Chamado a cada alteração do campo de busca (útil para busca no servidor). */
+  onSearchChange?: (term: string) => void;
 }
 
 export function SearchableSelect<T extends string = string>({
@@ -34,6 +36,7 @@ export function SearchableSelect<T extends string = string>({
   className,
   error = false,
   allowClear = false,
+  onSearchChange,
 }: SearchableSelectProps<T>) {
   const [open, setOpen] = React.useState(false);
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -66,6 +69,7 @@ export function SearchableSelect<T extends string = string>({
       ) {
         setOpen(false);
         setSearchTerm("");
+        onSearchChange?.("");
       }
     };
 
@@ -73,18 +77,20 @@ export function SearchableSelect<T extends string = string>({
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [open]);
+  }, [open, onSearchChange]);
 
   const handleSelect = (optionValue: T) => {
     onValueChange?.(optionValue);
     setOpen(false);
     setSearchTerm("");
+    onSearchChange?.("");
   };
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
     onValueChange?.(undefined);
     setSearchTerm("");
+    onSearchChange?.("");
     setOpen(false);
   };
 
@@ -124,7 +130,11 @@ export function SearchableSelect<T extends string = string>({
             <Input
               placeholder="Digite para buscar..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setSearchTerm(next);
+                onSearchChange?.(next);
+              }}
               className="h-9"
               autoFocus
             />

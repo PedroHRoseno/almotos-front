@@ -184,11 +184,14 @@ export function uploadVehicleImageWithProgress(
   });
 }
 
+/** Teto de `size` no SoR FastAPI (`PageQuery`: ge=1, le=200). Acima disso a API devolve 422. */
+export const API_MAX_PAGE_SIZE = 200;
+
 /** Helper para construir parâmetros de paginação */
 function buildPaginationParams(page: number = 0, size: number = 20, sort?: string): Record<string, string> {
   const params: Record<string, string> = {
     page: String(page),
-    size: String(size),
+    size: String(Math.min(Math.max(size, 1), API_MAX_PAGE_SIZE)),
   };
   if (sort) {
     params.sort = sort;

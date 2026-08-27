@@ -16,10 +16,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { compraSchema, type CompraFormData } from "@/lib/validations/schemas";
-import { api } from "@/lib/api";
+import { api, API_MAX_PAGE_SIZE } from "@/lib/api";
 import { digitsOnly } from "@/lib/masks";
 import { toast } from "sonner";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormParceiro } from "./form-parceiro";
@@ -46,18 +46,30 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
   const [loadingPartners, setLoadingPartners] = useState(true);
   const [modalParceiroOpen, setModalParceiroOpen] = useState(false);
   const [modalVeiculoOpen, setModalVeiculoOpen] = useState(false);
+  const [vehicleSearch, setVehicleSearch] = useState("");
+  const [debouncedVehicleSearch, setDebouncedVehicleSearch] = useState("");
 
   const form = useForm<CompraFormData>({
     resolver: zodResolver(compraSchema),
     defaultValues,
   });
 
-  // Buscar veículos disponíveis
   useEffect(() => {
-    setLoadingVeiculos(true);
+    const timer = setTimeout(() => setDebouncedVehicleSearch(vehicleSearch.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [vehicleSearch]);
+
+  // Busca no SoR (size máximo 200). Sem termo, lista os mais recentes; com termo, filtra placa/modelo/marca.
+  useEffect(() => {
+    let cancelled = false;
+    const isInitial = debouncedVehicleSearch === "";
+    if (isInitial) setLoadingVeiculos(true);
     api.vehicles
-      .listar(0, 1000)
+      .listar(0, API_MAX_PAGE_SIZE, {
+        search: debouncedVehicleSearch || undefined,
+      })
       .then((response) => {
+        if (cancelled) return;
         setVeiculos(
           (response.content || []).map((v) => ({
             licensePlate: v.licensePlate,
@@ -66,22 +78,42 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
           }))
         );
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        if (cancelled) return;
         setVeiculos([]);
+        toast.error(
+          err instanceof Error && err.message
+            ? `Erro ao carregar veículos: ${err.message}`
+            : "Erro ao carregar veículos. Tente novamente."
+        );
       })
-      .finally(() => setLoadingVeiculos(false));
+      .finally(() => {
+        if (!cancelled && isInitial) setLoadingVeiculos(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedVehicleSearch]);
+
+  const handleVehicleSearchChange = useCallback((term: string) => {
+    setVehicleSearch(term);
   }, []);
 
   // Buscar parceiros
   useEffect(() => {
     setLoadingPartners(true);
     api.customers
-      .listar(0, 1000)
+      .listar(0, API_MAX_PAGE_SIZE)
       .then((response) => {
         setPartners(response.content || []);
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         setPartners([]);
+        toast.error(
+          err instanceof Error && err.message
+            ? `Erro ao carregar parceiros: ${err.message}`
+            : "Erro ao carregar parceiros. Tente novamente."
+        );
       })
       .finally(() => setLoadingPartners(false));
   }, []);
@@ -131,7 +163,7 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
     setModalVeiculoOpen(false);
     // Recarregar lista e selecionar exatamente o veículo criado (não o "primeiro da lista")
     api.vehicles
-      .listar(0, 1000)
+      .listar(0, API_MAX_PAGE_SIZE)
       .then((response) => {
         setVeiculos(
           (response.content || []).map((v) => ({
@@ -199,6 +231,7 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
                     options={veiculoOptions}
                     value={field.value}
                     onValueChange={field.onChange}
+                    onSearchChange={handleVehicleSearchChange}
                     placeholder={loadingVeiculos ? "Carregando…" : "Buscar veículo..."}
                     disabled={loadingVeiculos}
                     emptyMessage="Nenhum veículo encontrado"
