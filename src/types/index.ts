@@ -82,7 +82,7 @@ export interface PartnerSummary {
   city?: string;
 }
 
-/** Detalhes completos do parceiro */
+/** Detalhes completos do contato */
 export interface PartnerDetail {
   document: string;
   name: string;
@@ -92,7 +92,15 @@ export interface PartnerDetail {
   totalSales: number;
   totalPurchases: number;
   totalExchanges: number;
+  ownedVehicles?: number;
+  payoutSales?: number;
+  totalPayout?: number;
+  totalStoreProfitFromPayouts?: number;
 }
+
+export type OwnershipKind = "OWN" | "THIRD_PARTY";
+
+export type ContactReportRole = "buyer" | "owner" | "payout" | "supplier";
 
 /** Status do veículo – enum do back-end (VehicleStatus) */
 export type VehicleStatus = "DISPONIVEL" | "VENDIDO" | "INACTIVE";
@@ -111,6 +119,7 @@ export type TransactionCategory =
   | "INFRAESTRUTURA"
   | "PESSOAL"
   | "SERVICOS_PRESTADOS"
+  | "REPASSE_PARCEIRO"
   | "OUTROS";
 
 /** Origem da movimentação */
@@ -174,6 +183,9 @@ export interface Vehicle {
   imageUrlList?: string[];
   internalTags?: VehicleTag[];
   publicTags?: VehicleTag[];
+  ownershipKind?: OwnershipKind;
+  ownerDocument?: string | null;
+  ownerName?: string | null;
 }
 
 /** Payload para criar veículo – POST /vehicles */
@@ -193,6 +205,8 @@ export interface VehicleCreate {
   imageUrlList?: string[];
   internalTags?: string[];
   publicTags?: string[];
+  ownershipKind?: OwnershipKind;
+  ownerDocument?: string | null;
 }
 
 export interface FipeModel {
@@ -262,6 +276,13 @@ export interface SaleResponse {
   salePrice: number;
   saleDate: string;
   status: TransactionStatus;
+  ownershipKind?: OwnershipKind;
+  ownerDocument?: string | null;
+  ownerName?: string | null;
+  payoutDocument?: string | null;
+  payoutName?: string | null;
+  payoutAmount?: number;
+  storeProfit?: number | null;
 }
 
 /** Payload para criar venda – POST /sales. Back-end preenche saleDate. */
@@ -269,6 +290,9 @@ export interface SaleCreate {
   vehicle: { licensePlate: string };
   customer: { document: string };
   salePrice: number;
+  payoutPartner?: { document: string };
+  payoutAmount?: number;
+  storeProfit?: number;
 }
 
 /** Payload para editar venda – PUT /sales/{id} */
@@ -366,6 +390,9 @@ export interface Dashboard {
   lucroLiquido: number;
   saldoLiquido: number;
   quantidadeMotosEstoque: number;
+  lucroEstoqueProprio?: number;
+  lucroTerceiros?: number;
+  totalRepasses?: number;
 }
 
 /** DTO de Relatório Financeiro */
@@ -377,6 +404,44 @@ export interface FinancialReport {
   totalCustos: number;
   startDate: string;
   endDate: string;
+  lucroEstoqueProprio?: number;
+  lucroTerceiros?: number;
+  totalRepasses?: number;
+}
+
+export interface ContactReportSale {
+  id: number;
+  vehicleLicensePlate: string;
+  vehicleBrand: string;
+  vehicleModel: string;
+  buyerDocument: string;
+  buyerName: string;
+  ownerDocument?: string | null;
+  ownerName?: string | null;
+  payoutDocument?: string | null;
+  payoutName?: string | null;
+  salePrice: number;
+  payoutAmount: number;
+  storeProfit?: number | null;
+  saleDate: string;
+  ownershipKind: OwnershipKind;
+  status: TransactionStatus;
+}
+
+export interface ContactReport {
+  document: string;
+  name: string;
+  salesCount: number;
+  volume: number;
+  totalPayout: number;
+  totalStoreProfit: number;
+  ownedInStock: number;
+  supplierPurchases: number;
+  supplierVolume: number;
+  sales: ContactReportSale[];
+  totalElements: number;
+  page: number;
+  size: number;
 }
 
 /** Resposta paginada do Spring */
@@ -424,6 +489,13 @@ export interface SaleHistoryItem {
   partnerDocument: string;
   partnerName: string;
   status: TransactionStatus;
+  ownershipKind?: OwnershipKind;
+  ownerDocument?: string | null;
+  ownerName?: string | null;
+  payoutDocument?: string | null;
+  payoutName?: string | null;
+  payoutAmount?: number;
+  storeProfit?: number | null;
 }
 
 export interface ExchangeHistoryItem {

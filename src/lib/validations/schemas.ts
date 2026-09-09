@@ -46,6 +46,19 @@ export const veiculoSchema = z.object({
     .nullable(),
   internalTags: z.array(z.string().min(1).max(80)).default([]),
   publicTags: z.array(z.string().min(1).max(80)).default([]),
+  ownershipKind: z.enum(["OWN", "THIRD_PARTY"]).default("OWN"),
+  ownerDocument: z.string().optional().or(z.literal("")),
+}).superRefine((data, ctx) => {
+  if (data.ownershipKind === "THIRD_PARTY") {
+    const digits = (data.ownerDocument || "").replace(/\D/g, "");
+    if (digits.length !== 11 && digits.length !== 14) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["ownerDocument"],
+        message: "Selecione o contato dono da moto",
+      });
+    }
+  }
 });
 
 export type VeiculoFormData = z.infer<typeof veiculoSchema>;
@@ -55,7 +68,7 @@ export const vendaSchema = z.object({
   vehicleLicensePlate: z.string().min(1, "Selecione um veículo"),
   customerDocument: z
     .string()
-    .min(1, "Selecione um cliente/parceiro")
+    .min(1, "Selecione um contato (comprador)")
     .refine((s) => {
       const d = s.replace(/\D/g, "");
       return d.length === 11 || d.length === 14;
@@ -63,6 +76,34 @@ export const vendaSchema = z.object({
   salePrice: z
     .number({ invalid_type_error: "Valor da venda deve ser um número" })
     .min(0.01, "Valor da venda deve ser maior que zero"),
+  ownershipKind: z.enum(["OWN", "THIRD_PARTY"]).optional(),
+  payoutDocument: z.string().optional().or(z.literal("")),
+  payoutAmount: z.number().optional(),
+  storeProfit: z.number().optional(),
+}).superRefine((data, ctx) => {
+  if (data.ownershipKind !== "THIRD_PARTY") return;
+  const payoutDigits = (data.payoutDocument || "").replace(/\D/g, "");
+  if (payoutDigits.length !== 11 && payoutDigits.length !== 14) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["payoutDocument"],
+      message: "Selecione quem recebe o repasse",
+    });
+  }
+  if (data.payoutAmount == null || data.payoutAmount < 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["payoutAmount"],
+      message: "Informe o valor repassado (pode ser zero)",
+    });
+  }
+  if (data.storeProfit == null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["storeProfit"],
+      message: "Informe o lucro líquido da loja",
+    });
+  }
 });
 
 export type VendaFormData = z.infer<typeof vendaSchema>;

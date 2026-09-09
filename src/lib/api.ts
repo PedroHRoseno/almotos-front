@@ -19,6 +19,9 @@ import type {
   ExchangeUpdate,
   Dashboard,
   FinancialReport,
+  ContactReport,
+  ContactReportRole,
+  OwnershipKind,
   PageResponse,
   VehicleHistory,
   VehicleCostItem,
@@ -204,7 +207,13 @@ export const api = {
     listar: (
       page: number = 0,
       size: number = 20,
-      options?: { search?: string; inStock?: boolean; published?: boolean }
+      options?: {
+        search?: string;
+        inStock?: boolean;
+        published?: boolean;
+        ownershipKind?: OwnershipKind;
+        ownerDocument?: string;
+      }
     ) => {
       const params: Record<string, string> = {
         ...buildPaginationParams(page, size, "createdAt,desc"),
@@ -213,6 +222,8 @@ export const api = {
       if (search) params.search = search;
       if (options?.inStock !== undefined) params.inStock = String(options.inStock);
       if (options?.published !== undefined) params.published = String(options.published);
+      if (options?.ownershipKind) params.ownershipKind = options.ownershipKind;
+      if (options?.ownerDocument) params.ownerDocument = options.ownerDocument;
       return request<PageResponse<Vehicle>>("/vehicles", { params });
     },
     listarDisponiveis: (page: number = 0, size: number = 20) =>
@@ -455,6 +466,26 @@ export const api = {
       if (startDate) params.startDate = startDate;
       if (endDate) params.endDate = endDate;
       return request<FinancialReport>("/reports/financial", { params });
+    },
+    byContact: (options: {
+      document: string;
+      startDate?: string;
+      endDate?: string;
+      ownershipKind?: OwnershipKind;
+      role?: ContactReportRole | string;
+      page?: number;
+      size?: number;
+    }) => {
+      const params: Record<string, string> = {
+        document: options.document,
+        page: String(options.page ?? 0),
+        size: String(options.size ?? 20),
+      };
+      if (options.startDate) params.startDate = options.startDate;
+      if (options.endDate) params.endDate = options.endDate;
+      if (options.ownershipKind) params.ownershipKind = options.ownershipKind;
+      if (options.role) params.role = options.role;
+      return request<ContactReport>("/reports/by-contact", { params });
     },
   },
   financial: {

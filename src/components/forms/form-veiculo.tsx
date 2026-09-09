@@ -16,9 +16,11 @@ import {
 import { FormField } from "@/components/ui/form-field";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { veiculoSchema, type VeiculoFormData } from "@/lib/validations/schemas";
-import { formatLicensePlate } from "@/lib/masks";
+import { digitsOnly, formatLicensePlate } from "@/lib/masks";
 import { api } from "@/lib/api";
-import type { FipeConsultaResponse, Vehicle, VehicleBrand } from "@/types";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import type { SearchableSelectOption } from "@/components/ui/searchable-select";
+import type { FipeConsultaResponse, PartnerSummary, Vehicle, VehicleBrand } from "@/types";
 import { VEHICLE_BRANDS } from "@/types";
 import { cn } from "@/lib/utils";
 import { VehiclePhotoPipeline } from "@/components/vehicle/vehicle-photo-pipeline";
@@ -43,6 +45,8 @@ const emptyDefaults: Partial<VeiculoFormData> = {
   suggestedPrice: undefined,
   internalTags: [],
   publicTags: [],
+  ownershipKind: "OWN",
+  ownerDocument: "",
 };
 
 function valuesFromVehicle(vehicle: Vehicle): VeiculoFormData {
@@ -61,6 +65,8 @@ function valuesFromVehicle(vehicle: Vehicle): VeiculoFormData {
     suggestedPrice: vehicle.suggestedPrice ?? undefined,
     internalTags: (vehicle.internalTags ?? []).map((tag) => tag.name),
     publicTags: (vehicle.publicTags ?? []).map((tag) => tag.name),
+    ownershipKind: vehicle.ownershipKind ?? "OWN",
+    ownerDocument: vehicle.ownerDocument ?? "",
   };
 }
 
@@ -117,6 +123,7 @@ export function FormVeiculo({
   const [codigoModelo, setCodigoModelo] = useState<string | null>(null);
   const [fipeConsulta, setFipeConsulta] = useState<FipeConsultaResponse | null>(null);
   const [fipeLoading, setFipeLoading] = useState(false);
+  const [partners, setPartners] = useState<PartnerSummary[]>([]);
 
   const form = useForm<VeiculoFormData>({
     resolver: zodResolver(veiculoSchema),
@@ -138,6 +145,33 @@ export function FormVeiculo({
 
   const watchedPlate = form.watch("licensePlate");
   const watchedInStock = form.watch("inStock");
+  const watchedOwnership = form.watch("ownershipKind");
+
+  useEffect(() => {
+    api.customers
+      .listar(0, 100)
+      .then((response) => setPartners(response.content || []))
+      .catch(() => setPartners([]));
+  }, []);
+
+  const ownerOptions: SearchableSelectOption[] = useMemo(
+    () =>
+      partners.map((p) => {
+        const d = p.document;
+        const fmt =
+          d.length === 11
+            ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
+            : d.length === 14
+              ? d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5")
+              : d;
+        return {
+          value: p.document,
+          label: `${p.name} - ${fmt}`,
+          searchText: `${p.name} ${p.document} ${fmt}`,
+        };
+      }),
+    [partners]
+  );
   const watchedBrand = form.watch("brand");
   const watchedModelYear = form.watch("modelYear");
   const plateChanged = useMemo(() => {
@@ -193,6 +227,9 @@ export function FormVeiculo({
       imageUrlList,
       internalTags: data.internalTags ?? [],
       publicTags: data.publicTags ?? [],
+      ownershipKind: data.ownershipKind ?? "OWN",
+      ownerDocument:
+        data.ownershipKind === "THIRD_PARTY" ? digitsOnly(data.ownerDocument || "") : null,
     };
 
     try {
@@ -422,6 +459,55 @@ export function FormVeiculo({
             </p>
           )}
         </FormField>
+
+        <FormField name="ownershipKind" label="Propriedade" error={form.formState.errors.ownershipKind}>
+          <Controller
+            control={form.control}
+            name="ownershipKind"
+            render={({ field }) => (
+              <Select
+                value={field.value}
+                onValueChange={(value) => {
+                  field.onChange(value);
+                  if (value === "OWN") form.setValue("ownerDocument", "");
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Tipo de estoque" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="OWN">Estoque próprio</SelectItem>
+                  <SelectItem value="THIRD_PARTY">De terceiro</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </FormField>
+
+        {watchedOwnership === "THIRD_PARTY" && (
+          <FormField
+            name="ownerDocument"
+            label="Dono / consignante"
+            required
+            error={form.formState.errors.ownerDocument}
+          >
+            <Controller
+              control={form.control}
+              name="ownerDocument"
+              render={({ field }) => (
+                <SearchableSelect
+                  options={ownerOptions}
+                  value={field.value || ""}
+                  onValueChange={field.onChange}
+                  placeholder="Buscar contato dono..."
+                  emptyMessage="Nenhum contato encontrado"
+                  error={!!form.formState.errors.ownerDocument}
+                  allowClear
+                />
+              )}
+            />
+          </FormField>
+        )}
 
         <FormField
           name="suggestedPrice"

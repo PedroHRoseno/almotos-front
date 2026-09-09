@@ -140,11 +140,11 @@ export function FormParceiro({
 
       if (isEdit && docDigits) {
         await api.customers.atualizar(docDigits, payload);
-        setSuccess("Parceiro atualizado com sucesso.");
+        setSuccess("Contato atualizado com sucesso.");
         onSuccess?.();
       } else {
         await api.customers.criar(payload);
-        setSuccess("Parceiro cadastrado com sucesso.");
+        setSuccess("Contato cadastrado com sucesso.");
         if (!isEdit) {
           form.reset(defaultValues);
           setIncluirEndereco(false);
@@ -176,7 +176,7 @@ export function FormParceiro({
       <div className="grid gap-6 sm:grid-cols-2">
         <FormField
           name="document"
-          label="CPF/CNPJ"
+          label="Documento (CPF ou CNPJ)"
           required
           error={form.formState.errors.document}
         >
@@ -546,7 +546,7 @@ export function FormParceiro({
       <CardHeader>
         <CardTitle>Cadastrar parceiro</CardTitle>
         <CardDescription>
-          Preencha os dados do parceiro (cliente ou fornecedor). O endereço é opcional.
+          Preencha os dados do contato. O endereço é opcional.
         </CardDescription>
       </CardHeader>
       <CardContent>{formContent}</CardContent>

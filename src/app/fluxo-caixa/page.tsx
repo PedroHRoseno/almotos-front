@@ -54,6 +54,7 @@ function getCategoryLabel(category: string): string {
     INFRAESTRUTURA: "Infraestrutura",
     PESSOAL: "Pessoal",
     SERVICOS_PRESTADOS: "Serviços Prestados",
+    REPASSE_PARCEIRO: "Repasse a parceiro",
     OUTROS: "Outros",
   };
   return labels[category] || category;
@@ -219,6 +220,7 @@ export default function FluxoCaixaPage() {
                 <SelectItem value="INFRAESTRUTURA">Infraestrutura</SelectItem>
                 <SelectItem value="PESSOAL">Pessoal</SelectItem>
                 <SelectItem value="SERVICOS_PRESTADOS">Serviços Prestados</SelectItem>
+                <SelectItem value="REPASSE_PARCEIRO">Repasse a parceiro</SelectItem>
                 <SelectItem value="OUTROS">Outros</SelectItem>
               </SelectContent>
             </Select>
@@ -395,6 +397,7 @@ export default function FluxoCaixaPage() {
                   <SelectItem value="INFRAESTRUTURA">Infraestrutura</SelectItem>
                   <SelectItem value="PESSOAL">Pessoal</SelectItem>
                   <SelectItem value="SERVICOS_PRESTADOS">Serviços Prestados</SelectItem>
+                  <SelectItem value="REPASSE_PARCEIRO">Repasse a parceiro</SelectItem>
                   <SelectItem value="OUTROS">Outros</SelectItem>
                 </SelectContent>
               </Select>

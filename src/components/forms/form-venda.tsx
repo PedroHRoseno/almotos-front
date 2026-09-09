@@ -33,6 +33,10 @@ const defaultValues: Partial<VendaFormData> = {
   vehicleLicensePlate: "",
   customerDocument: "",
   salePrice: 0,
+  ownershipKind: "OWN",
+  payoutDocument: "",
+  payoutAmount: 0,
+  storeProfit: 0,
 };
 
 export interface FormVendaProps {
@@ -73,6 +77,26 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
   }, []);
 
   const disponiveis = veiculos.filter((v) => v.inStock || v.status === "DISPONIVEL");
+  const selectedPlate = form.watch("vehicleLicensePlate");
+  const selectedVehicle = disponiveis.find((v) => v.licensePlate === selectedPlate);
+  const isThirdParty = (selectedVehicle?.ownershipKind ?? "OWN") === "THIRD_PARTY";
+  const watchedSalePrice = form.watch("salePrice") ?? 0;
+  const watchedPayout = form.watch("payoutAmount") ?? 0;
+  const watchedProfit = form.watch("storeProfit") ?? 0;
+  const splitDiffers =
+    isThirdParty &&
+    Math.abs(watchedSalePrice - (watchedPayout + watchedProfit)) > 0.009;
+
+  useEffect(() => {
+    form.setValue("ownershipKind", selectedVehicle?.ownershipKind ?? "OWN");
+    if (selectedVehicle?.ownershipKind === "THIRD_PARTY") {
+      form.setValue("payoutDocument", selectedVehicle.ownerDocument || "");
+    } else {
+      form.setValue("payoutDocument", "");
+      form.setValue("payoutAmount", 0);
+      form.setValue("storeProfit", 0);
+    }
+  }, [form, selectedVehicle]);
 
   // Preparar opções de veículos para o SearchableSelect
   const veiculoOptions: SearchableSelectOption[] = useMemo(
@@ -109,6 +133,13 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
         vehicle: { licensePlate: data.vehicleLicensePlate },
         customer: { document: digitsOnly(data.customerDocument) },
         salePrice: data.salePrice,
+        ...(data.ownershipKind === "THIRD_PARTY"
+          ? {
+              payoutPartner: { document: digitsOnly(data.payoutDocument || "") },
+              payoutAmount: data.payoutAmount ?? 0,
+              storeProfit: data.storeProfit ?? 0,
+            }
+          : {}),
       });
       setSuccess("Venda registrada com sucesso.");
       if (!insideModal) {
@@ -205,6 +236,78 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
               </p>
             </FormField>
 
+            {isThirdParty && (
+              <>
+                <FormField
+                  name="payoutDocument"
+                  label="Quem recebe o repasse"
+                  required
+                  error={form.formState.errors.payoutDocument}
+                >
+                  <Controller
+                    control={form.control}
+                    name="payoutDocument"
+                    render={({ field }) => (
+                      <SearchableSelect
+                        options={parceiroOptions}
+                        value={field.value || ""}
+                        onValueChange={field.onChange}
+                        placeholder="Dono ou corretor..."
+                        emptyMessage="Nenhum contato encontrado"
+                        error={!!form.formState.errors.payoutDocument}
+                        allowClear
+                      />
+                    )}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Padrão: dono da moto. Pode ser outro contato (corretor).
+                  </p>
+                </FormField>
+                <FormField
+                  name="payoutAmount"
+                  label="Valor repassado (R$)"
+                  required
+                  error={form.formState.errors.payoutAmount}
+                >
+                  <Controller
+                    control={form.control}
+                    name="payoutAmount"
+                    render={({ field }) => (
+                      <CurrencyInput
+                        id="payoutAmount"
+                        placeholder="R$ 0,00"
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        onBlur={field.onBlur}
+                        error={!!form.formState.errors.payoutAmount}
+                      />
+                    )}
+                  />
+                </FormField>
+                <FormField
+                  name="storeProfit"
+                  label="Lucro líquido da loja (R$)"
+                  required
+                  error={form.formState.errors.storeProfit}
+                >
+                  <Controller
+                    control={form.control}
+                    name="storeProfit"
+                    render={({ field }) => (
+                      <CurrencyInput
+                        id="storeProfit"
+                        placeholder="R$ 0,00"
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        onBlur={field.onBlur}
+                        error={!!form.formState.errors.storeProfit}
+                      />
+                    )}
+                  />
+                </FormField>
+              </>
+            )}
+
             <FormField
               name="salePrice"
               label="Valor da venda (R$)"
@@ -227,6 +330,11 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
               />
             </FormField>
           </div>
+          {splitDiffers && (
+            <p className="text-xs text-muted-foreground">
+              Aviso: venda ({watchedSalePrice}) é diferente de repasse + lucro da loja. Isso é permitido.
+            </p>
+          )}
 
           <div className="flex justify-end gap-3">
             <Button

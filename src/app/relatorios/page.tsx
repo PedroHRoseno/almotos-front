@@ -6,7 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
-import type { FinancialReport } from "@/types";
+import type { ContactReport, FinancialReport, OwnershipKind, PartnerSummary } from "@/types";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { formatDocument } from "@/lib/masks";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -20,6 +22,10 @@ export default function RelatoriosPage() {
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [partners, setPartners] = useState<PartnerSummary[]>([]);
+  const [contactDocument, setContactDocument] = useState("");
+  const [ownershipKind, setOwnershipKind] = useState<OwnershipKind | "">("");
+  const [contactReport, setContactReport] = useState<ContactReport | null>(null);
 
   const fetchReport = useCallback(() => {
     setLoading(true);
@@ -33,6 +39,30 @@ export default function RelatoriosPage() {
   useEffect(() => {
     fetchReport();
   }, [fetchReport]);
+
+  useEffect(() => {
+    api.customers
+      .listar(0, 100)
+      .then((response) => setPartners(response.content || []))
+      .catch(() => setPartners([]));
+  }, []);
+
+  useEffect(() => {
+    if (!contactDocument) {
+      setContactReport(null);
+      return;
+    }
+    api.reports
+      .byContact({
+        document: contactDocument,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        ownershipKind: ownershipKind || undefined,
+        role: "owner,payout",
+      })
+      .then(setContactReport)
+      .catch(() => setContactReport(null));
+  }, [contactDocument, startDate, endDate, ownershipKind]);
 
   const handleFilter = (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,11 +108,38 @@ export default function RelatoriosPage() {
             <Button type="button" variant="outline" onClick={() => {
               setStartDate("");
               setEndDate("");
+              setContactDocument("");
+              setOwnershipKind("");
               fetchReport();
             }} className="w-full sm:w-auto">
               Limpar
             </Button>
           </form>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="w-full sm:max-w-sm">
+              <SearchableSelect
+                options={partners.map((p) => ({
+                  value: p.document,
+                  label: `${p.name} - ${formatDocument(p.document)}`,
+                  searchText: `${p.name} ${p.document}`,
+                }))}
+                value={contactDocument}
+                onValueChange={(value) => setContactDocument(value || "")}
+                placeholder="Filtrar por contato..."
+                emptyMessage="Nenhum contato"
+                allowClear
+              />
+            </div>
+            <select
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+              value={ownershipKind}
+              onChange={(e) => setOwnershipKind(e.target.value as OwnershipKind | "")}
+            >
+              <option value="">Todas as origens</option>
+              <option value="OWN">Estoque próprio</option>
+              <option value="THIRD_PARTY">De terceiro</option>
+            </select>
+          </div>
 
           {loading ? (
             <p className="text-sm text-muted-foreground">Carregando relatório...</p>
@@ -158,8 +215,36 @@ export default function RelatoriosPage() {
                     {formatCurrency(report.saldoGeral)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Vendas - Compras + Trocas - Custos
+                    Próprio + terceiros + trocas − custos
                   </p>
+                </CardContent>
+              </Card>
+
+              <Card className="min-w-0 overflow-hidden">
+                <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium truncate min-w-0">Lucro próprio</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground shrink-0" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xl font-bold">{formatCurrency(report.lucroEstoqueProprio || 0)}</div>
+                </CardContent>
+              </Card>
+              <Card className="min-w-0 overflow-hidden">
+                <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium truncate min-w-0">Lucro terceiros</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground shrink-0" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xl font-bold">{formatCurrency(report.lucroTerceiros || 0)}</div>
+                </CardContent>
+              </Card>
+              <Card className="min-w-0 overflow-hidden">
+                <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium truncate min-w-0">Repasses</CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground shrink-0" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xl font-bold">{formatCurrency(report.totalRepasses || 0)}</div>
                 </CardContent>
               </Card>
             </div>
@@ -168,6 +253,36 @@ export default function RelatoriosPage() {
           )}
         </CardContent>
       </Card>
+
+      {contactReport && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Por contato: {contactReport.name}</CardTitle>
+            <CardDescription>
+              {contactReport.salesCount} venda(s) · volume {formatCurrency(contactReport.volume)} ·
+              repasses {formatCurrency(contactReport.totalPayout)} · lucro da loja{" "}
+              {formatCurrency(contactReport.totalStoreProfit)} · em estoque como dono:{" "}
+              {contactReport.ownedInStock}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {contactReport.sales.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma venda neste recorte.</p>
+            ) : (
+              contactReport.sales.map((sale) => (
+                <div key={sale.id} className="flex justify-between rounded-md border px-3 py-2 text-sm">
+                  <span>
+                    {sale.vehicleBrand} {sale.vehicleModel} · {sale.vehicleLicensePlate}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {formatCurrency(sale.salePrice)} · repasse {formatCurrency(sale.payoutAmount)}
+                  </span>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

@@ -33,7 +33,7 @@ import { FormVeiculo } from "@/components/forms/form-veiculo";
 import { FilterChip } from "@/components/ui/filter-chip";
 import { api } from "@/lib/api";
 import { formatBRL, formatLicensePlate } from "@/lib/masks";
-import type { Vehicle } from "@/types";
+import type { OwnershipKind, Vehicle } from "@/types";
 import { toast } from "sonner";
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50] as const;
@@ -42,6 +42,7 @@ const SEARCH_DEBOUNCE_MS = 400;
 
 type StockFilter = "TODOS" | "SIM" | "NAO";
 type PublishedFilter = "TODOS" | "PUBLICADOS" | "NAO_PUBLICADOS";
+type OwnershipFilter = "TODOS" | OwnershipKind;
 
 function formatKm(val: number) {
   return new Intl.NumberFormat("pt-BR").format(val) + " km";
@@ -73,6 +74,7 @@ export default function MotosPage() {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [stockFilter, setStockFilter] = useState<StockFilter>("TODOS");
   const [publishedFilter, setPublishedFilter] = useState<PublishedFilter>("TODOS");
+  const [ownershipFilter, setOwnershipFilter] = useState<OwnershipFilter>("TODOS");
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [totalElements, setTotalElements] = useState(0);
@@ -95,6 +97,7 @@ export default function MotosPage() {
         search,
         inStock: stockFilterToInStock(stockFilter),
         published: publishedFilterToPublished(publishedFilter),
+        ownershipKind: ownershipFilter === "TODOS" ? undefined : ownershipFilter,
       })
       .then((response) => {
         setVeiculos(response.content || []);
@@ -113,7 +116,7 @@ export default function MotosPage() {
         setTotalPages(0);
       })
       .finally(() => setLoading(false));
-  }, [page, pageSize, debouncedSearchTerm, stockFilter, publishedFilter]);
+  }, [page, pageSize, debouncedSearchTerm, stockFilter, publishedFilter, ownershipFilter]);
 
   useEffect(() => {
     fetchVehicles();
@@ -127,7 +130,8 @@ export default function MotosPage() {
   const hasActiveFilters =
     debouncedSearchTerm.trim() !== "" ||
     stockFilter !== "TODOS" ||
-    publishedFilter !== "TODOS";
+    publishedFilter !== "TODOS" ||
+    ownershipFilter !== "TODOS";
 
   return (
     <div className="space-y-6">
@@ -214,6 +218,35 @@ export default function MotosPage() {
                 Não publicadas
               </FilterChip>
             </div>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar propriedade">
+              <FilterChip
+                active={ownershipFilter === "TODOS"}
+                onClick={() => {
+                  setOwnershipFilter("TODOS");
+                  setPage(0);
+                }}
+              >
+                Todas as origens
+              </FilterChip>
+              <FilterChip
+                active={ownershipFilter === "OWN"}
+                onClick={() => {
+                  setOwnershipFilter("OWN");
+                  setPage(0);
+                }}
+              >
+                Próprias
+              </FilterChip>
+              <FilterChip
+                active={ownershipFilter === "THIRD_PARTY"}
+                onClick={() => {
+                  setOwnershipFilter("THIRD_PARTY");
+                  setPage(0);
+                }}
+              >
+                De terceiro
+              </FilterChip>
+            </div>
             <Select
               value={String(pageSize)}
               onValueChange={(v) => {
@@ -256,6 +289,7 @@ export default function MotosPage() {
                     setDebouncedSearchTerm("");
                     setStockFilter("TODOS");
                     setPublishedFilter("TODOS");
+                    setOwnershipFilter("TODOS");
                     setPage(0);
                   }}
                 >
@@ -277,6 +311,7 @@ export default function MotosPage() {
                     <TableHead>Cor</TableHead>
                     <TableHead className="text-right">Quilometragem</TableHead>
                     <TableHead className="text-right">Preço sugerido</TableHead>
+                    <TableHead className="w-28">Origem</TableHead>
                     <TableHead className="w-28">Estoque</TableHead>
                     <TableHead className="w-28">Ações</TableHead>
                   </TableRow>
@@ -317,6 +352,11 @@ export default function MotosPage() {
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
                         {v.suggestedPrice != null ? formatBRL(v.suggestedPrice) : "—"}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {v.ownershipKind === "THIRD_PARTY"
+                          ? v.ownerName || "Terceiro"
+                          : "Própria"}
                       </TableCell>
                       <TableCell>
                         <Badge variant={v.inStock ? "success" : "secondary"}>

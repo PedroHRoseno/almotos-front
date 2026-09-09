@@ -191,14 +191,15 @@ export default function VeiculoDetailPage() {
   }
 
   const vehicle = history.vehicle;
+  const isThirdParty = (vehicle.ownershipKind ?? "OWN") === "THIRD_PARTY";
   const activeSales = history.sales.filter(s => s.status === "ACTIVE");
   const activePurchases = history.purchases.filter(p => p.status === "ACTIVE");
-  
-  // Calcular lucro: ValorVenda - (ValorCompra + CustosAdicionais)
   const totalPurchasePrice = activePurchases.reduce((sum, p) => sum + p.purchasePrice, 0);
   const totalSalePrice = activeSales.reduce((sum, s) => sum + s.salePrice, 0);
   const totalCosts = history.totalCosts;
-  const profit = totalSalePrice - (totalPurchasePrice + totalCosts);
+  const derivedProfit = totalSalePrice - (totalPurchasePrice + totalCosts);
+  const recordedProfit = activeSales.reduce((sum, s) => sum + (s.storeProfit ?? 0), 0);
+  const recordedPayout = activeSales.reduce((sum, s) => sum + (s.payoutAmount ?? 0), 0);
 
   return (
     <div className="space-y-6">
@@ -217,6 +218,9 @@ export default function VeiculoDetailPage() {
             </h1>
             <p className="text-sm md:text-base text-ink-muted tabular-nums">
               Placa: {vehicle.licensePlate}
+              {isThirdParty
+                ? ` · De terceiro (${vehicle.ownerName || vehicle.ownerDocument || "contato"})`
+                : " · Estoque próprio"}
             </p>
           </div>
         </div>
@@ -324,27 +328,55 @@ export default function VeiculoDetailPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Compras (Ativas)</p>
-              <p className="text-xl font-bold">{formatCurrency(totalPurchasePrice)}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Custos Adicionais</p>
-              <p className="text-xl font-bold text-brand">{formatCurrency(totalCosts)}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Vendas (Ativas)</p>
-              <p className="text-xl font-bold text-green-600">{formatCurrency(totalSalePrice)}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Lucro Líquido</p>
-              <p className={`text-xl font-bold ${profit >= 0 ? "text-green-600" : "text-red-600"}`}>
-                {formatCurrency(profit)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Venda - (Compra + Custos)
-              </p>
-            </div>
+            {isThirdParty ? (
+              <>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Volume das vendas</p>
+                  <p className="text-xl font-bold text-green-600">{formatCurrency(totalSalePrice)}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Repasse gravado</p>
+                  <p className="text-xl font-bold">{formatCurrency(recordedPayout)}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Custos adicionais</p>
+                  <p className="text-xl font-bold text-brand">{formatCurrency(totalCosts)}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Lucro da loja (digitado)</p>
+                  <p className={`text-xl font-bold ${recordedProfit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    {formatCurrency(recordedProfit)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Valor informado na venda, sem fórmula automática
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Total Compras (Ativas)</p>
+                  <p className="text-xl font-bold">{formatCurrency(totalPurchasePrice)}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Custos Adicionais</p>
+                  <p className="text-xl font-bold text-brand">{formatCurrency(totalCosts)}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Total Vendas (Ativas)</p>
+                  <p className="text-xl font-bold text-green-600">{formatCurrency(totalSalePrice)}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Lucro Líquido</p>
+                  <p className={`text-xl font-bold ${derivedProfit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    {formatCurrency(derivedProfit)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Venda - (Compra + Custos)
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>

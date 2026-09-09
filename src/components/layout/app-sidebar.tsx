@@ -32,7 +32,7 @@ const menuItems = [
   { title: "Dashboard", href: "/", icon: LayoutDashboard },
   { title: "Veículos", href: "/motos", icon: Bike },
   { title: "Consulta FIPE", href: "/consulta-fipe", icon: BadgeDollarSign },
-  { title: "Clientes", href: "/clientes", icon: Users },
+  { title: "Contatos", href: "/contatos", icon: Users },
   { title: "Compras", href: "/compras", icon: ShoppingBag },
   { title: "Vendas", href: "/vendas", icon: ShoppingCart },
   { title: "Trocas", href: "/trocas", icon: Repeat },

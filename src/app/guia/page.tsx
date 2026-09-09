@@ -22,7 +22,7 @@ export default function GuiaPage() {
         <CardHeader>
           <CardTitle>Visão Geral</CardTitle>
           <CardDescription>
-            O AlMotos é um ERP financeiro para lojas de motos. Ele controla veículos, clientes/parceiros, compras, vendas, trocas, custos adicionais e transações operacionais da loja, gerando um fluxo de caixa unificado e relatórios para apoio à decisão.
+            O AlMotos é um ERP financeiro para lojas de motos. Ele controla veículos, contatos, compras, vendas, trocas, custos adicionais e transações operacionais da loja, gerando um fluxo de caixa unificado e relatórios para apoio à decisão.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -39,10 +39,10 @@ export default function GuiaPage() {
           <section>
             <h3 className="font-semibold flex items-center gap-2 mb-2">
               <Users className="h-5 w-5" />
-              Clientes (Parceiros)
+              Contatos
             </h3>
             <p className="text-sm text-muted-foreground mb-2">
-              Cadastre clientes e fornecedores antes de registrar compras ou vendas. O sistema usa CPF como identificador único. Em compras, o parceiro é o fornecedor; em vendas e trocas, é o cliente.
+              Cadastre contatos (CPF ou CNPJ) antes de registrar compras ou vendas. A mesma pessoa pode comprar, vender ou deixar moto em consignação — o papel vem da transação, não de uma categoria no cadastro.
             </p>
             <Badge variant="secondary">Recomendado cadastrar primeiro</Badge>
           </section>
@@ -53,10 +53,10 @@ export default function GuiaPage() {
               Veículos (Motos)
             </h3>
             <p className="text-sm text-muted-foreground mb-2">
-              Liste e cadastre veículos. A placa é o identificador único. Cada veículo pode ter status <strong>Disponível</strong>, <strong>Vendido</strong> ou <strong>Inativo</strong>. Na tela de detalhes (ícone de olho na tabela) você vê histórico de compras, vendas, trocas, custos adicionais e o cálculo de lucro por veículo.
+              Liste e cadastre veículos. A placa é o identificador único. Cada veículo pode ter status <strong>Disponível</strong>, <strong>Vendido</strong> ou <strong>Inativo</strong> e origem <strong>estoque próprio</strong> ou <strong>de terceiro</strong> (com um contato dono). Consignada entra no estoque sem compra.
             </p>
             <p className="text-sm text-muted-foreground">
-              <strong>Lucro por veículo:</strong> Valor de Venda − (Valor de Compra + soma dos Custos Adicionais).
+              <strong>Lucro:</strong> em estoque próprio, Venda − (Compra + Custos). Em moto de terceiro, o lucro da loja e o repasse são digitados na venda.
             </p>
           </section>
 
@@ -171,7 +171,7 @@ export default function GuiaPage() {
         </CardHeader>
         <CardContent>
           <ul className="text-sm text-muted-foreground space-y-2 list-disc pl-5">
-            <li>Cadastre clientes/fornecedores e veículos antes de gerar compras ou vendas.</li>
+            <li>Cadastre contatos e veículos antes de gerar compras ou vendas.</li>
             <li>Use o Fluxo de Caixa para despesas fixas (aluguel, luz, marketing) e o módulo de Custos Adicionais nos veículos para gastos ligados a cada moto.</li>
             <li>O dashboard é atualizado automaticamente após criar, editar ou cancelar vendas, compras e trocas.</li>
             <li>Credenciais padrão de acesso: <strong>admin</strong> / <strong>admin123</strong>. Altere na primeira utilização em produção.</li>

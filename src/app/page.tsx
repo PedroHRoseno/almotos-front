@@ -43,10 +43,10 @@ export default function DashboardPage() {
       valueColor: "",
     },
     {
-      title: "Total de Vendas",
+      title: "Volume de Vendas",
       value: loading ? "..." : formatCurrency(dashboard?.totalVendas || 0),
-      description: "Soma de todas as vendas ativas",
-      tooltip: "Apenas transações com status ACTIVE são consideradas. Vendas canceladas não aparecem neste total.",
+      description: "Soma dos preços de venda (não é lucro)",
+      tooltip: "Volume (GMV) de vendas ACTIVE. Inclui motos próprias e de terceiro. Não é a margem da loja.",
       icon: DollarSign,
       valueColor: "",
     },
@@ -83,10 +83,34 @@ export default function DashboardPage() {
       valueColor: "text-red-600 dark:text-red-400",
     },
     {
+      title: "Lucro estoque próprio",
+      value: loading ? "..." : formatCurrency(dashboard?.lucroEstoqueProprio || 0),
+      description: "Vendas próprias − compras",
+      tooltip: "Só vendas com origem estoque próprio. Terceiros não entram nesta conta.",
+      icon: TrendingUp,
+      valueColor: dashboard && (dashboard.lucroEstoqueProprio || 0) < 0 ? "text-red-600 dark:text-red-400" : dashboard && (dashboard.lucroEstoqueProprio || 0) > 0 ? "text-green-600 dark:text-green-400" : "",
+    },
+    {
+      title: "Lucro de terceiros",
+      value: loading ? "..." : formatCurrency(dashboard?.lucroTerceiros || 0),
+      description: "Lucro digitado nas consignadas",
+      tooltip: "Soma do lucro líquido informado em vendas de moto de terceiro.",
+      icon: TrendingUp,
+      valueColor: dashboard && (dashboard.lucroTerceiros || 0) < 0 ? "text-red-600 dark:text-red-400" : dashboard && (dashboard.lucroTerceiros || 0) > 0 ? "text-green-600 dark:text-green-400" : "",
+    },
+    {
+      title: "Repasses",
+      value: loading ? "..." : formatCurrency(dashboard?.totalRepasses || 0),
+      description: "Valor pago a donos e corretores",
+      tooltip: "Soma dos valores de repasse gravados nas vendas.",
+      icon: Users,
+      valueColor: "",
+    },
+    {
       title: "Lucro Bruto",
       value: loading ? "..." : formatCurrency(dashboard?.lucroBruto || 0),
-      description: "Vendas - Compras + Trocas - Custos",
-      tooltip: "Cálculo: (Vendas Ativas + Diferença Trocas Ativas) - Compras Ativas - Custos Adicionais de Veículos.",
+      description: "Próprio + terceiros + trocas − custos",
+      tooltip: "Lucro estoque próprio + lucro de terceiros + trocas − custos adicionais.",
       icon: TrendingUp,
       valueColor: dashboard && dashboard.lucroBruto < 0 ? "text-red-600 dark:text-red-400" : dashboard && dashboard.lucroBruto > 0 ? "text-green-600 dark:text-green-400" : "",
     },
@@ -214,7 +238,7 @@ export default function DashboardPage() {
           <CardTitle>Visão geral</CardTitle>
           <p className="text-sm text-muted-foreground">
             Utilize o menu lateral para navegar entre as seções do sistema:
-            Motos, Clientes, Vendas, Fluxo de Caixa, Relatórios e Configurações.
+            Motos, Contatos, Vendas, Fluxo de Caixa, Relatórios e Configurações.
           </p>
         </CardHeader>
       </Card>
