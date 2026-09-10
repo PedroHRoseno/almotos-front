@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ArrowUpDown, Plus, Filter, X, Calendar } from "lucide-react";
+import { Plus, Filter, X, Calendar, Pencil, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,10 +24,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+
+const EMPTY_TRANSACTION: StoreTransactionCreate = {
+  description: "",
+  value: 0,
+  type: "EXIT",
+  category: "OUTROS",
+};
 
 function formatCurrency(value: number): string {
   return formatBRL(value);
@@ -46,6 +63,11 @@ function formatDate(dateString: string): string {
   }
 }
 
+function toDateInputValue(dateString: string): string {
+  if (!dateString) return "";
+  return dateString.slice(0, 10);
+}
+
 function getCategoryLabel(category: string): string {
   const labels: Record<string, string> = {
     OPERACIONAL: "Operacional",
@@ -60,6 +82,14 @@ function getCategoryLabel(category: string): string {
   return labels[category] || category;
 }
 
+function isMutableStoreMovement(movement: FinancialMovement): boolean {
+  return (
+    movement.origin === "STORE" &&
+    movement.status === "ACTIVE" &&
+    movement.category !== "REPASSE_PARCEIRO"
+  );
+}
+
 export default function FluxoCaixaPage() {
   const [movements, setMovements] = useState<FinancialMovement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,15 +97,13 @@ export default function FluxoCaixaPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<FinancialMovement | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [filterType, setFilterType] = useState<"ENTRY" | "EXIT" | null>(null);
   const [filterCategory, setFilterCategory] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<"thisMonth" | null>(null);
-  const [newTransaction, setNewTransaction] = useState<StoreTransactionCreate>({
-    description: "",
-    value: 0,
-    type: "EXIT",
-    category: "OUTROS",
-  });
+  const [newTransaction, setNewTransaction] = useState<StoreTransactionCreate>(EMPTY_TRANSACTION);
   const [addingTransaction, setAddingTransaction] = useState(false);
 
   const getThisMonthDates = () => {
@@ -91,7 +119,7 @@ export default function FluxoCaixaPage() {
   const fetchMovements = useCallback(() => {
     setLoading(true);
     const dates = dateFilter === "thisMonth" ? getThisMonthDates() : { startDate: undefined, endDate: undefined };
-    
+
     api.financial
       .movements(page, 20, dates.startDate, dates.endDate, filterType || undefined, filterCategory || undefined)
       .then((data) => {
@@ -109,7 +137,34 @@ export default function FluxoCaixaPage() {
     fetchMovements();
   }, [fetchMovements]);
 
-  const handleAddTransaction = async () => {
+  const resetForm = () => {
+    setEditingId(null);
+    setNewTransaction(EMPTY_TRANSACTION);
+  };
+
+  const openCreateModal = () => {
+    resetForm();
+    setModalOpen(true);
+  };
+
+  const openEditModal = (movement: FinancialMovement) => {
+    setEditingId(movement.id);
+    setNewTransaction({
+      description: movement.description,
+      value: movement.value,
+      type: movement.type,
+      category: (movement.category as TransactionCategory) || "OUTROS",
+      date: toDateInputValue(movement.date) || undefined,
+    });
+    setModalOpen(true);
+  };
+
+  const handleModalChange = (open: boolean) => {
+    setModalOpen(open);
+    if (!open) resetForm();
+  };
+
+  const handleSaveTransaction = async () => {
     if (!newTransaction.description || newTransaction.value <= 0) {
       toast.error("Preencha todos os campos obrigatórios");
       return;
@@ -117,22 +172,40 @@ export default function FluxoCaixaPage() {
 
     setAddingTransaction(true);
     try {
-      await api.storeTransactions.criar(newTransaction);
-      toast.success("Transação registrada com sucesso!");
-      setModalOpen(false);
-      setNewTransaction({
-        description: "",
-        value: 0,
-        type: "EXIT",
-        category: "OUTROS",
-      });
+      if (editingId != null) {
+        await api.storeTransactions.atualizar(editingId, newTransaction);
+        toast.success("Transação atualizada com sucesso!");
+      } else {
+        await api.storeTransactions.criar(newTransaction);
+        toast.success("Transação registrada com sucesso!");
+      }
+      handleModalChange(false);
       fetchMovements();
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Erro ao registrar transação"
+        error instanceof Error
+          ? error.message
+          : editingId != null
+            ? "Erro ao atualizar transação"
+            : "Erro ao registrar transação"
       );
     } finally {
       setAddingTransaction(false);
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.storeTransactions.deletar(deleteTarget.id);
+      toast.success("Lançamento cancelado.");
+      setDeleteTarget(null);
+      fetchMovements();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao excluir lançamento");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -167,13 +240,12 @@ export default function FluxoCaixaPage() {
             Visualize todas as movimentações financeiras da loja
           </p>
         </div>
-        <Button onClick={() => setModalOpen(true)}>
+        <Button onClick={openCreateModal}>
           <Plus className="mr-2 h-4 w-4" />
           Novo Lançamento
         </Button>
       </div>
 
-      {/* Filtros */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -234,7 +306,6 @@ export default function FluxoCaixaPage() {
         </CardContent>
       </Card>
 
-      {/* Tabela de Movimentações */}
       <Card>
         <CardHeader>
           <CardTitle>Movimentações</CardTitle>
@@ -265,6 +336,7 @@ export default function FluxoCaixaPage() {
                       <th className="h-12 px-4 text-left align-middle font-medium text-sm">Categoria</th>
                       <th className="h-12 px-4 text-right align-middle font-medium text-sm">Valor</th>
                       <th className="h-12 px-4 text-center align-middle font-medium text-sm">Status</th>
+                      <th className="h-12 px-4 text-right align-middle font-medium text-sm">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -315,13 +387,36 @@ export default function FluxoCaixaPage() {
                             {movement.status === "ACTIVE" ? "Ativa" : "Cancelada"}
                           </Badge>
                         </td>
+                        <td className="p-4 align-middle text-right">
+                          {isMutableStoreMovement(movement) ? (
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                title="Editar lançamento"
+                                onClick={() => openEditModal(movement)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                title="Excluir lançamento"
+                                onClick={() => setDeleteTarget(movement)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : null}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
 
-              {/* Paginação */}
               <div className="flex items-center justify-between mt-4">
                 <div className="text-sm text-muted-foreground">
                   Página {page + 1} de {totalPages}
@@ -352,13 +447,14 @@ export default function FluxoCaixaPage() {
         </CardContent>
       </Card>
 
-      {/* Modal de Novo Lançamento */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      <Dialog open={modalOpen} onOpenChange={handleModalChange}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Novo Lançamento</DialogTitle>
+            <DialogTitle>{editingId != null ? "Editar lançamento" : "Novo Lançamento"}</DialogTitle>
             <DialogDescription>
-              Registre uma nova despesa ou receita da loja
+              {editingId != null
+                ? "Atualize os dados desta despesa ou receita da loja"
+                : "Registre uma nova despesa ou receita da loja"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -439,15 +535,17 @@ export default function FluxoCaixaPage() {
               />
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setModalOpen(false)}>
+              <Button variant="outline" onClick={() => handleModalChange(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleAddTransaction} disabled={addingTransaction}>
+              <Button onClick={handleSaveTransaction} disabled={addingTransaction}>
                 {addingTransaction ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Registrando...
+                    {editingId != null ? "Salvando..." : "Registrando..."}
                   </>
+                ) : editingId != null ? (
+                  "Salvar"
                 ) : (
                   "Registrar"
                 )}
@@ -456,6 +554,39 @@ export default function FluxoCaixaPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteTarget != null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar lançamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O lançamento será marcado como cancelado e deixará de entrar nos totais do caixa.
+              {deleteTarget && (
+                <span className="mt-2 block rounded bg-muted p-2 text-xs">
+                  {deleteTarget.description} — {formatCurrency(Math.abs(deleteTarget.value))}
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Voltar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Cancelando...
+                </>
+              ) : (
+                "Confirmar"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { ShoppingCart, Plus, ChevronLeft, ChevronRight, Loader2, Search, X, Tras
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -137,6 +138,11 @@ export default function VendasPage() {
     try {
       await api.sales.cancelar(saleToDelete.id);
       toast.success("Venda cancelada com sucesso. O veículo foi revertido para disponível.");
+      setSales((current) =>
+        current.map((sale) =>
+          sale.id === saleToDelete.id ? { ...sale, status: "CANCELLED" } : sale
+        )
+      );
       setDeleteDialogOpen(false);
       setSaleToDelete(null);
       fetchSales();
@@ -228,6 +234,7 @@ export default function VendasPage() {
                       <TableHead className="min-w-[180px]">Veículo</TableHead>
                       <TableHead className="min-w-[180px]">Cliente</TableHead>
                       <TableHead className="text-right min-w-[120px]">Valor</TableHead>
+                      <TableHead className="w-[110px]">Status</TableHead>
                       <TableHead className="w-[100px]">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -256,18 +263,31 @@ export default function VendasPage() {
                           </div>
                         </TableCell>
                         <TableCell className="text-right font-medium text-sm md:text-base">
-                          {formatCurrency(sale.salePrice)}
+                          {sale.status === "CANCELLED" ? (
+                            <span className="line-through text-muted-foreground">
+                              {formatCurrency(sale.salePrice)}
+                            </span>
+                          ) : (
+                            formatCurrency(sale.salePrice)
+                          )}
                         </TableCell>
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteClick(sale)}
-                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            title="Excluir venda"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <Badge variant={sale.status === "CANCELLED" ? "secondary" : "default"}>
+                            {sale.status === "CANCELLED" ? "Cancelada" : "Ativa"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {sale.status === "ACTIVE" ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteClick(sale)}
+                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              title="Cancelar venda"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          ) : null}
                         </TableCell>
                       </TableRow>
                     ))}

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Users, Plus, ChevronLeft, ChevronRight, Eye, Loader2, Search, X } from "lucide-react";
+import { Users, Plus, ChevronLeft, ChevronRight, Eye, Pencil, Loader2, Search, X } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
 import { formatDocument } from "@/lib/masks";
-import type { PartnerSummary } from "@/types";
+import type { PartnerDetail, PartnerSummary } from "@/types";
 import { FormParceiro } from "@/components/forms/form-parceiro";
 
 export default function ContatosPage() {
@@ -41,6 +42,9 @@ export default function ContatosPage() {
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingPartner, setEditingPartner] = useState<PartnerDetail | null>(null);
+  const [loadingEdit, setLoadingEdit] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
 
@@ -78,6 +82,19 @@ export default function ContatosPage() {
   useEffect(() => {
     fetchPartners();
   }, [fetchPartners]);
+
+  const handleEditClick = async (document: string) => {
+    setLoadingEdit(true);
+    try {
+      const detail = await api.customers.buscarPorDocumento(document);
+      setEditingPartner(detail);
+      setEditModalOpen(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao carregar contato para edição");
+    } finally {
+      setLoadingEdit(false);
+    }
+  };
 
   return (
     <div className="space-y-4 md:space-y-8">
@@ -151,7 +168,7 @@ export default function ContatosPage() {
                       <TableHead className="min-w-[180px]">Nome</TableHead>
                       <TableHead className="min-w-[140px]">Telefone</TableHead>
                       <TableHead className="min-w-[150px]">Cidade</TableHead>
-                      <TableHead className="w-[120px] text-right">Ações</TableHead>
+                      <TableHead className="w-[180px] text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -168,12 +185,24 @@ export default function ContatosPage() {
                           {partner.city || "-"}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Link href={`/contatos/${partner.document}`}>
-                            <Button variant="ghost" size="sm" className="text-xs md:text-sm">
-                              <Eye className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
-                              <span className="hidden sm:inline">Detalhes</span>
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs md:text-sm"
+                              disabled={loadingEdit}
+                              onClick={() => handleEditClick(partner.document)}
+                            >
+                              <Pencil className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
+                              <span className="hidden sm:inline">Editar</span>
                             </Button>
-                          </Link>
+                            <Link href={`/contatos/${partner.document}`}>
+                              <Button variant="ghost" size="sm" className="text-xs md:text-sm">
+                                <Eye className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
+                                <span className="hidden sm:inline">Detalhes</span>
+                              </Button>
+                            </Link>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -256,6 +285,51 @@ export default function ContatosPage() {
             </DialogDescription>
           </DialogHeader>
           <FormParceiro insideModal onSuccess={() => { setModalOpen(false); fetchPartners(); }} />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={editModalOpen}
+        onOpenChange={(open) => {
+          setEditModalOpen(open);
+          if (!open) setEditingPartner(null);
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar contato</DialogTitle>
+            <DialogDescription>
+              Atualize os dados. O documento não pode ser alterado.
+            </DialogDescription>
+          </DialogHeader>
+          {editingPartner && (
+            <FormParceiro
+              key={editingPartner.document}
+              insideModal
+              isEdit
+              initialData={{
+                document: editingPartner.document,
+                name: editingPartner.name,
+                phoneNumber1: editingPartner.phoneNumber1 || "",
+                phoneNumber2: editingPartner.phoneNumber2 || "",
+                address: editingPartner.address
+                  ? {
+                      streetName: editingPartner.address.streetName || "",
+                      number: editingPartner.address.number || "",
+                      city: editingPartner.address.city || "",
+                      state: editingPartner.address.state || "",
+                      reference: editingPartner.address.reference || "",
+                      zipCode: editingPartner.address.zipCode || "",
+                    }
+                  : undefined,
+              }}
+              onSuccess={() => {
+                setEditModalOpen(false);
+                setEditingPartner(null);
+                fetchPartners();
+              }}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>
