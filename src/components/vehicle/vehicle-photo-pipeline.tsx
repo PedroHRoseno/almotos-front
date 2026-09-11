@@ -12,6 +12,7 @@ import {
   Loader2,
   Pencil,
   Trash2,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -71,6 +72,12 @@ export function VehiclePhotoPipeline({
 
   const [cropOpen, setCropOpen] = useState(false);
   const [cropTargetId, setCropTargetId] = useState<string | null>(null);
+  const [committedCrop, setCommittedCrop] = useState<{
+    url: string;
+    index: number;
+    file: File;
+    previewUrl: string;
+  } | null>(null);
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -83,6 +90,7 @@ export function VehiclePhotoPipeline({
     () => (cropTargetId ? pending.find((p) => p.id === cropTargetId) : undefined),
     [cropTargetId, pending]
   );
+  const idlePending = pending.filter((p) => p.uploadStatus !== "uploading");
 
   const blocking = batchUploading;
   useEffect(() => {
@@ -205,20 +213,18 @@ export function VehiclePhotoPipeline({
       }
       if (next.length === 0) return;
       setPending((prev) => [...prev, ...next]);
-      next.forEach((item) => {
-        void uploadItem(item);
-      });
+      openCropModal(next[0]);
     },
-    [disabled, uploadItem]
+    [disabled]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: { "image/*": [] },
     multiple: true,
-    disabled: disabled || batchUploading,
-    noClick: disabled || batchUploading,
-    noKeyboard: disabled || batchUploading,
+    disabled,
+    noClick: disabled,
+    noKeyboard: disabled,
   });
 
   const removePending = (id: string) => {
@@ -255,12 +261,22 @@ export function VehiclePhotoPipeline({
   };
 
   const openCropModal = (item: PendingItem) => {
+    if (item.uploadStatus === "uploading") return;
+    if (committedCrop) revokePreview(committedCrop.previewUrl);
+    setCommittedCrop(null);
     setCropTargetId(item.id);
     setCropImageSrc(item.previewUrl);
     setCrop({ x: 0, y: 0 });
     setZoom(1);
     croppedPixelsRef.current = null;
     setCropOpen(true);
+  };
+
+  const openNextCropAfter = (exceptId: string) => {
+    const next = pendingRef.current.find(
+      (p) => p.id !== exceptId && p.uploadStatus === "idle" && !p.isEdited
+    );
+    if (next) openCropModal(next);
   };
 
   const handleCropComplete = useCallback((_area: Area, areaPixels: Area) => {
@@ -272,13 +288,43 @@ export function VehiclePhotoPipeline({
     };
   }, []);
 
+  const closeCropModal = () => {
+    if (committedCrop) revokePreview(committedCrop.previewUrl);
+    setCommittedCrop(null);
+    setCropOpen(false);
+    setCropTargetId(null);
+    setCropImageSrc(null);
+  };
+
   const confirmCrop = async () => {
-    if (!cropTarget || !croppedPixelsRef.current) {
+    if (!croppedPixelsRef.current) {
       toast.error("Ajuste o enquadramento antes de confirmar.");
       return;
     }
     setCropping(true);
     try {
+      if (committedCrop) {
+        const newFile = await processImage(committedCrop.file, croppedPixelsRef.current);
+        startInflight();
+        try {
+          const { url } = await uploadVehicleImageWithProgress(newFile, () => undefined);
+          const trimmed = url.trim();
+          if (!trimmed) throw new Error("URL vazia no retorno do servidor.");
+          const copy = [...committedRef.current];
+          copy[committedCrop.index] = trimmed;
+          committedRef.current = copy;
+          onCommittedImageUrlsChange(copy);
+          toast.success("Foto atualizada.");
+        } finally {
+          endInflight();
+        }
+        closeCropModal();
+        return;
+      }
+      if (!cropTarget) {
+        toast.error("Ajuste o enquadramento antes de confirmar.");
+        return;
+      }
       const newFile = await processImage(cropTarget.file, croppedPixelsRef.current);
       const dim = await readImageNaturalSize(newFile);
       const nextPreview = URL.createObjectURL(newFile);
@@ -295,14 +341,35 @@ export function VehiclePhotoPipeline({
         errorMessage: undefined,
       };
       setPending((prev) => prev.map((p) => (p.id === cropTarget.id ? updated : p)));
-      setCropOpen(false);
-      setCropTargetId(null);
-      setCropImageSrc(null);
+      pendingRef.current = pendingRef.current.map((p) =>
+        p.id === cropTarget.id ? updated : p
+      );
+      closeCropModal();
+      openNextCropAfter(updated.id);
       void uploadItem(updated);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao processar imagem");
     } finally {
       setCropping(false);
+    }
+  };
+
+  const openCommittedCrop = async (url: string, index: number) => {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Não foi possível carregar a foto.");
+      const blob = await response.blob();
+      const file = new File([blob], "foto.jpg", { type: blob.type || "image/jpeg" });
+      const previewUrl = URL.createObjectURL(file);
+      setCropTargetId(null);
+      setCommittedCrop({ url, index, file, previewUrl });
+      setCropImageSrc(previewUrl);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      croppedPixelsRef.current = null;
+      setCropOpen(true);
+    } catch {
+      toast.error("Não foi possível editar esta foto. Remova e envie de novo.");
     }
   };
 
@@ -313,8 +380,8 @@ export function VehiclePhotoPipeline({
         className={cn(
           "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed p-6 text-center transition-colors",
           isDragActive && "border-primary bg-primary/5",
-          (disabled || batchUploading) && "pointer-events-none opacity-50",
-          !disabled && !batchUploading && "hover:border-primary/60 hover:bg-muted/40"
+          disabled && "pointer-events-none opacity-50",
+          !disabled && "hover:border-primary/60 hover:bg-muted/40"
         )}
       >
         <input {...getInputProps()} />
@@ -322,7 +389,7 @@ export function VehiclePhotoPipeline({
         <div className="text-sm">
           <p className="font-medium">Arraste imagens ou clique para selecionar</p>
           <p className="text-xs text-muted-foreground">
-            Várias fotos • PNG/JPG/WebP • até 8MB • recorte 4:3 e envio automáticos
+            Várias fotos • PNG/JPG/WebP • até 8MB • recorte 4:3 antes de enviar
           </p>
         </div>
       </div>
@@ -386,6 +453,16 @@ export function VehiclePhotoPipeline({
                   <Button
                     type="button"
                     size="icon"
+                    variant="secondary"
+                    className="h-7 w-7 bg-background/90 shadow"
+                    onClick={() => void openCommittedCrop(url, idx)}
+                    title="Editar enquadramento"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
                     variant="destructive"
                     className="h-7 w-7 shadow"
                     onClick={() => removeCommitted(url)}
@@ -402,7 +479,21 @@ export function VehiclePhotoPipeline({
 
       {pending.length > 0 && (
         <div className="space-y-2">
-          <p className="text-sm font-medium">Fila de pendências</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-medium">Fila de pendências</p>
+            {idlePending.length > 0 && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={disabled}
+                onClick={() => idlePending.forEach((item) => void uploadItem(item))}
+              >
+                <Upload className="mr-1.5 h-3.5 w-3.5" />
+                Enviar {idlePending.length === 1 ? "foto" : "todas"}
+              </Button>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
             {pending.map((item, idx) => (
               <div
@@ -430,7 +521,7 @@ export function VehiclePhotoPipeline({
                     size="icon"
                     variant="secondary"
                     className="h-7 w-7 bg-background/90 shadow"
-                    disabled={idx === 0 || batchUploading}
+                    disabled={idx === 0 || item.uploadStatus === "uploading"}
                     onClick={() => movePending(item.id, -1)}
                     title="Subir na fila"
                   >
@@ -441,7 +532,7 @@ export function VehiclePhotoPipeline({
                     size="icon"
                     variant="secondary"
                     className="h-7 w-7 bg-background/90 shadow"
-                    disabled={idx === pending.length - 1 || batchUploading}
+                    disabled={idx === pending.length - 1 || item.uploadStatus === "uploading"}
                     onClick={() => movePending(item.id, 1)}
                     title="Descer na fila"
                   >
@@ -452,7 +543,7 @@ export function VehiclePhotoPipeline({
                     size="icon"
                     variant="secondary"
                     className="h-7 w-7 bg-background/90 shadow"
-                    disabled={batchUploading}
+                    disabled={item.uploadStatus === "uploading"}
                     onClick={() => openCropModal(item)}
                     title="Editar enquadramento"
                   >
@@ -461,9 +552,20 @@ export function VehiclePhotoPipeline({
                   <Button
                     type="button"
                     size="icon"
+                    variant="secondary"
+                    className="h-7 w-7 bg-background/90 shadow"
+                    disabled={item.uploadStatus === "uploading"}
+                    onClick={() => void uploadItem(item)}
+                    title="Enviar com recorte atual"
+                  >
+                    <Upload className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
                     variant="destructive"
                     className="h-7 w-7 shadow"
-                    disabled={batchUploading}
+                    disabled={item.uploadStatus === "uploading"}
                     onClick={() => removePending(item.id)}
                     title="Remover da fila"
                   >
@@ -474,17 +576,19 @@ export function VehiclePhotoPipeline({
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
-            O envio começa ao soltar as fotos (recorte 4:3 automático). Use Editar só se o
-            upload ainda não começou ou falhou. Arraste as miniaturas para ordenar; a primeira é a capa.
+            Ajuste o enquadramento 4:3 no editor (abre ao selecionar). Confirmar envia a foto.
+            Cancele para revisar na fila e enviar depois. A primeira foto já no veículo é a capa.
           </p>
         </div>
       )}
 
-      <Dialog open={cropOpen} onOpenChange={(o) => !cropping && setCropOpen(o)}>
+      <Dialog open={cropOpen} onOpenChange={(o) => !cropping && (o ? setCropOpen(true) : closeCropModal())}>
         <DialogContent className="max-w-4xl" showClose={!cropping}>
           <DialogHeader>
             <DialogTitle>Editar enquadramento</DialogTitle>
-            <DialogDescription>Proporção fixa 4:3. Arraste e use o zoom. Ao confirmar, a foto é enviada.</DialogDescription>
+            <DialogDescription>
+              Proporção fixa 4:3. Arraste e use o zoom. Confirmar aplica o recorte e envia a foto.
+            </DialogDescription>
           </DialogHeader>
           {cropImageSrc && (
             <div className="relative h-[420px] w-full overflow-hidden rounded-md bg-black md:h-[480px]">
@@ -512,17 +616,17 @@ export function VehiclePhotoPipeline({
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" disabled={cropping} onClick={() => setCropOpen(false)}>
+            <Button type="button" variant="outline" disabled={cropping} onClick={closeCropModal}>
               Cancelar
             </Button>
-            <Button type="button" disabled={cropping} onClick={confirmCrop}>
+            <Button type="button" disabled={cropping} onClick={() => void confirmCrop()}>
               {cropping ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Processando…
                 </>
               ) : (
-                "Confirmar"
+                "Confirmar e enviar"
               )}
             </Button>
           </DialogFooter>

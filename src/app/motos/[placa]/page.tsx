@@ -301,7 +301,7 @@ export default function VeiculoDetailPage() {
               onBlockingChange={setGalleryBlocking}
             />
             <p className="text-xs text-muted-foreground">
-              As fotos sobem ao soltar. Arraste para ordenar (a primeira é a capa) e salve a vitrine no veículo.
+              Recorte 4:3 no editor antes de enviar. Arraste para ordenar (a primeira é a capa) e salve a vitrine.
             </p>
             <Button
               type="button"

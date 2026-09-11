@@ -605,7 +605,7 @@ export function FormVeiculo({
           <div className="sm:col-span-2 space-y-2">
             <p className="text-sm font-medium leading-none text-ink-muted">Fotos do catálogo</p>
             <p className="text-xs text-ink-subtle">
-              As fotos sobem ao soltar (recorte 4:3 automático). Arraste para ordenar; a primeira é a capa.
+              Recorte 4:3 no editor antes de enviar. Arraste para ordenar; a primeira é a capa.
             </p>
             <VehiclePhotoPipeline
               committedImageUrls={vehicleImageUrls}
