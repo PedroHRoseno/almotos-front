@@ -225,10 +225,11 @@ export const api = {
         ownershipKind?: OwnershipKind;
         ownerDocument?: string;
         ownerId?: string;
+        sort?: string;
       }
     ) => {
       const params: Record<string, string> = {
-        ...buildPaginationParams(page, size, "createdAt,desc"),
+        ...buildPaginationParams(page, size, options?.sort ?? "createdAt,desc"),
       };
       const search = options?.search?.trim();
       if (search) params.search = search;
