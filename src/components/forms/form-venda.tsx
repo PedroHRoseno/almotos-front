@@ -133,7 +133,7 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
         vehicle: { licensePlate: data.vehicleLicensePlate },
         customer: { id: data.customerId },
         salePrice: data.salePrice,
-        ...(data.ownershipKind === "THIRD_PARTY"
+        ...(data.ownershipKind === "THIRD_PARTY" && data.payoutId
           ? {
               payoutPartner: { id: data.payoutId },
               payoutAmount: data.payoutAmount ?? 0,
