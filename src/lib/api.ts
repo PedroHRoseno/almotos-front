@@ -213,6 +213,7 @@ export const api = {
         published?: boolean;
         ownershipKind?: OwnershipKind;
         ownerDocument?: string;
+        ownerId?: string;
       }
     ) => {
       const params: Record<string, string> = {
@@ -223,6 +224,7 @@ export const api = {
       if (options?.inStock !== undefined) params.inStock = String(options.inStock);
       if (options?.published !== undefined) params.published = String(options.published);
       if (options?.ownershipKind) params.ownershipKind = options.ownershipKind;
+      if (options?.ownerId) params.ownerId = options.ownerId;
       if (options?.ownerDocument) params.ownerDocument = options.ownerDocument;
       return request<PageResponse<Vehicle>>("/vehicles", { params });
     },
@@ -415,20 +417,23 @@ export const api = {
           ...(search && search.trim() ? { search: search.trim() } : {}),
         },
       }),
-    buscarPorDocumento: (document: string) =>
-      request<PartnerDetail>(`/partners/${encodeURIComponent(document)}`),
+    buscarPorId: (id: string) =>
+      request<PartnerDetail>(`/partners/${encodeURIComponent(id)}`),
+    /** @deprecated use buscarPorId */
+    buscarPorDocumento: (id: string) =>
+      request<PartnerDetail>(`/partners/${encodeURIComponent(id)}`),
     criar: (body: Customer) =>
-      request<void>("/partners", {
+      request<PartnerSummary>("/partners", {
         method: "POST",
         body: JSON.stringify(body),
       }),
-    atualizar: (document: string, body: Customer) =>
-      request<void>(`/partners/${encodeURIComponent(document)}`, {
+    atualizar: (id: string, body: Customer) =>
+      request<void>(`/partners/${encodeURIComponent(id)}`, {
         method: "PUT",
         body: JSON.stringify(body),
       }),
-    deletar: (document: string) =>
-      request<void>(`/partners/${encodeURIComponent(document)}`, {
+    deletar: (id: string) =>
+      request<void>(`/partners/${encodeURIComponent(id)}`, {
         method: "DELETE",
       }),
   },
@@ -468,7 +473,8 @@ export const api = {
       return request<FinancialReport>("/reports/financial", { params });
     },
     byContact: (options: {
-      document: string;
+      partnerId?: string;
+      document?: string;
       startDate?: string;
       endDate?: string;
       ownershipKind?: OwnershipKind;
@@ -477,10 +483,11 @@ export const api = {
       size?: number;
     }) => {
       const params: Record<string, string> = {
-        document: options.document,
         page: String(options.page ?? 0),
         size: String(options.size ?? 20),
       };
+      if (options.partnerId) params.partnerId = options.partnerId;
+      if (options.document) params.document = options.document;
       if (options.startDate) params.startDate = options.startDate;
       if (options.endDate) params.endDate = options.endDate;
       if (options.ownershipKind) params.ownershipKind = options.ownershipKind;

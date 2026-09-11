@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import type { ContactReport, FinancialReport, OwnershipKind, PartnerSummary } from "@/types";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { formatDocument } from "@/lib/masks";
+import { partnerSelectLabel } from "@/lib/masks";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -23,7 +23,7 @@ export default function RelatoriosPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [partners, setPartners] = useState<PartnerSummary[]>([]);
-  const [contactDocument, setContactDocument] = useState("");
+  const [contactId, setContactId] = useState("");
   const [ownershipKind, setOwnershipKind] = useState<OwnershipKind | "">("");
   const [contactReport, setContactReport] = useState<ContactReport | null>(null);
 
@@ -48,13 +48,13 @@ export default function RelatoriosPage() {
   }, []);
 
   useEffect(() => {
-    if (!contactDocument) {
+    if (!contactId) {
       setContactReport(null);
       return;
     }
     api.reports
       .byContact({
-        document: contactDocument,
+        partnerId: contactId,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         ownershipKind: ownershipKind || undefined,
@@ -62,7 +62,7 @@ export default function RelatoriosPage() {
       })
       .then(setContactReport)
       .catch(() => setContactReport(null));
-  }, [contactDocument, startDate, endDate, ownershipKind]);
+  }, [contactId, startDate, endDate, ownershipKind]);
 
   const handleFilter = (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,7 +108,7 @@ export default function RelatoriosPage() {
             <Button type="button" variant="outline" onClick={() => {
               setStartDate("");
               setEndDate("");
-              setContactDocument("");
+              setContactId("");
               setOwnershipKind("");
               fetchReport();
             }} className="w-full sm:w-auto">
@@ -119,12 +119,12 @@ export default function RelatoriosPage() {
             <div className="w-full sm:max-w-sm">
               <SearchableSelect
                 options={partners.map((p) => ({
-                  value: p.document,
-                  label: `${p.name} - ${formatDocument(p.document)}`,
-                  searchText: `${p.name} ${p.document}`,
+                  value: p.id,
+                  label: partnerSelectLabel(p.name, p.document),
+                  searchText: `${p.name} ${p.document || ""}`,
                 }))}
-                value={contactDocument}
-                onValueChange={(value) => setContactDocument(value || "")}
+                value={contactId}
+                onValueChange={(value) => setContactId(value || "")}
                 placeholder="Filtrar por contato..."
                 emptyMessage="Nenhum contato"
                 allowClear

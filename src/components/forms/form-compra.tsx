@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { compraSchema, type CompraFormData } from "@/lib/validations/schemas";
 import { api, API_MAX_PAGE_SIZE } from "@/lib/api";
-import { digitsOnly } from "@/lib/masks";
+import { partnerSelectLabel } from "@/lib/masks";
 import { toast } from "sonner";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { cn } from "@/lib/utils";
@@ -27,7 +27,7 @@ import { FormVeiculo } from "./form-veiculo";
 
 const defaultValues: Partial<CompraFormData> = {
   vehicleLicensePlate: "",
-  customerDocument: "",
+  customerId: "",
   purchasePrice: 0,
   purchaseDate: new Date().toISOString().split("T")[0], // yyyy-MM-dd
 };
@@ -42,7 +42,7 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
   const [error, setError] = useState<string | null>(null);
   const [veiculos, setVeiculos] = useState<Array<{ licensePlate: string; brand: string; modelName: string }>>([]);
   const [loadingVeiculos, setLoadingVeiculos] = useState(true);
-  const [partners, setPartners] = useState<Array<{ document: string; name: string; city?: string }>>([]);
+  const [partners, setPartners] = useState<Array<{ id: string; document?: string | null; name: string; city?: string }>>([]);
   const [loadingPartners, setLoadingPartners] = useState(true);
   const [modalParceiroOpen, setModalParceiroOpen] = useState(false);
   const [modalVeiculoOpen, setModalVeiculoOpen] = useState(false);
@@ -132,29 +132,21 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
 
   const parceiroOptions = useMemo(
     () =>
-      partners.map((p) => {
-        const d = p.document;
-        const fmt = d.length === 11
-          ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
-          : d.length === 14
-            ? d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5")
-            : d;
-        return {
-          value: p.document,
-          label: `${p.name} - ${fmt}`,
-          searchText: `${p.name} ${p.document} ${fmt} ${p.city || ""}`,
-        };
-      }),
+      partners.map((p) => ({
+        value: p.id,
+        label: partnerSelectLabel(p.name, p.document),
+        searchText: `${p.name} ${p.document || ""} ${p.city || ""}`,
+      })),
     [partners]
   );
 
-  const handleParceiroCriado = (document: string) => {
+  const handleParceiroCriado = (id: string) => {
     setModalParceiroOpen(false);
     api.customers
       .listar(0, 100)
       .then((response) => {
         setPartners(response.content || []);
-        form.setValue("customerDocument", document);
+        form.setValue("customerId", id);
       })
       .catch(() => {});
   };
@@ -186,7 +178,7 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
       // Criar a compra
       await api.purchases.criar({
         vehicle: { licensePlate: data.vehicleLicensePlate.trim().toUpperCase() },
-        customer: { document: digitsOnly(data.customerDocument) },
+        customer: { id: data.customerId },
         purchasePrice: data.purchasePrice,
         purchaseDate: data.purchaseDate,
       });
@@ -257,16 +249,16 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
         </FormField>
 
         <FormField
-          name="customerDocument"
+          name="customerId"
           label="Fornecedor/Parceiro"
           required
-          error={form.formState.errors.customerDocument}
+          error={form.formState.errors.customerId}
         >
           <div className="flex gap-2">
             <div className="flex-1">
               <Controller
                 control={form.control}
-                name="customerDocument"
+                name="customerId"
                 render={({ field }) => (
                   <SearchableSelect
                     options={parceiroOptions}
@@ -275,7 +267,7 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
                     placeholder={loadingPartners ? "Carregando…" : "Buscar fornecedor/parceiro..."}
                     disabled={loadingPartners}
                     emptyMessage="Nenhum parceiro encontrado"
-                    error={!!form.formState.errors.customerDocument}
+                    error={!!form.formState.errors.customerId}
                     allowClear
                   />
                 )}
@@ -383,8 +375,8 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
           </DialogHeader>
           <FormParceiro
             insideModal
-            onSuccessWithCpf={(cpf) => {
-              handleParceiroCriado(cpf);
+            onSuccessWithId={(id) => {
+              handleParceiroCriado(id);
             }}
           />
         </DialogContent>

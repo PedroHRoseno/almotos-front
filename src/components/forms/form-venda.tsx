@@ -24,17 +24,17 @@ import {
 } from "@/components/ui/card";
 import { vendaSchema, type VendaFormData } from "@/lib/validations/schemas";
 import { api } from "@/lib/api";
-import { digitsOnly } from "@/lib/masks";
+import { partnerSelectLabel } from "@/lib/masks";
 import type { Vehicle, PartnerSummary } from "@/types";
 import { useState, useEffect, useMemo } from "react";
 import { FormParceiro } from "@/components/forms/form-parceiro";
 
 const defaultValues: Partial<VendaFormData> = {
   vehicleLicensePlate: "",
-  customerDocument: "",
+  customerId: "",
   salePrice: 0,
   ownershipKind: "OWN",
-  payoutDocument: "",
+  payoutId: "",
   payoutAmount: 0,
   storeProfit: 0,
 };
@@ -90,9 +90,9 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
   useEffect(() => {
     form.setValue("ownershipKind", selectedVehicle?.ownershipKind ?? "OWN");
     if (selectedVehicle?.ownershipKind === "THIRD_PARTY") {
-      form.setValue("payoutDocument", selectedVehicle.ownerDocument || "");
+      form.setValue("payoutId", selectedVehicle.ownerId || "");
     } else {
-      form.setValue("payoutDocument", "");
+      form.setValue("payoutId", "");
       form.setValue("payoutAmount", 0);
       form.setValue("storeProfit", 0);
     }
@@ -112,17 +112,17 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
   // Preparar opções de parceiros para o SearchableSelect
   const parceiroOptions: SearchableSelectOption[] = useMemo(
     () =>
-      partners.map((p) => {
-        const d = p.document;
-        const fmt = d.length === 11 ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : d.length === 14 ? d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5") : d;
-        return { value: p.document, label: `${p.name} - ${fmt}`, searchText: `${p.name} ${p.document} ${fmt} ${p.city || ""}` };
-      }),
+      partners.map((p) => ({
+        value: p.id,
+        label: partnerSelectLabel(p.name, p.document),
+        searchText: `${p.name} ${p.document || ""} ${p.city || ""}`,
+      })),
     [partners]
   );
 
-  const handleParceiroCriado = (document: string) => {
+  const handleParceiroCriado = (id: string) => {
     setModalParceiroOpen(false);
-    api.customers.listar(0, 100).then((response) => { setPartners(response.content || []); form.setValue("customerDocument", document); }).catch(() => {});
+    api.customers.listar(0, 100).then((response) => { setPartners(response.content || []); form.setValue("customerId", id); }).catch(() => {});
   };
 
   const onSubmit = async (data: VendaFormData) => {
@@ -131,11 +131,11 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
     try {
       await api.sales.criar({
         vehicle: { licensePlate: data.vehicleLicensePlate },
-        customer: { document: digitsOnly(data.customerDocument) },
+        customer: { id: data.customerId },
         salePrice: data.salePrice,
         ...(data.ownershipKind === "THIRD_PARTY"
           ? {
-              payoutPartner: { document: digitsOnly(data.payoutDocument || "") },
+              payoutPartner: { id: data.payoutId },
               payoutAmount: data.payoutAmount ?? 0,
               storeProfit: data.storeProfit ?? 0,
             }
@@ -197,16 +197,16 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
             </FormField>
 
             <FormField
-              name="customerDocument"
+              name="customerId"
               label="Cliente/Parceiro"
               required
-              error={form.formState.errors.customerDocument}
+              error={form.formState.errors.customerId}
             >
               <div className="flex gap-2">
                 <div className="flex-1">
                   <Controller
                     control={form.control}
-                    name="customerDocument"
+                    name="customerId"
                     render={({ field }) => (
                       <SearchableSelect
                         options={parceiroOptions}
@@ -215,7 +215,7 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
                         placeholder={loadingPartners ? "Carregando…" : "Buscar cliente/parceiro..."}
                         disabled={loadingPartners}
                         emptyMessage="Nenhum parceiro encontrado"
-                        error={!!form.formState.errors.customerDocument}
+                        error={!!form.formState.errors.customerId}
                         allowClear
                       />
                     )}
@@ -239,14 +239,14 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
             {isThirdParty && (
               <>
                 <FormField
-                  name="payoutDocument"
+                  name="payoutId"
                   label="Quem recebe o repasse"
                   required
-                  error={form.formState.errors.payoutDocument}
+                  error={form.formState.errors.payoutId}
                 >
                   <Controller
                     control={form.control}
-                    name="payoutDocument"
+                    name="payoutId"
                     render={({ field }) => (
                       <SearchableSelect
                         options={parceiroOptions}
@@ -254,7 +254,7 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
                         onValueChange={field.onChange}
                         placeholder="Dono ou corretor..."
                         emptyMessage="Nenhum contato encontrado"
-                        error={!!form.formState.errors.payoutDocument}
+                        error={!!form.formState.errors.payoutId}
                         allowClear
                       />
                     )}
@@ -384,8 +384,8 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
           </DialogHeader>
           <FormParceiro
             insideModal
-            onSuccessWithCpf={(cpf) => {
-              handleParceiroCriado(cpf);
+            onSuccessWithId={(id) => {
+              handleParceiroCriado(id);
             }}
           />
         </DialogContent>

@@ -65,18 +65,25 @@ export interface Address {
   zipCode: string;
 }
 
-/** Cliente/Parceiro (Customer/Partner) – documento: CPF 11 ou CNPJ 14 dígitos */
+/** Cliente/Parceiro (Customer/Partner) – id UUID; documento opcional */
 export interface Customer {
-  document: string;
+  id?: string;
+  document?: string | null;
   name: string;
   phoneNumber1?: string;
   phoneNumber2?: string;
   address?: Address;
 }
 
+export interface PartnerRef {
+  id?: string;
+  document?: string | null;
+}
+
 /** Resumo de parceiro para listagens */
 export interface PartnerSummary {
-  document: string;
+  id: string;
+  document?: string | null;
   name: string;
   phoneNumber1?: string;
   city?: string;
@@ -84,7 +91,8 @@ export interface PartnerSummary {
 
 /** Detalhes completos do contato */
 export interface PartnerDetail {
-  document: string;
+  id: string;
+  document?: string | null;
   name: string;
   phoneNumber1?: string;
   phoneNumber2?: string;
@@ -184,6 +192,7 @@ export interface Vehicle {
   internalTags?: VehicleTag[];
   publicTags?: VehicleTag[];
   ownershipKind?: OwnershipKind;
+  ownerId?: string | null;
   ownerDocument?: string | null;
   ownerName?: string | null;
 }
@@ -206,6 +215,7 @@ export interface VehicleCreate {
   internalTags?: string[];
   publicTags?: string[];
   ownershipKind?: OwnershipKind;
+  ownerId?: string | null;
   ownerDocument?: string | null;
 }
 
@@ -271,14 +281,17 @@ export interface SaleResponse {
   vehicleLicensePlate: string;
   vehicleBrand: string;
   vehicleModel: string;
-  partnerDocument: string;
+  partnerId?: string;
+  partnerDocument?: string | null;
   partnerName: string;
   salePrice: number;
   saleDate: string;
   status: TransactionStatus;
   ownershipKind?: OwnershipKind;
+  ownerId?: string | null;
   ownerDocument?: string | null;
   ownerName?: string | null;
+  payoutId?: string | null;
   payoutDocument?: string | null;
   payoutName?: string | null;
   payoutAmount?: number;
@@ -288,9 +301,9 @@ export interface SaleResponse {
 /** Payload para criar venda – POST /sales. Back-end preenche saleDate. */
 export interface SaleCreate {
   vehicle: { licensePlate: string };
-  customer: { document: string };
+  customer: PartnerRef;
   salePrice: number;
-  payoutPartner?: { document: string };
+  payoutPartner?: PartnerRef;
   payoutAmount?: number;
   storeProfit?: number;
 }
@@ -328,7 +341,8 @@ export interface PurchaseResponse {
   vehicleLicensePlate: string;
   vehicleBrand: string;
   vehicleModel: string;
-  partnerDocument: string;
+  partnerId?: string;
+  partnerDocument?: string | null;
   partnerName: string;
   purchasePrice: number;
   purchaseDate: string;
@@ -338,7 +352,7 @@ export interface PurchaseResponse {
 /** Payload para criar compra – POST /purchases */
 export interface PurchaseCreate {
   vehicle: { licensePlate: string };
-  customer: { document: string };
+  customer: PartnerRef;
   purchasePrice: number;
   purchaseDate: string; // ISO format string (yyyy-MM-dd)
 }
@@ -354,6 +368,7 @@ export interface TrocaInput {
   veiculoEntradaLicensePlate: string;
   veiculoSaidaLicensePlate: string;
   valorDiferenca: number;
+  customerId?: string;
   customerDocument?: string;
 }
 
@@ -366,7 +381,8 @@ export interface ExchangeResponse {
   vehicleSaidaLicensePlate: string;
   vehicleSaidaBrand: string;
   vehicleSaidaModel: string;
-  partnerDocument: string;
+  partnerId?: string;
+  partnerDocument?: string | null;
   partnerName: string;
   diferencaValor: number;
   exchangeDate: string;
@@ -414,10 +430,13 @@ export interface ContactReportSale {
   vehicleLicensePlate: string;
   vehicleBrand: string;
   vehicleModel: string;
-  buyerDocument: string;
+  buyerId?: string;
+  buyerDocument?: string | null;
   buyerName: string;
+  ownerId?: string | null;
   ownerDocument?: string | null;
   ownerName?: string | null;
+  payoutId?: string | null;
   payoutDocument?: string | null;
   payoutName?: string | null;
   salePrice: number;
@@ -429,7 +448,8 @@ export interface ContactReportSale {
 }
 
 export interface ContactReport {
-  document: string;
+  id?: string;
+  document?: string | null;
   name: string;
   salesCount: number;
   volume: number;
@@ -477,7 +497,8 @@ export interface PurchaseHistoryItem {
   id: number;
   purchaseDate: string;
   purchasePrice: number;
-  partnerDocument: string;
+  partnerId?: string;
+  partnerDocument?: string | null;
   partnerName: string;
   status: TransactionStatus;
 }
@@ -486,7 +507,8 @@ export interface SaleHistoryItem {
   id: number;
   saleDate: string;
   salePrice: number;
-  partnerDocument: string;
+  partnerId?: string;
+  partnerDocument?: string | null;
   partnerName: string;
   status: TransactionStatus;
   ownershipKind?: OwnershipKind;
@@ -502,7 +524,8 @@ export interface ExchangeHistoryItem {
   id: number;
   exchangeDate: string;
   diferencaValor: number;
-  partnerDocument: string;
+  partnerId?: string;
+  partnerDocument?: string | null;
   partnerName: string;
   isIncomingVehicle: boolean; // true se este veículo é o de entrada, false se é o de saída
   status: TransactionStatus;

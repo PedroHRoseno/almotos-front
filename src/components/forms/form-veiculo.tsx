@@ -16,7 +16,7 @@ import {
 import { FormField } from "@/components/ui/form-field";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { veiculoSchema, type VeiculoFormData } from "@/lib/validations/schemas";
-import { digitsOnly, formatLicensePlate } from "@/lib/masks";
+import { formatLicensePlate, partnerSelectLabel } from "@/lib/masks";
 import { api } from "@/lib/api";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import type { SearchableSelectOption } from "@/components/ui/searchable-select";
@@ -46,7 +46,7 @@ const emptyDefaults: Partial<VeiculoFormData> = {
   internalTags: [],
   publicTags: [],
   ownershipKind: "OWN",
-  ownerDocument: "",
+  ownerId: "",
 };
 
 function valuesFromVehicle(vehicle: Vehicle): VeiculoFormData {
@@ -66,7 +66,7 @@ function valuesFromVehicle(vehicle: Vehicle): VeiculoFormData {
     internalTags: (vehicle.internalTags ?? []).map((tag) => tag.name),
     publicTags: (vehicle.publicTags ?? []).map((tag) => tag.name),
     ownershipKind: vehicle.ownershipKind ?? "OWN",
-    ownerDocument: vehicle.ownerDocument ?? "",
+    ownerId: vehicle.ownerId ?? "",
   };
 }
 
@@ -156,20 +156,11 @@ export function FormVeiculo({
 
   const ownerOptions: SearchableSelectOption[] = useMemo(
     () =>
-      partners.map((p) => {
-        const d = p.document;
-        const fmt =
-          d.length === 11
-            ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")
-            : d.length === 14
-              ? d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5")
-              : d;
-        return {
-          value: p.document,
-          label: `${p.name} - ${fmt}`,
-          searchText: `${p.name} ${p.document} ${fmt}`,
-        };
-      }),
+      partners.map((p) => ({
+        value: p.id,
+        label: partnerSelectLabel(p.name, p.document),
+        searchText: `${p.name} ${p.document || ""}`,
+      })),
     [partners]
   );
   const watchedBrand = form.watch("brand");
@@ -228,8 +219,7 @@ export function FormVeiculo({
       internalTags: data.internalTags ?? [],
       publicTags: data.publicTags ?? [],
       ownershipKind: data.ownershipKind ?? "OWN",
-      ownerDocument:
-        data.ownershipKind === "THIRD_PARTY" ? digitsOnly(data.ownerDocument || "") : null,
+      ownerId: data.ownershipKind === "THIRD_PARTY" ? data.ownerId || null : null,
     };
 
     try {
@@ -469,7 +459,7 @@ export function FormVeiculo({
                 value={field.value}
                 onValueChange={(value) => {
                   field.onChange(value);
-                  if (value === "OWN") form.setValue("ownerDocument", "");
+                  if (value === "OWN") form.setValue("ownerId", "");
                 }}
               >
                 <SelectTrigger>
@@ -486,14 +476,14 @@ export function FormVeiculo({
 
         {watchedOwnership === "THIRD_PARTY" && (
           <FormField
-            name="ownerDocument"
+            name="ownerId"
             label="Dono / consignante"
             required
-            error={form.formState.errors.ownerDocument}
+            error={form.formState.errors.ownerId}
           >
             <Controller
               control={form.control}
-              name="ownerDocument"
+              name="ownerId"
               render={({ field }) => (
                 <SearchableSelect
                   options={ownerOptions}
@@ -501,7 +491,7 @@ export function FormVeiculo({
                   onValueChange={field.onChange}
                   placeholder="Buscar contato dono..."
                   emptyMessage="Nenhum contato encontrado"
-                  error={!!form.formState.errors.ownerDocument}
+                  error={!!form.formState.errors.ownerId}
                   allowClear
                 />
               )}

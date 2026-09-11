@@ -67,6 +67,18 @@ export function isValidDocument(value: string): boolean {
   return d.length === 11 || d.length === 14;
 }
 
+/** Documento formatado ou travessão quando o contato não tem CPF/CNPJ. */
+export function formatDocumentOrDash(value?: string | null): string {
+  if (!value || !digitsOnly(value)) return "—";
+  return formatDocument(value);
+}
+
+export function partnerSelectLabel(name: string, document?: string | null, city?: string | null): string {
+  const doc = formatDocumentOrDash(document);
+  const base = doc === "—" ? name : `${name} - ${doc}`;
+  return city ? `${base} (${city})` : base;
+}
+
 const brlFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",

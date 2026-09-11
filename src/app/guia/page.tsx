@@ -42,7 +42,7 @@ export default function GuiaPage() {
               Contatos
             </h3>
             <p className="text-sm text-muted-foreground mb-2">
-              Cadastre contatos (CPF ou CNPJ) antes de registrar compras ou vendas. A mesma pessoa pode comprar, vender ou deixar moto em consignação — o papel vem da transação, não de uma categoria no cadastro.
+              Cadastre contatos antes de registrar compras ou vendas. CPF/CNPJ é opcional. A mesma pessoa pode comprar, vender ou deixar moto em consignação — o papel vem da transação, não de uma categoria no cadastro.
             </p>
             <Badge variant="secondary">Recomendado cadastrar primeiro</Badge>
           </section>

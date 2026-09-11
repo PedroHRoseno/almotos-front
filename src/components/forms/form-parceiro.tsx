@@ -37,8 +37,9 @@ const defaultValues: Partial<ParceiroFormData> = {
 
 export interface FormParceiroProps {
   onSuccess?: () => void;
-  /** Chamado com o documento (CPF/CNPJ) do parceiro recém-criado. */
-  onSuccessWithCpf?: (document: string) => void;
+  /** Chamado com o UUID do contato recém-criado. */
+  onSuccessWithId?: (id: string) => void;
+  partnerId?: string;
   insideModal?: boolean;
   initialData?: Partial<ParceiroFormData>;
   isEdit?: boolean;
@@ -58,7 +59,8 @@ const ESTADOS_BRASIL = [
 
 export function FormParceiro({ 
   onSuccess, 
-  onSuccessWithCpf,
+  onSuccessWithId,
+  partnerId,
   insideModal, 
   initialData,
   isEdit = false 
@@ -129,28 +131,28 @@ export function FormParceiro({
         }
       }
       
-      const docDigits = digitsOnly(data.document);
+      const docDigits = digitsOnly(data.document || "");
       const payload = {
-        document: docDigits,
+        document: docDigits || null,
         name: data.name.trim(),
         phoneNumber1: data.phoneNumber1?.trim() || undefined,
         phoneNumber2: data.phoneNumber2?.trim() || undefined,
         address: addressData,
       };
 
-      if (isEdit && docDigits) {
-        await api.customers.atualizar(docDigits, payload);
+      if (isEdit && partnerId) {
+        await api.customers.atualizar(partnerId, payload);
         setSuccess("Contato atualizado com sucesso.");
         onSuccess?.();
       } else {
-        await api.customers.criar(payload);
+        const created = await api.customers.criar(payload);
         setSuccess("Contato cadastrado com sucesso.");
         if (!isEdit) {
           form.reset(defaultValues);
           setIncluirEndereco(false);
         }
-        if (onSuccessWithCpf) {
-          onSuccessWithCpf(docDigits);
+        if (onSuccessWithId) {
+          onSuccessWithId(created.id);
         } else {
           onSuccess?.();
         }
@@ -176,8 +178,7 @@ export function FormParceiro({
       <div className="grid gap-6 sm:grid-cols-2">
         <FormField
           name="document"
-          label="Documento (CPF ou CNPJ)"
-          required
+          label="Documento (CPF ou CNPJ, opcional)"
           error={form.formState.errors.document}
         >
           <Controller
@@ -186,8 +187,7 @@ export function FormParceiro({
             render={({ field }) => (
               <Input
                 id="document"
-                placeholder="000.000.000-00 ou 00.000.000/0000-00"
-                disabled={isEdit}
+                placeholder="Opcional — 000.000.000-00 ou 00.000.000/0000-00"
                 value={field.value}
                 onChange={(e) => field.onChange(formatDocument(e.target.value))}
                 onBlur={field.onBlur}

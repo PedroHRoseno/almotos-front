@@ -30,7 +30,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
-import { formatDocument } from "@/lib/masks";
+import { formatDocumentOrDash } from "@/lib/masks";
 import type { PartnerDetail, PartnerSummary } from "@/types";
 import { FormParceiro } from "@/components/forms/form-parceiro";
 
@@ -83,10 +83,10 @@ export default function ContatosPage() {
     fetchPartners();
   }, [fetchPartners]);
 
-  const handleEditClick = async (document: string) => {
+  const handleEditClick = async (id: string) => {
     setLoadingEdit(true);
     try {
-      const detail = await api.customers.buscarPorDocumento(document);
+      const detail = await api.customers.buscarPorId(id);
       setEditingPartner(detail);
       setEditModalOpen(true);
     } catch (error) {
@@ -173,9 +173,9 @@ export default function ContatosPage() {
                   </TableHeader>
                   <TableBody>
                     {partners.map((partner) => (
-                      <TableRow key={partner.document} className="hover:bg-muted/50">
+                      <TableRow key={partner.id} className="hover:bg-muted/50">
                         <TableCell className="font-mono text-xs md:text-sm">
-                          {formatDocument(partner.document)}
+                          {formatDocumentOrDash(partner.document)}
                         </TableCell>
                         <TableCell className="font-medium text-sm md:text-base">{partner.name}</TableCell>
                         <TableCell className="text-muted-foreground text-xs md:text-sm">
@@ -191,12 +191,12 @@ export default function ContatosPage() {
                               size="sm"
                               className="text-xs md:text-sm"
                               disabled={loadingEdit}
-                              onClick={() => handleEditClick(partner.document)}
+                              onClick={() => handleEditClick(partner.id)}
                             >
                               <Pencil className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
                               <span className="hidden sm:inline">Editar</span>
                             </Button>
-                            <Link href={`/contatos/${partner.document}`}>
+                            <Link href={`/contatos/${partner.id}`}>
                               <Button variant="ghost" size="sm" className="text-xs md:text-sm">
                                 <Eye className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
                                 <span className="hidden sm:inline">Detalhes</span>
@@ -299,16 +299,17 @@ export default function ContatosPage() {
           <DialogHeader>
             <DialogTitle>Editar contato</DialogTitle>
             <DialogDescription>
-              Atualize os dados. O documento não pode ser alterado.
+              Atualize os dados. O CPF/CNPJ é opcional.
             </DialogDescription>
           </DialogHeader>
           {editingPartner && (
             <FormParceiro
-              key={editingPartner.document}
+              key={editingPartner.id}
               insideModal
               isEdit
+              partnerId={editingPartner.id}
               initialData={{
-                document: editingPartner.document,
+                document: editingPartner.document || "",
                 name: editingPartner.name,
                 phoneNumber1: editingPartner.phoneNumber1 || "",
                 phoneNumber2: editingPartner.phoneNumber2 || "",

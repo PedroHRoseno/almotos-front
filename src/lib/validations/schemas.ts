@@ -47,46 +47,36 @@ export const veiculoSchema = z.object({
   internalTags: z.array(z.string().min(1).max(80)).default([]),
   publicTags: z.array(z.string().min(1).max(80)).default([]),
   ownershipKind: z.enum(["OWN", "THIRD_PARTY"]).default("OWN"),
-  ownerDocument: z.string().optional().or(z.literal("")),
+  ownerId: z.string().optional().or(z.literal("")),
 }).superRefine((data, ctx) => {
-  if (data.ownershipKind === "THIRD_PARTY") {
-    const digits = (data.ownerDocument || "").replace(/\D/g, "");
-    if (digits.length !== 11 && digits.length !== 14) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["ownerDocument"],
-        message: "Selecione o contato dono da moto",
-      });
-    }
+  if (data.ownershipKind === "THIRD_PARTY" && !data.ownerId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["ownerId"],
+      message: "Selecione o contato dono da moto",
+    });
   }
 });
 
 export type VeiculoFormData = z.infer<typeof veiculoSchema>;
 
-/** Schema de validação para registro de Venda (POST /sales). Back-end usa vehicle.licensePlate, customer.document, salePrice. */
+/** Schema de validação para registro de Venda (POST /sales). Back-end usa vehicle.licensePlate, customer.id, salePrice. */
 export const vendaSchema = z.object({
   vehicleLicensePlate: z.string().min(1, "Selecione um veículo"),
-  customerDocument: z
-    .string()
-    .min(1, "Selecione um contato (comprador)")
-    .refine((s) => {
-      const d = s.replace(/\D/g, "");
-      return d.length === 11 || d.length === 14;
-    }, "Documento inválido – informe CPF (11 dígitos) ou CNPJ (14 dígitos)"),
+  customerId: z.string().min(1, "Selecione um contato (comprador)"),
   salePrice: z
     .number({ invalid_type_error: "Valor da venda deve ser um número" })
     .min(0.01, "Valor da venda deve ser maior que zero"),
   ownershipKind: z.enum(["OWN", "THIRD_PARTY"]).optional(),
-  payoutDocument: z.string().optional().or(z.literal("")),
+  payoutId: z.string().optional().or(z.literal("")),
   payoutAmount: z.number().optional(),
   storeProfit: z.number().optional(),
 }).superRefine((data, ctx) => {
   if (data.ownershipKind !== "THIRD_PARTY") return;
-  const payoutDigits = (data.payoutDocument || "").replace(/\D/g, "");
-  if (payoutDigits.length !== 11 && payoutDigits.length !== 14) {
+  if (!data.payoutId) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      path: ["payoutDocument"],
+      path: ["payoutId"],
       message: "Selecione quem recebe o repasse",
     });
   }
@@ -126,17 +116,7 @@ export const trocaSchema = z
     valorAbsoluto: z
       .number({ invalid_type_error: "Informe o valor em R$" })
       .min(0.01, "Informe o valor da diferença (mín. R$ 0,01)"),
-    customerDocument: z
-      .string()
-      .optional()
-      .refine(
-        (doc) => {
-          if (!doc || doc.trim() === "") return true;
-          const d = doc.replace(/\D/g, "");
-          return d.length === 11 || d.length === 14;
-        },
-        { message: "Documento deve ter 11 (CPF) ou 14 (CNPJ) dígitos" }
-      ),
+    customerId: z.string().optional().or(z.literal("")),
   })
   .refine(
     (data) => data.veiculoEntradaLicensePlate !== data.veiculoSaidaLicensePlate,
@@ -153,16 +133,7 @@ export const compraSchema = z.object({
   vehicleLicensePlate: z
     .string()
     .min(1, "Selecione ou cadastre um veículo"),
-  customerDocument: z
-    .string()
-    .min(1, "Selecione ou cadastre um parceiro/fornecedor")
-    .refine(
-      (doc) => {
-        const d = doc.replace(/\D/g, "");
-        return d.length === 11 || d.length === 14;
-      },
-      { message: "Documento deve ter 11 (CPF) ou 14 (CNPJ) dígitos" }
-    ),
+  customerId: z.string().min(1, "Selecione ou cadastre um parceiro/fornecedor"),
   purchasePrice: z
     .number({ invalid_type_error: "Valor da compra deve ser um número" })
     .min(0.01, "Valor da compra deve ser maior que zero"),
@@ -190,11 +161,13 @@ const addressSchema = z.object({
 export const parceiroSchema = z.object({
   document: z
     .string()
-    .min(1, "Documento (CPF/CNPJ) é obrigatório")
+    .optional()
+    .or(z.literal(""))
     .refine((s) => {
+      if (!s || !s.trim()) return true;
       const d = s.replace(/\D/g, "");
       return d.length === 11 || d.length === 14;
-    }, "Informe CPF (11 dígitos) ou CNPJ (14 dígitos)"),
+    }, "Informe CPF (11 dígitos) ou CNPJ (14 dígitos), ou deixe em branco"),
   name: z.string().min(1, "Nome é obrigatório").max(200, "Nome deve ter no máximo 200 caracteres"),
   phoneNumber1: z
     .string()

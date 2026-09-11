@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
-import { formatDocument, formatLicensePlate, formatBRL } from "@/lib/masks";
+import { formatDocumentOrDash, formatLicensePlate, formatBRL } from "@/lib/masks";
 import type { VehicleHistory } from "@/types";
 import {
   Dialog,
@@ -460,7 +460,7 @@ export default function VeiculoDetailPage() {
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {formatDate(purchase.purchaseDate.toString())} • {purchase.partnerName} ({formatDocument(purchase.partnerDocument)})
+                          {formatDate(purchase.purchaseDate.toString())} • {purchase.partnerName} ({formatDocumentOrDash(purchase.partnerDocument)})
                         </p>
                       </div>
                     </div>
@@ -490,7 +490,7 @@ export default function VeiculoDetailPage() {
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {formatDate(sale.saleDate.toString())} • {sale.partnerName} ({formatDocument(sale.partnerDocument)})
+                          {formatDate(sale.saleDate.toString())} • {sale.partnerName} ({formatDocumentOrDash(sale.partnerDocument)})
                         </p>
                       </div>
                     </div>
@@ -520,7 +520,7 @@ export default function VeiculoDetailPage() {
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {formatDate(exchange.exchangeDate.toString())} • {exchange.partnerName} ({formatDocument(exchange.partnerDocument)})
+                          {formatDate(exchange.exchangeDate.toString())} • {exchange.partnerName} ({formatDocumentOrDash(exchange.partnerDocument)})
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           {exchange.isIncomingVehicle ? "Veículo de entrada" : "Veículo de saída"}

@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/card";
 import { trocaSchema, type TrocaFormData } from "@/lib/validations/schemas";
 import { api } from "@/lib/api";
-import { digitsOnly } from "@/lib/masks";
+import { partnerSelectLabel } from "@/lib/masks";
 import type { Vehicle, PartnerSummary } from "@/types";
 import { useState, useEffect, useMemo } from "react";
 
@@ -26,7 +26,7 @@ const defaultValues: Partial<TrocaFormData> = {
   veiculoSaidaLicensePlate: "",
   tipoDiferenca: "cliente_paga",
   valorAbsoluto: undefined,
-  customerDocument: "",
+  customerId: "",
 };
 
 export interface FormTrocaProps {
@@ -103,9 +103,11 @@ export function FormTroca({ onSuccess, insideModal }: FormTrocaProps = {}) {
         },
       ];
       partners.forEach((p) => {
-        const d = p.document;
-        const fmt = d.length === 11 ? d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") : d.length === 14 ? d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5") : d;
-        options.push({ value: p.document, label: `${p.name} - ${fmt}`, searchText: `${p.name} ${p.document} ${fmt} ${p.city || ""}` });
+        options.push({
+          value: p.id,
+          label: partnerSelectLabel(p.name, p.document),
+          searchText: `${p.name} ${p.document || ""} ${p.city || ""}`,
+        });
       });
       return options;
     },
@@ -116,15 +118,15 @@ export function FormTroca({ onSuccess, insideModal }: FormTrocaProps = {}) {
     setSuccess(null);
     setError(null);
     try {
-      const docVal = data.customerDocument?.trim();
-      const customerDocument = docVal && docVal !== "__NONE__" ? digitsOnly(docVal) : undefined;
+      const idVal = data.customerId?.trim();
+      const customerId = idVal && idVal !== "__NONE__" ? idVal : undefined;
       const valorDiferenca = data.tipoDiferenca === "cliente_paga" ? Number(data.valorAbsoluto) : -Number(data.valorAbsoluto);
 
       const payload = {
         veiculoEntradaLicensePlate: data.veiculoEntradaLicensePlate,
         veiculoSaidaLicensePlate: data.veiculoSaidaLicensePlate,
         valorDiferenca,
-        ...(customerDocument && (customerDocument.length === 11 || customerDocument.length === 14) ? { customerDocument } : {}),
+        ...(customerId ? { customerId } : {}),
       };
 
       await api.exchanges.realizar(payload);
@@ -157,13 +159,13 @@ export function FormTroca({ onSuccess, insideModal }: FormTrocaProps = {}) {
           <div className="grid gap-6 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <FormField
-                name="customerDocument"
-                label="Documento do Parceiro (opcional)"
-                error={form.formState.errors.customerDocument}
+                name="customerId"
+                label="Contato (opcional)"
+                error={form.formState.errors.customerId}
               >
                 <Controller
                   control={form.control}
-                  name="customerDocument"
+                  name="customerId"
                   render={({ field }) => (
                     <SearchableSelect
                       options={parceiroOptions}
@@ -175,7 +177,7 @@ export function FormTroca({ onSuccess, insideModal }: FormTrocaProps = {}) {
                       placeholder={loadingPartners ? "Carregando…" : "Buscar parceiro (opcional)..."}
                       disabled={loadingPartners}
                       emptyMessage="Nenhum parceiro encontrado"
-                      error={!!form.formState.errors.customerDocument}
+                      error={!!form.formState.errors.customerId}
                       allowClear
                     />
                   )}

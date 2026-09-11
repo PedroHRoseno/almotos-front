@@ -38,7 +38,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { api } from "@/lib/api";
-import { formatDocument } from "@/lib/masks";
+import { formatDocumentOrDash } from "@/lib/masks";
 import type { ExchangeResponse } from "@/types";
 import { FormTroca } from "@/components/forms/form-troca";
 import { toast } from "sonner";
@@ -219,7 +219,7 @@ export default function TrocasPage() {
                           <div>
                             <div className="font-medium text-sm md:text-base">{exchange.partnerName}</div>
                             <div className="text-xs md:text-sm text-muted-foreground font-mono">
-                              {formatDocument(exchange.partnerDocument)}
+                              {formatDocumentOrDash(exchange.partnerDocument)}
                             </div>
                           </div>
                         </TableCell>

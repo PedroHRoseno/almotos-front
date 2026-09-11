@@ -40,7 +40,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { api } from "@/lib/api";
-import { formatDocument } from "@/lib/masks";
+import { formatDocumentOrDash } from "@/lib/masks";
 import type { SaleResponse } from "@/types";
 import { FormVenda } from "@/components/forms/form-venda";
 import { useDashboard } from "@/contexts/DashboardContext";
@@ -258,7 +258,7 @@ export default function VendasPage() {
                           <div>
                             <div className="font-medium text-sm md:text-base">{sale.partnerName}</div>
                             <div className="text-xs md:text-sm text-muted-foreground font-mono">
-                              {formatDocument(sale.partnerDocument)}
+                              {formatDocumentOrDash(sale.partnerDocument)}
                             </div>
                           </div>
                         </TableCell>

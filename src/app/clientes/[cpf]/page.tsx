@@ -5,6 +5,6 @@ export default async function LegacyClienteDetailPage({
 }: {
   params: Promise<{ cpf: string }>;
 }) {
-  const { cpf } = await params;
-  redirect(`/contatos/${cpf}`);
+  await params;
+  redirect("/contatos");
 }

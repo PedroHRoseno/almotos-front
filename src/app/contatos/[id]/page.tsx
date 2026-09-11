@@ -7,7 +7,7 @@ import { ArrowLeft, Edit } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
-import { formatBRL, formatDocument } from "@/lib/masks";
+import { formatBRL, formatDocumentOrDash } from "@/lib/masks";
 import type { ContactReport, PartnerDetail, Vehicle } from "@/types";
 import { FormParceiro } from "@/components/forms/form-parceiro";
 import {
@@ -22,7 +22,7 @@ import { Loader2 } from "lucide-react";
 export default function ContatoDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const document = params.cpf as string;
+  const partnerId = params.id as string;
 
   const [partner, setPartner] = useState<PartnerDetail | null>(null);
   const [owned, setOwned] = useState<Vehicle[]>([]);
@@ -35,9 +35,9 @@ export default function ContatoDetailPage() {
     setLoading(true);
     setError(null);
     Promise.all([
-      api.customers.buscarPorDocumento(document),
-      api.vehicles.listar(0, 50, { ownerDocument: document }),
-      api.reports.byContact({ document, role: "owner,payout", size: 20 }),
+      api.customers.buscarPorId(partnerId),
+      api.vehicles.listar(0, 50, { ownerId: partnerId }),
+      api.reports.byContact({ partnerId, role: "owner,payout", size: 20 }),
     ])
       .then(([detail, vehicles, contactReport]) => {
         setPartner(detail);
@@ -48,11 +48,11 @@ export default function ContatoDetailPage() {
         setError(err instanceof Error ? err.message : "Erro ao carregar dados do contato");
       })
       .finally(() => setLoading(false));
-  }, [document]);
+  }, [partnerId]);
 
   useEffect(() => {
-    if (document) fetchPartnerDetail();
-  }, [document, fetchPartnerDetail]);
+    if (partnerId) fetchPartnerDetail();
+  }, [partnerId, fetchPartnerDetail]);
 
   const formatPhone = (phone?: string) => {
     if (!phone) return "-";
@@ -111,7 +111,7 @@ export default function ContatoDetailPage() {
           <CardContent className="space-y-4">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Documento (CPF ou CNPJ)</p>
-              <p className="text-lg">{formatDocument(partner.document)}</p>
+              <p className="text-lg">{formatDocumentOrDash(partner.document)}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Nome</p>
@@ -252,13 +252,14 @@ export default function ContatoDetailPage() {
           <DialogHeader>
             <DialogTitle>Editar contato</DialogTitle>
             <DialogDescription>
-              Atualize os dados. O documento não pode ser alterado.
+              Atualize os dados. O CPF/CNPJ é opcional.
             </DialogDescription>
           </DialogHeader>
           <FormParceiro
             insideModal
+            partnerId={partner.id}
             initialData={{
-              document: partner.document,
+              document: partner.document || "",
               name: partner.name,
               phoneNumber1: partner.phoneNumber1 || "",
               phoneNumber2: partner.phoneNumber2 || "",
