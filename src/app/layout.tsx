@@ -25,8 +25,13 @@ const syne = Syne({
 });
 
 export const metadata: Metadata = {
-  title: "AlMotos - Sistema de Gerenciamento de Motos",
-  description: "Sistema completo para gestão de concessionária de motos",
+  title: "AL Motos - Sistema de gerenciamento de veículos",
+  description: "Sistema completo para gestão de concessionária de veículos",
+  icons: {
+    icon: [{ url: "/logo.png", type: "image/png" }],
+    apple: "/logo.png",
+    shortcut: "/logo.png",
+  },
 };
 
 export const viewport: Viewport = {
