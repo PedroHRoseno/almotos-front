@@ -95,14 +95,14 @@ export function SearchableSelect<T extends string = string>({
   };
 
   return (
-    <div ref={containerRef} className={cn("relative", className)}>
+    <div ref={containerRef} className={cn("relative min-w-0 w-full", className)}>
       <Button
         type="button"
         variant="outline"
         role="combobox"
         aria-expanded={open}
         className={cn(
-          "w-full justify-between rounded-xl",
+          "w-full min-w-0 justify-between overflow-hidden rounded-xl",
           !selectedOption && "text-muted-foreground",
           error && "border-destructive",
           disabled && "cursor-not-allowed opacity-50"
@@ -110,10 +110,10 @@ export function SearchableSelect<T extends string = string>({
         disabled={disabled}
         onClick={() => !disabled && setOpen(!open)}
       >
-        <span className="truncate">
+        <span className="min-w-0 flex-1 truncate text-left">
           {selectedOption ? selectedOption.label : placeholder}
         </span>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           {allowClear && selectedOption && (
             <X
               className="h-4 w-4 shrink-0 opacity-50 hover:opacity-100"
@@ -125,7 +125,7 @@ export function SearchableSelect<T extends string = string>({
       </Button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-full rounded-xl border border-line bg-surface">
+        <div className="absolute z-50 mt-1 w-full min-w-0 overflow-hidden rounded-xl border border-line bg-surface">
           <div className="p-2">
             <Input
               placeholder="Digite para buscar..."
@@ -139,7 +139,7 @@ export function SearchableSelect<T extends string = string>({
               autoFocus
             />
           </div>
-          <div className="max-h-[300px] overflow-auto p-1">
+          <div className="max-h-[300px] overflow-x-hidden overflow-y-auto p-1">
             {filteredOptions.length === 0 ? (
               <div className="py-6 text-center text-sm text-muted-foreground">
                 {emptyMessage}
@@ -149,7 +149,7 @@ export function SearchableSelect<T extends string = string>({
                 <div
                   key={String(option.value)}
                   className={cn(
-                    "relative flex cursor-pointer select-none items-center rounded-lg px-2 py-1.5 text-sm outline-none hover:bg-surface-hover hover:text-ink",
+                    "relative flex min-w-0 cursor-pointer select-none items-center rounded-lg px-2 py-1.5 text-sm outline-none hover:bg-surface-hover hover:text-ink",
                     value === option.value && "bg-surface-hover text-ink"
                   )}
                   onClick={() => handleSelect(option.value)}
@@ -160,7 +160,7 @@ export function SearchableSelect<T extends string = string>({
                       value === option.value ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  {option.label}
+                  <span className="min-w-0 flex-1 truncate">{option.label}</span>
                 </div>
               ))
             )}

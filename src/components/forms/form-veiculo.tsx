@@ -249,7 +249,7 @@ export function FormVeiculo({
   };
 
   const formContent = (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={form.handleSubmit(onSubmit)} className="@container min-w-0 space-y-6">
       {success && (
         <div className="rounded-xl bg-emerald-500/10 p-3 text-sm text-emerald-300">
           {success}
@@ -268,7 +268,7 @@ export function FormVeiculo({
         </p>
       )}
 
-      <div className="grid gap-6 sm:grid-cols-2">
+      <div className="grid min-w-0 gap-6 @lg:grid-cols-2">
         <FormField
           name="licensePlate"
           label="Placa"
@@ -524,7 +524,7 @@ export function FormVeiculo({
         </FormField>
 
         {(fipeLoading || fipeConsulta) && (
-          <div className="sm:col-span-2">
+          <div className="@lg:col-span-2">
             <FipeConsultaCard
               data={fipeConsulta}
               loading={fipeLoading}
@@ -539,7 +539,7 @@ export function FormVeiculo({
           name="internalTags"
           label="Tags internas"
           error={form.formState.errors.internalTags}
-          className="sm:col-span-2"
+          className="@lg:col-span-2"
         >
           <Controller
             control={form.control}
@@ -561,7 +561,7 @@ export function FormVeiculo({
           name="publicTags"
           label="Tags públicas"
           error={form.formState.errors.publicTags}
-          className="sm:col-span-2"
+          className="@lg:col-span-2"
         >
           <Controller
             control={form.control}
@@ -586,7 +586,7 @@ export function FormVeiculo({
           name="description"
           label="Descrição (opcional)"
           error={form.formState.errors.description}
-          className="sm:col-span-2"
+          className="@lg:col-span-2"
         >
           <textarea
             id="description"
@@ -602,7 +602,7 @@ export function FormVeiculo({
         )}
 
         {showPhotos && (
-          <div className="sm:col-span-2 space-y-2">
+          <div className="@lg:col-span-2 space-y-2">
             <p className="text-sm font-medium leading-none text-ink-muted">Fotos do catálogo</p>
             <p className="text-xs text-ink-subtle">
               Recorte 4:3 no editor antes de enviar. Arraste para ordenar; a primeira é a capa.
@@ -621,7 +621,7 @@ export function FormVeiculo({
           name="published"
           label="Publicar no Catálogo Público"
           error={form.formState.errors.published}
-          className="sm:col-span-2"
+          className="@lg:col-span-2"
         >
           <Controller
             control={form.control}
@@ -652,7 +652,7 @@ export function FormVeiculo({
         )}
       </div>
 
-      <div className="flex justify-end gap-3">
+      <div className="flex flex-wrap justify-end gap-3">
         {!isEdit && (
           <Button
             type="button"

@@ -248,7 +248,7 @@ export default function ContatoDetailPage() {
       )}
 
       <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Editar contato</DialogTitle>
             <DialogDescription>

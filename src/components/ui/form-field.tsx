@@ -22,7 +22,7 @@ export function FormField({
   className,
 }: FormFieldProps) {
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("min-w-0 space-y-2", className)}>
       <Label htmlFor={name} className={error ? "text-destructive" : undefined}>
         {label}
         {required && <span className="ml-0.5 text-destructive">*</span>}

@@ -163,7 +163,7 @@ export function FormParceiro({
   };
 
   const formContent = (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={form.handleSubmit(onSubmit)} className="@container min-w-0 space-y-6">
       {success && (
         <div className="rounded-md bg-green-50 dark:bg-green-950/30 p-3 text-sm text-green-800 dark:text-green-200">
           {success}
@@ -175,7 +175,7 @@ export function FormParceiro({
         </div>
       )}
 
-      <div className="grid gap-6 sm:grid-cols-2">
+      <div className="grid min-w-0 gap-6 @lg:grid-cols-2">
         <FormField
           name="document"
           label="Documento (CPF ou CNPJ, opcional)"
@@ -274,15 +274,15 @@ export function FormParceiro({
         {incluirEndereco && (
           <div className="rounded-lg border p-4 space-y-4">
             <h3 className="text-sm font-semibold">Endereço</h3>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid min-w-0 gap-4 @lg:grid-cols-2">
               <FormField
                 name="address.zipCode"
                 label="CEP"
                 required
                 error={form.formState.errors.address?.zipCode}
               >
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
+                <div className="flex min-w-0 gap-2">
+                  <div className="relative min-w-0 flex-1">
                     <Input
                       id="zipCode"
                       placeholder="00000-000"
@@ -511,7 +511,7 @@ export function FormParceiro({
         )}
       </div>
 
-      <div className="flex justify-end gap-3">
+      <div className="flex flex-wrap justify-end gap-3">
         <Button
           type="button"
           variant="outline"

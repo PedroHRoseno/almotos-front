@@ -330,7 +330,7 @@ export default function TrocasPage() {
       </Card>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Registrar Nova Troca</DialogTitle>
             <DialogDescription>

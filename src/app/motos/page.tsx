@@ -458,7 +458,7 @@ export default function MotosPage() {
       </div>
 
       <Dialog open={modal !== null} onOpenChange={(open) => !open && setModal(null)}>
-        <DialogContent showClose className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogContent showClose className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Cadastrar veículo</DialogTitle>
             <DialogDescription>

@@ -277,7 +277,7 @@ export default function ContatosPage() {
       </Card>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Cadastrar contato</DialogTitle>
             <DialogDescription>
@@ -295,7 +295,7 @@ export default function ContatosPage() {
           if (!open) setEditingPartner(null);
         }}
       >
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Editar contato</DialogTitle>
             <DialogDescription>

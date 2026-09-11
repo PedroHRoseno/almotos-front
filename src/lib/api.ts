@@ -48,6 +48,17 @@ const getBaseUrl = () =>
 
 type RequestConfig = RequestInit & { params?: Record<string, string> };
 
+function parseApiErrorBody(text: string, status: number, statusText: string): string {
+  try {
+    const body = JSON.parse(text) as { error?: string; message?: string };
+    if (body.error?.trim()) return body.error;
+    if (body.message?.trim()) return body.message;
+  } catch {
+    /* corpo não é JSON */
+  }
+  return text || `${status} ${statusText}`;
+}
+
 async function request<T>(
   path: string,
   config: RequestConfig = {}
@@ -86,7 +97,7 @@ async function request<T>(
   if (!res.ok) {
     const status = res.status;
     const text = await res.text();
-    const errorMsg = text || `${res.status} ${res.statusText}`;
+    const errorMsg = parseApiErrorBody(text, status, res.statusText);
     console.error(`[API] Erro ${status} (${res.url}):`, errorMsg);
     
     // Apenas 401 = sessão inválida/ausente. 403/400/500 não devem deslogar o usuário.
@@ -132,7 +143,7 @@ async function uploadMultipart<T>(
   if (!res.ok) {
     const status = res.status;
     const text = await res.text();
-    const errorMsg = text || `${res.status} ${res.statusText}`;
+    const errorMsg = parseApiErrorBody(text, status, res.statusText);
     console.error(`[API] Erro ${status} (${res.url}):`, errorMsg);
     throw new Error(errorMsg || `Erro ${status}: ${res.statusText}`);
   }

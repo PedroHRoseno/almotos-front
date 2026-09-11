@@ -372,7 +372,7 @@ export default function ComprasPage() {
       </Card>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Registrar Nova Compra</DialogTitle>
             <DialogDescription>

@@ -591,7 +591,7 @@ export function VehiclePhotoPipeline({
             </DialogDescription>
           </DialogHeader>
           {cropImageSrc && (
-            <div className="relative h-[420px] w-full overflow-hidden rounded-md bg-black md:h-[480px]">
+            <div className="relative h-[min(50vh,420px)] w-full min-w-0 overflow-hidden rounded-md bg-black md:h-[480px]">
               <Cropper
                 image={cropImageSrc}
                 crop={crop}

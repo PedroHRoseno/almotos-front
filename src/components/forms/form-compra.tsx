@@ -194,7 +194,7 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
   };
 
   const formContent = (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={form.handleSubmit(onSubmit)} className="@container min-w-0 space-y-6">
       {success && (
         <div className="rounded-md bg-green-50 dark:bg-green-950/30 p-3 text-sm text-green-800 dark:text-green-200">
           {success}
@@ -213,8 +213,8 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
           required
           error={form.formState.errors.vehicleLicensePlate}
         >
-          <div className="flex gap-2">
-            <div className="flex-1">
+          <div className="flex min-w-0 gap-2">
+            <div className="min-w-0 flex-1">
               <Controller
                 control={form.control}
                 name="vehicleLicensePlate"
@@ -254,8 +254,8 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
           required
           error={form.formState.errors.customerId}
         >
-          <div className="flex gap-2">
-            <div className="flex-1">
+          <div className="flex min-w-0 gap-2">
+            <div className="min-w-0 flex-1">
               <Controller
                 control={form.control}
                 name="customerId"
@@ -288,7 +288,7 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
           </p>
         </FormField>
 
-        <div className="grid gap-6 sm:grid-cols-2">
+        <div className="grid min-w-0 gap-6 @lg:grid-cols-2">
           <FormField
             name="purchasePrice"
             label="Valor da compra (R$)"
@@ -327,7 +327,7 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
         </div>
       </div>
 
-      <div className="flex justify-end gap-3">
+      <div className="flex flex-wrap justify-end gap-3">
         <Button
           type="button"
           variant="outline"
@@ -366,7 +366,7 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
       {insideModal && formContent}
 
       <Dialog open={modalParceiroOpen} onOpenChange={setModalParceiroOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Cadastrar Novo Parceiro</DialogTitle>
             <DialogDescription>
@@ -383,7 +383,7 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
       </Dialog>
 
       <Dialog open={modalVeiculoOpen} onOpenChange={setModalVeiculoOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Cadastrar Novo Veículo</DialogTitle>
             <DialogDescription>

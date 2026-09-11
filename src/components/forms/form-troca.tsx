@@ -144,7 +144,7 @@ export function FormTroca({ onSuccess, insideModal }: FormTrocaProps = {}) {
     `${v.brand} ${v.modelName} (${v.modelYear}) – ${v.licensePlate}`;
 
   const formContent = (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={form.handleSubmit(onSubmit)} className="@container min-w-0 space-y-6">
           {success && (
             <div className="rounded-md bg-green-50 dark:bg-green-950/30 p-3 text-sm text-green-800 dark:text-green-200">
               {success}
@@ -156,8 +156,8 @@ export function FormTroca({ onSuccess, insideModal }: FormTrocaProps = {}) {
             </div>
           )}
 
-          <div className="grid gap-6 sm:grid-cols-2">
-            <div className="sm:col-span-2">
+          <div className="grid min-w-0 gap-6 @lg:grid-cols-2">
+            <div className="@lg:col-span-2">
               <FormField
                 name="customerId"
                 label="Contato (opcional)"
@@ -297,7 +297,7 @@ export function FormTroca({ onSuccess, insideModal }: FormTrocaProps = {}) {
             </FormField>
           </div>
 
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-wrap justify-end gap-3">
             <Button type="button" variant="outline" onClick={() => form.reset(defaultValues)}>
               Limpar
             </Button>
