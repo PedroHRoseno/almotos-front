@@ -48,12 +48,28 @@ export const veiculoSchema = z.object({
   publicTags: z.array(z.string().min(1).max(80)).default([]),
   ownershipKind: z.enum(["OWN", "THIRD_PARTY"]).default("OWN"),
   ownerId: z.string().optional().or(z.literal("")),
+  baseCost: z.number().min(0, "Custo base não pode ser negativo").optional(),
+  agreedPayout: z.number().min(0, "Repasse combinado não pode ser negativo").optional(),
 }).superRefine((data, ctx) => {
   if (data.ownershipKind === "THIRD_PARTY" && !data.ownerId) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["ownerId"],
       message: "Selecione o contato dono da moto",
+    });
+  }
+  if (data.ownershipKind === "THIRD_PARTY" && (data.agreedPayout == null || data.agreedPayout < 0)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["agreedPayout"],
+      message: "Informe o valor de repasse combinado",
+    });
+  }
+  if (data.ownershipKind === "OWN" && data.inStock && (data.baseCost == null || data.baseCost < 0)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["baseCost"],
+      message: "Informe o custo base do veículo",
     });
   }
 });
@@ -70,7 +86,7 @@ export const vendaSchema = z.object({
   ownershipKind: z.enum(["OWN", "THIRD_PARTY"]).optional(),
   payoutId: z.string().optional().or(z.literal("")),
   payoutAmount: z.number().optional(),
-  storeProfit: z.number().optional(),
+  bankAccountId: z.string().optional().or(z.literal("")),
 }).superRefine((data, ctx) => {
   if (data.ownershipKind !== "THIRD_PARTY") return;
   if (!data.payoutId) {
@@ -87,44 +103,46 @@ export const vendaSchema = z.object({
       message: "Informe o valor repassado (pode ser zero)",
     });
   }
-  if (data.storeProfit == null) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["storeProfit"],
-      message: "Informe o lucro líquido da loja",
-    });
-  }
 });
 
 export type VendaFormData = z.infer<typeof vendaSchema>;
 
-/** Tipo de diferença na troca: quem paga a diferença em dinheiro */
-export const tipoDiferencaTrocaEnum = z.enum(["cliente_paga", "loja_paga"]);
-
 /** Schema de validação para Troca */
 export const trocaSchema = z
   .object({
-    veiculoEntradaLicensePlate: z
+    veiculoEntradaLicensePlate: z.string().optional().or(z.literal("")),
+    veiculoSaidaLicensePlate: z.string().min(1, "Selecione o veículo de saída"),
+    salePriceLoja: z
+      .number({ invalid_type_error: "Informe o preço da moto da loja" })
+      .min(0, "Preço da moto da loja não pode ser negativo"),
+    tradeInEvaluation: z
+      .number({ invalid_type_error: "Informe a avaliação da moto do cliente" })
+      .min(0, "Avaliação não pode ser negativa"),
+    customerId: z
       .string()
-      .min(1, "Selecione o veículo de entrada"),
-    veiculoSaidaLicensePlate: z
-      .string()
-      .min(1, "Selecione o veículo de saída"),
-    /** Quem paga a diferença: cliente = entrada para loja (positivo), loja = saída (negativo) */
-    tipoDiferenca: tipoDiferencaTrocaEnum.default("cliente_paga"),
-    /** Valor absoluto em R$ (sempre >= 0). O sinal é definido por tipoDiferenca. */
-    valorAbsoluto: z
-      .number({ invalid_type_error: "Informe o valor em R$" })
-      .min(0.01, "Informe o valor da diferença (mín. R$ 0,01)"),
-    customerId: z.string().optional().or(z.literal("")),
+      .min(1, "Selecione o contato do cliente nesta troca")
+      .refine((value) => value !== "__NONE__", "Selecione o contato do cliente nesta troca"),
+    bankAccountId: z.string().optional().or(z.literal("")),
   })
-  .refine(
-    (data) => data.veiculoEntradaLicensePlate !== data.veiculoSaidaLicensePlate,
-    {
-      message: "Veículo de entrada e saída devem ser diferentes",
-      path: ["veiculoSaidaLicensePlate"],
+  .superRefine((data, ctx) => {
+    if (!data.veiculoEntradaLicensePlate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["veiculoEntradaLicensePlate"],
+        message: "Selecione ou cadastre a moto que entra",
+      });
     }
-  );
+    if (
+      data.veiculoEntradaLicensePlate &&
+      data.veiculoEntradaLicensePlate === data.veiculoSaidaLicensePlate
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["veiculoSaidaLicensePlate"],
+        message: "Veículo de entrada e saída devem ser diferentes",
+      });
+    }
+  });
 
 export type TrocaFormData = z.infer<typeof trocaSchema>;
 
@@ -141,6 +159,7 @@ export const compraSchema = z.object({
     .string()
     .min(1, "Data da compra é obrigatória")
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Data deve estar no formato YYYY-MM-DD"),
+  bankAccountId: z.string().optional().or(z.literal("")),
 });
 
 export type CompraFormData = z.infer<typeof compraSchema>;

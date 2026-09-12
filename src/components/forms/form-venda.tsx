@@ -28,6 +28,10 @@ import { partnerSelectLabel } from "@/lib/masks";
 import type { Vehicle, PartnerSummary } from "@/types";
 import { useState, useEffect, useMemo } from "react";
 import { FormParceiro } from "@/components/forms/form-parceiro";
+import { BankAccountSelect } from "@/components/forms/bank-account-select";
+import { FIELD_HINTS } from "@/lib/field-hints";
+import { isVehicleAvailable } from "@/lib/vehicle-status";
+import { formatBRL } from "@/lib/masks";
 
 const defaultValues: Partial<VendaFormData> = {
   vehicleLicensePlate: "",
@@ -36,15 +40,16 @@ const defaultValues: Partial<VendaFormData> = {
   ownershipKind: "OWN",
   payoutId: "",
   payoutAmount: 0,
-  storeProfit: 0,
+  bankAccountId: "",
 };
 
 export interface FormVendaProps {
   onSuccess?: () => void;
   insideModal?: boolean;
+  defaultPlate?: string;
 }
 
-export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
+export function FormVenda({ onSuccess, insideModal, defaultPlate }: FormVendaProps = {}) {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [veiculos, setVeiculos] = useState<Vehicle[]>([]);
@@ -76,25 +81,30 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
       .finally(() => setLoadingPartners(false));
   }, []);
 
-  const disponiveis = veiculos.filter((v) => v.inStock || v.status === "DISPONIVEL");
+  const disponiveis = veiculos.filter((v) => isVehicleAvailable(v));
   const selectedPlate = form.watch("vehicleLicensePlate");
   const selectedVehicle = disponiveis.find((v) => v.licensePlate === selectedPlate);
   const isThirdParty = (selectedVehicle?.ownershipKind ?? "OWN") === "THIRD_PARTY";
   const watchedSalePrice = form.watch("salePrice") ?? 0;
   const watchedPayout = form.watch("payoutAmount") ?? 0;
-  const watchedProfit = form.watch("storeProfit") ?? 0;
-  const splitDiffers =
-    isThirdParty &&
-    Math.abs(watchedSalePrice - (watchedPayout + watchedProfit)) > 0.009;
+  const estimatedProfit = watchedSalePrice - watchedPayout;
+
+  useEffect(() => {
+    if (defaultPlate) {
+      form.setValue("vehicleLicensePlate", defaultPlate);
+    }
+  }, [defaultPlate, form]);
 
   useEffect(() => {
     form.setValue("ownershipKind", selectedVehicle?.ownershipKind ?? "OWN");
     if (selectedVehicle?.ownershipKind === "THIRD_PARTY") {
       form.setValue("payoutId", selectedVehicle.ownerId || "");
+      if (!form.getValues("payoutAmount")) {
+        form.setValue("payoutAmount", selectedVehicle.agreedPayout ?? 0);
+      }
     } else {
       form.setValue("payoutId", "");
       form.setValue("payoutAmount", 0);
-      form.setValue("storeProfit", 0);
     }
   }, [form, selectedVehicle]);
 
@@ -133,11 +143,11 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
         vehicle: { licensePlate: data.vehicleLicensePlate },
         customer: { id: data.customerId },
         salePrice: data.salePrice,
+        ...(data.bankAccountId ? { bankAccountId: data.bankAccountId } : {}),
         ...(data.ownershipKind === "THIRD_PARTY" && data.payoutId
           ? {
               payoutPartner: { id: data.payoutId },
               payoutAmount: data.payoutAmount ?? 0,
-              storeProfit: data.storeProfit ?? 0,
             }
           : {}),
       });
@@ -265,9 +275,10 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
                 </FormField>
                 <FormField
                   name="payoutAmount"
-                  label="Valor repassado (R$)"
+                  label="Valor de repasse (R$)"
                   required
                   error={form.formState.errors.payoutAmount}
+                  hint={FIELD_HINTS.payoutAmount}
                 >
                   <Controller
                     control={form.control}
@@ -284,35 +295,19 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
                     )}
                   />
                 </FormField>
-                <FormField
-                  name="storeProfit"
-                  label="Lucro líquido da loja (R$)"
-                  required
-                  error={form.formState.errors.storeProfit}
-                >
-                  <Controller
-                    control={form.control}
-                    name="storeProfit"
-                    render={({ field }) => (
-                      <CurrencyInput
-                        id="storeProfit"
-                        placeholder="R$ 0,00"
-                        value={field.value}
-                        onValueChange={field.onChange}
-                        onBlur={field.onBlur}
-                        error={!!form.formState.errors.storeProfit}
-                      />
-                    )}
-                  />
-                </FormField>
+                <div className="rounded-xl border border-line bg-surface p-3 text-sm">
+                  <p className="text-ink-muted">Lucro estimado da loja</p>
+                  <p className="text-lg font-semibold text-ink">{formatBRL(estimatedProfit)}</p>
+                </div>
               </>
             )}
 
             <FormField
               name="salePrice"
-              label="Valor da venda (R$)"
+              label="Preço de venda (R$)"
               required
               error={form.formState.errors.salePrice}
+              hint={FIELD_HINTS.salePrice}
             >
               <Controller
                 control={form.control}
@@ -330,11 +325,17 @@ export function FormVenda({ onSuccess, insideModal }: FormVendaProps = {}) {
               />
             </FormField>
           </div>
-          {splitDiffers && (
-            <p className="text-xs text-muted-foreground">
-              Aviso: venda ({watchedSalePrice}) é diferente de repasse + lucro da loja. Isso é permitido.
-            </p>
-          )}
+          <Controller
+            control={form.control}
+            name="bankAccountId"
+            render={({ field }) => (
+              <BankAccountSelect
+                value={field.value}
+                onChange={field.onChange}
+                error={form.formState.errors.bankAccountId}
+              />
+            )}
+          />
 
           <div className="flex flex-wrap justify-end gap-3">
             <Button

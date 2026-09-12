@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, Bike, ChevronLeft, ChevronRight, Eye, Plus, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Bike, ChevronLeft, ChevronRight, DollarSign, Eye, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -25,13 +25,15 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { FormVeiculo } from "@/components/forms/form-veiculo";
+import { FormVenda } from "@/components/forms/form-venda";
+import { isVehicleAvailable } from "@/lib/vehicle-status";
 import { FilterChip } from "@/components/ui/filter-chip";
 import { api } from "@/lib/api";
 import { formatBRL, formatLicensePlate } from "@/lib/masks";
@@ -127,7 +129,7 @@ export default function MotosPage() {
   const router = useRouter();
   const [veiculos, setVeiculos] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState<{ type: "create" } | null>(null);
+  const [modal, setModal] = useState<{ type: "create" } | { type: "sell"; plate: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [stockFilter, setStockFilter] = useState<StockFilter>("TODOS");
@@ -505,6 +507,17 @@ export default function MotosPage() {
                               <Eye className="h-4 w-4" />
                             </Button>
                           </Link>
+                          {isVehicleAvailable(v) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              title="Vender veículo"
+                              onClick={() => setModal({ type: "sell", plate: v.licensePlate })}
+                            >
+                              <DollarSign className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -592,22 +605,41 @@ export default function MotosPage() {
         </div>
       </div>
 
-      <Dialog open={modal !== null} onOpenChange={(open) => !open && setModal(null)}>
-        <DialogContent showClose className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Cadastrar veículo</DialogTitle>
-            <DialogDescription>
-              Preencha os dados do veículo. Fotos e recorte ficam na ficha depois do cadastro.
-            </DialogDescription>
-          </DialogHeader>
+      <Sheet modal={false} open={modal?.type === "create"} onOpenChange={(open) => !open && setModal(null)}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Cadastrar veículo</SheetTitle>
+            <SheetDescription>
+              A lista de motos continua visível. Fotos e recorte ficam na ficha depois do cadastro.
+            </SheetDescription>
+          </SheetHeader>
           <FormVeiculo
             insideModal
             includePhotos={false}
             includeCatalogFields
             onSuccessWithPlate={handleCadastroSuccess}
           />
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet modal={false} open={modal?.type === "sell"} onOpenChange={(open) => !open && setModal(null)}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Vender Veículo</SheetTitle>
+            <SheetDescription>A lista de motos continua visível à esquerda.</SheetDescription>
+          </SheetHeader>
+          {modal?.type === "sell" && (
+            <FormVenda
+              insideModal
+              defaultPlate={modal.plate}
+              onSuccess={() => {
+                setModal(null);
+                fetchVehicles();
+              }}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

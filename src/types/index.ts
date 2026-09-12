@@ -111,7 +111,11 @@ export type OwnershipKind = "OWN" | "THIRD_PARTY";
 export type ContactReportRole = "buyer" | "owner" | "payout" | "supplier";
 
 /** Status do veículo – enum do back-end (VehicleStatus) */
-export type VehicleStatus = "DISPONIVEL" | "VENDIDO" | "INACTIVE";
+export type VehicleStatus = "AVAILABLE" | "SOLD" | "INACTIVE" | "DISPONIVEL" | "VENDIDO";
+
+export type AcquisitionOrigin = "PURCHASE" | "CONSIGNMENT" | "TRADE_IN" | "STOCK_ADJUSTMENT";
+
+export type BankAccountOwner = "PEDRO" | "MAE" | "PAI" | "LOJA";
 
 /** Status da transação – enum do back-end (TransactionStatus) */
 export type TransactionStatus = "ACTIVE" | "CANCELLED";
@@ -128,6 +132,11 @@ export type TransactionCategory =
   | "PESSOAL"
   | "SERVICOS_PRESTADOS"
   | "REPASSE_PARCEIRO"
+  | "RETIRADA_PEDRO"
+  | "RETIRADA_MAE"
+  | "RETIRADA_PAI"
+  | "DESPESA_PESSOAL_FAMILIA"
+  | "AJUSTE_SALDO"
   | "OUTROS";
 
 /** Origem da movimentação */
@@ -145,6 +154,8 @@ export interface FinancialMovement {
   category?: string;
   vehicleLicensePlate?: string;
   transactionType?: string;
+  bankAccountId?: string | null;
+  bankAccountName?: string | null;
 }
 
 /** Transação da loja */
@@ -156,6 +167,7 @@ export interface StoreTransaction {
   type: TransactionTypeEnum;
   category: TransactionCategory;
   status: TransactionStatus;
+  bankAccountId?: string | null;
 }
 
 /** DTO para criar transação da loja */
@@ -165,6 +177,7 @@ export interface StoreTransactionCreate {
   date?: string;
   type: TransactionTypeEnum;
   category: TransactionCategory;
+  bankAccountId?: string | null;
 }
 
 /** Veículo (Vehicle) – GET /vehicles, POST /vehicles */
@@ -195,6 +208,9 @@ export interface Vehicle {
   ownerId?: string | null;
   ownerDocument?: string | null;
   ownerName?: string | null;
+  acquisitionOrigin?: AcquisitionOrigin;
+  baseCost?: number;
+  agreedPayout?: number | null;
 }
 
 /** Payload para criar veículo – POST /vehicles */
@@ -217,6 +233,9 @@ export interface VehicleCreate {
   ownershipKind?: OwnershipKind;
   ownerId?: string | null;
   ownerDocument?: string | null;
+  acquisitionOrigin?: AcquisitionOrigin;
+  baseCost?: number | null;
+  agreedPayout?: number | null;
 }
 
 export interface FipeModel {
@@ -296,6 +315,8 @@ export interface SaleResponse {
   payoutName?: string | null;
   payoutAmount?: number;
   storeProfit?: number | null;
+  bankAccountId?: string | null;
+  baseCost?: number | null;
 }
 
 /** Payload para criar venda – POST /sales. Back-end preenche saleDate. */
@@ -306,6 +327,7 @@ export interface SaleCreate {
   payoutPartner?: PartnerRef;
   payoutAmount?: number;
   storeProfit?: number;
+  bankAccountId?: string | null;
 }
 
 /** Payload para editar venda – PUT /sales/{id} */
@@ -347,6 +369,7 @@ export interface PurchaseResponse {
   purchasePrice: number;
   purchaseDate: string;
   status: TransactionStatus;
+  bankAccountId?: string | null;
 }
 
 /** Payload para criar compra – POST /purchases */
@@ -355,6 +378,7 @@ export interface PurchaseCreate {
   customer: PartnerRef;
   purchasePrice: number;
   purchaseDate: string; // ISO format string (yyyy-MM-dd)
+  bankAccountId?: string | null;
 }
 
 /** Payload para editar compra – PUT /purchases/{id} */
@@ -365,11 +389,15 @@ export interface PurchaseUpdate {
 
 /** Formulário de troca */
 export interface TrocaInput {
-  veiculoEntradaLicensePlate: string;
+  veiculoEntradaLicensePlate?: string;
   veiculoSaidaLicensePlate: string;
-  valorDiferenca: number;
+  valorDiferenca?: number;
+  salePriceLoja?: number;
+  tradeInEvaluation?: number;
+  incomingVehicle?: VehicleCreate;
   customerId?: string;
   customerDocument?: string;
+  bankAccountId?: string | null;
 }
 
 /** DTO de resposta de troca do backend */
@@ -385,8 +413,11 @@ export interface ExchangeResponse {
   partnerDocument?: string | null;
   partnerName: string;
   diferencaValor: number;
+  salePriceLoja?: number;
+  tradeInEvaluation?: number;
   exchangeDate: string;
   status: TransactionStatus;
+  bankAccountId?: string | null;
 }
 
 /** Payload para editar troca – PUT /exchanges/{id} */
@@ -423,6 +454,18 @@ export interface FinancialReport {
   lucroEstoqueProprio?: number;
   lucroTerceiros?: number;
   totalRepasses?: number;
+  receitasLoja?: number;
+  custosVeiculosVendidos?: number;
+  despesasOperacionais?: number;
+  lucroOperacional?: number;
+  retiradas?: {
+    pedro: number;
+    mae: number;
+    pai: number;
+    familia: number;
+    pessoalLegado: number;
+    total: number;
+  };
 }
 
 export interface ContactReportSale {
@@ -465,6 +508,30 @@ export interface ContactReport {
 }
 
 /** Resposta paginada do Spring */
+export interface BankAccount {
+  id: string;
+  name: string;
+  ownerPerson: BankAccountOwner;
+  bankName: string;
+  initialBalance: number;
+  isActive: boolean;
+  balance: number;
+}
+
+export interface BankAccountCreate {
+  name: string;
+  ownerPerson: BankAccountOwner;
+  bankName: string;
+  initialBalance: number;
+  isActive?: boolean;
+}
+
+export interface BankAccountsOverview {
+  accounts: BankAccount[];
+  totalsByOwner: Record<string, number>;
+  unifiedBalance: number;
+}
+
 export interface PageResponse<T> {
   content: T[];
   totalElements: number;

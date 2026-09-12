@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, DollarSign, Calendar, User, Loader2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, DollarSign, Calendar, User, Loader2, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,10 +17,31 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { FormVenda } from "@/components/forms/form-venda";
+import { FormTroca } from "@/components/forms/form-troca";
+import { isVehicleAvailable } from "@/lib/vehicle-status";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { VehiclePhotoPipeline } from "@/components/vehicle/vehicle-photo-pipeline";
 import { FormVeiculo } from "@/components/forms/form-veiculo";
+import { BankAccountSelect } from "@/components/forms/bank-account-select";
 import { CurrencyInput } from "@/components/ui/currency-input";
 
 function formatCurrency(value: number): string {
@@ -54,6 +75,7 @@ export default function VeiculoDetailPage() {
     cost: number | undefined;
     description: string;
     costDate: string;
+    bankAccountId?: string;
   }>({ cost: undefined, description: "", costDate: "" });
   const [addingCost, setAddingCost] = useState(false);
   const [images, setImages] = useState<string[]>([]);
@@ -61,6 +83,12 @@ export default function VeiculoDetailPage() {
   const [galleryBlocking, setGalleryBlocking] = useState(false);
   const [togglingPublished, setTogglingPublished] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [sellOpen, setSellOpen] = useState(false);
+  const [tradeOpen, setTradeOpen] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [cancelPurchaseOpen, setCancelPurchaseOpen] = useState(false);
+  const [acting, setActing] = useState(false);
 
   const fetchHistory = useCallback(() => {
     setLoading(true);
@@ -92,7 +120,7 @@ export default function VeiculoDetailPage() {
   const handleTogglePublished = async () => {
     if (!history) return;
     const v = history.vehicle;
-    const isAvailable = v.status === "DISPONIVEL";
+    const isAvailable = isVehicleAvailable(v);
     const next = !v.published;
     if (next && !isAvailable) {
       toast.error("Só é possível publicar veículos disponíveis (em estoque).");
@@ -138,6 +166,7 @@ export default function VeiculoDetailPage() {
         cost: newCost.cost,
         description: newCost.description,
         costDate: newCost.costDate || undefined,
+        bankAccountId: newCost.bankAccountId || null,
       });
       toast.success("Custo adicionado com sucesso!");
       setCostModalOpen(false);
@@ -224,6 +253,30 @@ export default function VeiculoDetailPage() {
             </p>
           </div>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setEditing((value) => !value)}>
+            <Pencil className="mr-2 h-4 w-4" />
+            {editing ? "Cancelar edição" : "Editar Informações"}
+          </Button>
+          {isVehicleAvailable(vehicle) && (
+            <>
+              <Button onClick={() => setSellOpen(true)}>Vender Veículo</Button>
+              <Button variant="outline" onClick={() => setTradeOpen(true)}>
+                Realizar Troca
+              </Button>
+              {vehicle.acquisitionOrigin === "CONSIGNMENT" && (
+                <Button variant="outline" onClick={() => setReturnOpen(true)}>
+                  Devolver ao Proprietário
+                </Button>
+              )}
+              {vehicle.acquisitionOrigin === "PURCHASE" && (
+                <Button variant="outline" onClick={() => setCancelPurchaseOpen(true)}>
+                  Cancelar/Estornar Compra
+                </Button>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       <FormVeiculo
@@ -232,7 +285,9 @@ export default function VeiculoDetailPage() {
         currentPlate={placa}
         includePhotos={false}
         includeCatalogFields={false}
+        readOnly={!editing}
         onSuccessWithPlate={(nextPlate) => {
+          setEditing(false);
           const next = formatLicensePlate(nextPlate);
           const current = formatLicensePlate(placa);
           if (next !== current) {
@@ -256,7 +311,7 @@ export default function VeiculoDetailPage() {
             <div className="space-y-0.5">
               <p className="text-sm font-medium">Publicado no Catálogo</p>
               <p className="text-xs text-muted-foreground">
-                {vehicle.status === "DISPONIVEL"
+                {isVehicleAvailable(vehicle)
                   ? "Disponível para publicação."
                   : "Veículo vendido/inativo não deve ficar público."}
               </p>
@@ -578,6 +633,10 @@ export default function VeiculoDetailPage() {
                 onChange={(e) => setNewCost({ ...newCost, costDate: e.target.value })}
               />
             </div>
+            <BankAccountSelect
+              value={newCost.bankAccountId}
+              onChange={(bankAccountId) => setNewCost({ ...newCost, bankAccountId })}
+            />
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setCostModalOpen(false)}>
                 Cancelar
@@ -596,6 +655,104 @@ export default function VeiculoDetailPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <Sheet modal={false} open={sellOpen} onOpenChange={setSellOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Vender Veículo</SheetTitle>
+            <SheetDescription>A ficha continua visível à esquerda.</SheetDescription>
+          </SheetHeader>
+          <FormVenda
+            insideModal
+            defaultPlate={vehicle.licensePlate}
+            onSuccess={() => {
+              setSellOpen(false);
+              fetchHistory();
+            }}
+          />
+        </SheetContent>
+      </Sheet>
+
+      <Sheet modal={false} open={tradeOpen} onOpenChange={setTradeOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Realizar Troca</SheetTitle>
+            <SheetDescription>Esta moto já entra como a que sai da loja.</SheetDescription>
+          </SheetHeader>
+          <FormTroca
+            insideModal
+            defaultSaidaPlate={vehicle.licensePlate}
+            onSuccess={() => {
+              setTradeOpen(false);
+              fetchHistory();
+            }}
+          />
+        </SheetContent>
+      </Sheet>
+
+      <AlertDialog open={returnOpen} onOpenChange={setReturnOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Devolver ao proprietário?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A moto sai do estoque (INACTIVE) e some do catálogo. Nenhum repasse ou venda será gerado.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={acting}
+              onClick={async () => {
+                setActing(true);
+                try {
+                  await api.vehicles.devolverConsignado(placa);
+                  toast.success("Consignado devolvido ao proprietário.");
+                  setReturnOpen(false);
+                  fetchHistory();
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Não foi possível devolver.");
+                } finally {
+                  setActing(false);
+                }
+              }}
+            >
+              Confirmar devolução
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={cancelPurchaseOpen} onOpenChange={setCancelPurchaseOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Estornar a compra?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A saída de caixa da compra some dos totais e o veículo fica INACTIVE.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={acting}
+              onClick={async () => {
+                setActing(true);
+                try {
+                  await api.vehicles.estornarCompra(placa);
+                  toast.success("Compra estornada.");
+                  setCancelPurchaseOpen(false);
+                  fetchHistory();
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Não foi possível estornar.");
+                } finally {
+                  setActing(false);
+                }
+              }}
+            >
+              Confirmar estorno
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -26,12 +26,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -371,17 +371,17 @@ export default function ComprasPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Registrar Nova Compra</DialogTitle>
-            <DialogDescription>
-              Registre a compra de um veículo. Você pode selecionar um veículo existente ou cadastrar um novo, assim como selecionar ou cadastrar um fornecedor/parceiro.
-            </DialogDescription>
-          </DialogHeader>
+      <Sheet modal={false} open={modalOpen} onOpenChange={setModalOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Registrar compra</SheetTitle>
+            <SheetDescription>
+              A lista de compras continua visível. Selecione o veículo e o fornecedor sem perder o contexto.
+            </SheetDescription>
+          </SheetHeader>
           <FormCompra onSuccess={handleCompraSuccess} insideModal />
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

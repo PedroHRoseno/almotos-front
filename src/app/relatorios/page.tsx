@@ -251,6 +251,47 @@ export default function RelatoriosPage() {
           ) : (
             <p className="text-sm text-muted-foreground">Erro ao carregar relatório.</p>
           )}
+          {report && (
+            <div className="space-y-4 border-t border-line pt-6">
+              <div>
+                <h3 className="font-display text-lg font-semibold text-ink">Lucro limpo da loja</h3>
+                <p className="text-xs text-muted-foreground">
+                  Receitas operacionais menos custo das motos vendidas e despesas da loja. Retiradas da família ficam fora.
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm">Receitas da loja</CardTitle></CardHeader>
+                  <CardContent className="text-xl font-bold">{formatCurrency(report.receitasLoja || 0)}</CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm">Custos das motos vendidas</CardTitle></CardHeader>
+                  <CardContent className="text-xl font-bold">{formatCurrency(report.custosVeiculosVendidos || 0)}</CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm">Despesas operacionais</CardTitle></CardHeader>
+                  <CardContent className="text-xl font-bold">{formatCurrency(report.despesasOperacionais || 0)}</CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm">Lucro operacional</CardTitle></CardHeader>
+                  <CardContent className="text-xl font-bold text-emerald-700 dark:text-emerald-300">
+                    {formatCurrency(report.lucroOperacional || 0)}
+                  </CardContent>
+                </Card>
+              </div>
+              <div>
+                <h3 className="font-display text-lg font-semibold text-ink">Retiradas da família</h3>
+                <p className="text-xs text-muted-foreground">Não entram no lucro operacional da AL Motos.</p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Pedro</CardTitle></CardHeader><CardContent>{formatCurrency(report.retiradas?.pedro || 0)}</CardContent></Card>
+                <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Mãe</CardTitle></CardHeader><CardContent>{formatCurrency(report.retiradas?.mae || 0)}</CardContent></Card>
+                <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Pai</CardTitle></CardHeader><CardContent>{formatCurrency(report.retiradas?.pai || 0)}</CardContent></Card>
+                <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Casa / família</CardTitle></CardHeader><CardContent>{formatCurrency(report.retiradas?.familia || 0)}</CardContent></Card>
+                <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Total retiradas</CardTitle></CardHeader><CardContent className="font-semibold">{formatCurrency(report.retiradas?.total || 0)}</CardContent></Card>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -23,12 +23,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -368,24 +368,24 @@ export default function VendasPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Registrar Nova Venda</DialogTitle>
-            <DialogDescription>
-              Selecione o veículo disponível, escolha o cliente/parceiro (ou cadastre um novo) e informe o valor da venda.
-            </DialogDescription>
-          </DialogHeader>
+      <Sheet modal={false} open={modalOpen} onOpenChange={setModalOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Vender Veículo</SheetTitle>
+            <SheetDescription>
+              A lista à esquerda continua clicável. Preencha a venda sem perder o contexto do estoque.
+            </SheetDescription>
+          </SheetHeader>
           <FormVenda onSuccess={handleVendaSuccess} insideModal />
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Cancelamento</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja cancelar esta venda? A venda será marcada como CANCELADA e o veículo será revertido para DISPONÍVEL no estoque. Transações canceladas não aparecem nos cálculos financeiros.
+              Tem certeza que deseja cancelar esta venda? A venda será marcada como CANCELADA e o veículo voltará para AVAILABLE no estoque. Transações canceladas não aparecem nos cálculos financeiros.
               {saleToDelete && (
                 <div className="mt-2 p-2 bg-muted rounded text-xs">
                   <div><strong>Veículo:</strong> {saleToDelete.vehicleBrand} {saleToDelete.vehicleModel} - {saleToDelete.vehicleLicensePlate}</div>

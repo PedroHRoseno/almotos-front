@@ -20,7 +20,13 @@ import { formatLicensePlate, partnerSelectLabel } from "@/lib/masks";
 import { api } from "@/lib/api";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import type { SearchableSelectOption } from "@/components/ui/searchable-select";
-import type { FipeConsultaResponse, PartnerSummary, Vehicle, VehicleBrand } from "@/types";
+import type {
+  AcquisitionOrigin,
+  FipeConsultaResponse,
+  PartnerSummary,
+  Vehicle,
+  VehicleBrand,
+} from "@/types";
 import { VEHICLE_BRANDS } from "@/types";
 import { cn } from "@/lib/utils";
 import { VehiclePhotoPipeline } from "@/components/vehicle/vehicle-photo-pipeline";
@@ -29,6 +35,7 @@ import { KilometersInput } from "@/components/ui/kilometers-input";
 import { FipeModelAutocomplete } from "@/components/forms/fipe-model-autocomplete";
 import { FipeConsultaCard } from "@/components/forms/fipe-consulta-card";
 import { TagInput } from "@/components/forms/tag-input";
+import { FIELD_HINTS } from "@/lib/field-hints";
 
 const emptyDefaults: Partial<VeiculoFormData> = {
   licensePlate: "",
@@ -47,6 +54,8 @@ const emptyDefaults: Partial<VeiculoFormData> = {
   publicTags: [],
   ownershipKind: "OWN",
   ownerId: "",
+  baseCost: undefined,
+  agreedPayout: undefined,
 };
 
 function valuesFromVehicle(vehicle: Vehicle): VeiculoFormData {
@@ -66,8 +75,21 @@ function valuesFromVehicle(vehicle: Vehicle): VeiculoFormData {
     internalTags: (vehicle.internalTags ?? []).map((tag) => tag.name),
     publicTags: (vehicle.publicTags ?? []).map((tag) => tag.name),
     ownershipKind: vehicle.ownershipKind ?? "OWN",
+    baseCost: vehicle.baseCost ?? undefined,
+    agreedPayout: vehicle.agreedPayout ?? undefined,
     ownerId: vehicle.ownerId ?? "",
   };
+}
+
+function resolveAcquisitionOrigin(
+  ownershipKind: string | undefined,
+  vehicle: Vehicle | undefined
+): AcquisitionOrigin {
+  if (ownershipKind === "THIRD_PARTY") return "CONSIGNMENT";
+  if (vehicle?.acquisitionOrigin && vehicle.acquisitionOrigin !== "CONSIGNMENT") {
+    return vehicle.acquisitionOrigin;
+  }
+  return "STOCK_ADJUSTMENT";
 }
 
 function apiErrorMessage(error: unknown, fallback: string): string {
@@ -97,6 +119,7 @@ export interface FormVeiculoProps {
   /** Chamado com a placa resultante (nova, se alterada). */
   onSuccessWithPlate?: (licensePlate: string) => void;
   insideModal?: boolean;
+  readOnly?: boolean;
 }
 
 export function FormVeiculo({
@@ -108,6 +131,7 @@ export function FormVeiculo({
   onSuccess,
   onSuccessWithPlate,
   insideModal,
+  readOnly = false,
 }: FormVeiculoProps = {}) {
   const isEdit = mode === "edit";
   const showPhotos = includePhotos;
@@ -220,6 +244,9 @@ export function FormVeiculo({
       publicTags: data.publicTags ?? [],
       ownershipKind: data.ownershipKind ?? "OWN",
       ownerId: data.ownershipKind === "THIRD_PARTY" ? data.ownerId || null : null,
+      acquisitionOrigin: resolveAcquisitionOrigin(data.ownershipKind, vehicle),
+      baseCost: data.ownershipKind === "THIRD_PARTY" ? data.agreedPayout ?? 0 : data.baseCost ?? 0,
+      agreedPayout: data.ownershipKind === "THIRD_PARTY" ? data.agreedPayout ?? 0 : null,
     };
 
     try {
@@ -249,7 +276,8 @@ export function FormVeiculo({
   };
 
   const formContent = (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="@container min-w-0 space-y-6">
+        <form onSubmit={readOnly ? (e) => e.preventDefault() : form.handleSubmit(onSubmit)} className="@container min-w-0 space-y-6">
+      <fieldset disabled={readOnly} className="min-w-0 space-y-6 border-0 p-0">
       {success && (
         <div className="rounded-xl bg-emerald-500/10 p-3 text-sm text-emerald-300">
           {success}
@@ -474,6 +502,32 @@ export function FormVeiculo({
           />
         </FormField>
 
+        {watchedOwnership === "OWN" && (
+          <FormField
+            name="baseCost"
+            label="Custo base"
+            required
+            error={form.formState.errors.baseCost}
+            hint={FIELD_HINTS.baseCost}
+          >
+            <Controller
+              control={form.control}
+              name="baseCost"
+              render={({ field }) => (
+                <CurrencyInput
+                  id="baseCost"
+                  placeholder="R$ 0,00"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  onBlur={field.onBlur}
+                  error={!!form.formState.errors.baseCost}
+                  disabled={readOnly}
+                />
+              )}
+            />
+          </FormField>
+        )}
+
         {watchedOwnership === "THIRD_PARTY" && (
           <FormField
             name="ownerId"
@@ -493,6 +547,32 @@ export function FormVeiculo({
                   emptyMessage="Nenhum contato encontrado"
                   error={!!form.formState.errors.ownerId}
                   allowClear
+                />
+              )}
+            />
+          </FormField>
+        )}
+
+        {watchedOwnership === "THIRD_PARTY" && (
+          <FormField
+            name="agreedPayout"
+            label="Valor de repasse combinado"
+            required
+            error={form.formState.errors.agreedPayout}
+            hint={FIELD_HINTS.payoutAmount}
+          >
+            <Controller
+              control={form.control}
+              name="agreedPayout"
+              render={({ field }) => (
+                <CurrencyInput
+                  id="agreedPayout"
+                  placeholder="R$ 0,00"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  onBlur={field.onBlur}
+                  error={!!form.formState.errors.agreedPayout}
+                  disabled={readOnly}
                 />
               )}
             />
@@ -651,9 +731,10 @@ export function FormVeiculo({
         </FormField>
         )}
       </div>
+      </fieldset>
 
       <div className="flex flex-wrap justify-end gap-3">
-        {!isEdit && (
+        {readOnly ? null : !isEdit && (
           <Button
             type="button"
             variant="outline"
@@ -665,6 +746,7 @@ export function FormVeiculo({
             Limpar
           </Button>
         )}
+        {readOnly ? null : (
         <Button type="submit" disabled={form.formState.isSubmitting || photosBlockingSave}>
           {form.formState.isSubmitting ? (
             <>
@@ -677,6 +759,7 @@ export function FormVeiculo({
             "Cadastrar veículo"
           )}
         </Button>
+        )}
       </div>
     </form>
   );

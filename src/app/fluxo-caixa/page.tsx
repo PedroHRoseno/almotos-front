@@ -37,6 +37,7 @@ import {
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { BankAccountSelect } from "@/components/forms/bank-account-select";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const EMPTY_TRANSACTION: StoreTransactionCreate = {
@@ -77,6 +78,11 @@ function getCategoryLabel(category: string): string {
     PESSOAL: "Pessoal",
     SERVICOS_PRESTADOS: "Serviços Prestados",
     REPASSE_PARCEIRO: "Repasse a parceiro",
+    RETIRADA_PEDRO: "Retirada Pedro",
+    RETIRADA_MAE: "Retirada Mãe",
+    RETIRADA_PAI: "Retirada Pai",
+    DESPESA_PESSOAL_FAMILIA: "Despesa pessoal da família",
+    AJUSTE_SALDO: "Ajuste de saldo",
     OUTROS: "Outros",
   };
   return labels[category] || category;
@@ -155,6 +161,7 @@ export default function FluxoCaixaPage() {
       type: movement.type,
       category: (movement.category as TransactionCategory) || "OUTROS",
       date: toDateInputValue(movement.date) || undefined,
+      bankAccountId: movement.bankAccountId || undefined,
     });
     setModalOpen(true);
   };
@@ -293,6 +300,11 @@ export default function FluxoCaixaPage() {
                 <SelectItem value="PESSOAL">Pessoal</SelectItem>
                 <SelectItem value="SERVICOS_PRESTADOS">Serviços Prestados</SelectItem>
                 <SelectItem value="REPASSE_PARCEIRO">Repasse a parceiro</SelectItem>
+                <SelectItem value="RETIRADA_PEDRO">Retirada Pedro</SelectItem>
+                <SelectItem value="RETIRADA_MAE">Retirada Mãe</SelectItem>
+                <SelectItem value="RETIRADA_PAI">Retirada Pai</SelectItem>
+                <SelectItem value="DESPESA_PESSOAL_FAMILIA">Despesa pessoal da família</SelectItem>
+                <SelectItem value="AJUSTE_SALDO">Ajuste de saldo</SelectItem>
                 <SelectItem value="OUTROS">Outros</SelectItem>
               </SelectContent>
             </Select>
@@ -494,6 +506,11 @@ export default function FluxoCaixaPage() {
                   <SelectItem value="PESSOAL">Pessoal</SelectItem>
                   <SelectItem value="SERVICOS_PRESTADOS">Serviços Prestados</SelectItem>
                   <SelectItem value="REPASSE_PARCEIRO">Repasse a parceiro</SelectItem>
+                  <SelectItem value="RETIRADA_PEDRO">Retirada Pedro</SelectItem>
+                  <SelectItem value="RETIRADA_MAE">Retirada Mãe</SelectItem>
+                  <SelectItem value="RETIRADA_PAI">Retirada Pai</SelectItem>
+                  <SelectItem value="DESPESA_PESSOAL_FAMILIA">Despesa pessoal da família</SelectItem>
+                  <SelectItem value="AJUSTE_SALDO">Ajuste de saldo</SelectItem>
                   <SelectItem value="OUTROS">Outros</SelectItem>
                 </SelectContent>
               </Select>
@@ -534,6 +551,12 @@ export default function FluxoCaixaPage() {
                 }
               />
             </div>
+            <BankAccountSelect
+              value={newTransaction.bankAccountId || undefined}
+              onChange={(bankAccountId) =>
+                setNewTransaction({ ...newTransaction, bankAccountId: bankAccountId || null })
+              }
+            />
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => handleModalChange(false)}>
                 Cancelar

@@ -2,10 +2,17 @@
 
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import type { SearchableSelectOption } from "@/components/ui/searchable-select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { FormField } from "@/components/ui/form-field";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import {
@@ -19,28 +26,36 @@ import { trocaSchema, type TrocaFormData } from "@/lib/validations/schemas";
 import { api } from "@/lib/api";
 import { partnerSelectLabel } from "@/lib/masks";
 import type { Vehicle, PartnerSummary } from "@/types";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { FormParceiro } from "@/components/forms/form-parceiro";
+import { BankAccountSelect } from "@/components/forms/bank-account-select";
+import { FIELD_HINTS } from "@/lib/field-hints";
+import { isVehicleAvailable } from "@/lib/vehicle-status";
+import { formatBRL } from "@/lib/masks";
 
 const defaultValues: Partial<TrocaFormData> = {
   veiculoEntradaLicensePlate: "",
   veiculoSaidaLicensePlate: "",
-  tipoDiferenca: "cliente_paga",
-  valorAbsoluto: undefined,
+  salePriceLoja: undefined,
+  tradeInEvaluation: undefined,
   customerId: "",
+  bankAccountId: "",
 };
 
 export interface FormTrocaProps {
   onSuccess?: () => void;
   insideModal?: boolean;
+  defaultSaidaPlate?: string;
 }
 
-export function FormTroca({ onSuccess, insideModal }: FormTrocaProps = {}) {
+export function FormTroca({ onSuccess, insideModal, defaultSaidaPlate }: FormTrocaProps = {}) {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [veiculos, setVeiculos] = useState<Vehicle[]>([]);
   const [loadingVeiculos, setLoadingVeiculos] = useState(true);
   const [partners, setPartners] = useState<PartnerSummary[]>([]);
   const [loadingPartners, setLoadingPartners] = useState(true);
+  const [modalParceiroOpen, setModalParceiroOpen] = useState(false);
 
   const form = useForm<TrocaFormData>({
     resolver: zodResolver(trocaSchema),
@@ -66,8 +81,35 @@ export function FormTroca({ onSuccess, insideModal }: FormTrocaProps = {}) {
   }, []);
 
   const entradaPlaca = form.watch("veiculoEntradaLicensePlate");
-  // Para saída, apenas veículos disponíveis
-  const disponiveis = veiculos.filter((v) => v.inStock || v.status === "DISPONIVEL");
+  const saidaPlaca = form.watch("veiculoSaidaLicensePlate");
+  const salePriceLoja = form.watch("salePriceLoja") ?? 0;
+  const tradeInEvaluation = form.watch("tradeInEvaluation") ?? 0;
+  const cashDifference = salePriceLoja - tradeInEvaluation;
+  const disponiveis = useMemo(
+    () => veiculos.filter((v) => isVehicleAvailable(v)),
+    [veiculos]
+  );
+  const prefilledSaidaPlate = useRef<string>("");
+
+  useEffect(() => {
+    if (defaultSaidaPlate) {
+      form.setValue("veiculoSaidaLicensePlate", defaultSaidaPlate);
+    }
+  }, [defaultSaidaPlate, form]);
+
+  useEffect(() => {
+    if (!saidaPlaca) {
+      prefilledSaidaPlate.current = "";
+      return;
+    }
+    if (prefilledSaidaPlate.current === saidaPlaca) return;
+    const saida = disponiveis.find((v) => v.licensePlate === saidaPlaca);
+    if (!saida) return;
+    if (saida.suggestedPrice != null) {
+      form.setValue("salePriceLoja", saida.suggestedPrice);
+    }
+    prefilledSaidaPlate.current = saidaPlaca;
+  }, [disponiveis, form, saidaPlaca]);
 
   // Preparar opções de veículos para entrada (todos os veículos)
   const veiculoEntradaOptions: SearchableSelectOption[] = useMemo(
@@ -93,40 +135,38 @@ export function FormTroca({ onSuccess, insideModal }: FormTrocaProps = {}) {
     [disponiveis, entradaPlaca]
   );
 
-  // Preparar opções de parceiros para o SearchableSelect
   const parceiroOptions: SearchableSelectOption[] = useMemo(
-    () => {
-      const options: SearchableSelectOption[] = [
-        {
-          value: "__NONE__",
-          label: "Não especificar (buscar por venda anterior)",
-        },
-      ];
-      partners.forEach((p) => {
-        options.push({
-          value: p.id,
-          label: partnerSelectLabel(p.name, p.document),
-          searchText: `${p.name} ${p.document || ""} ${p.city || ""}`,
-        });
-      });
-      return options;
-    },
+    () =>
+      partners.map((p) => ({
+        value: p.id,
+        label: partnerSelectLabel(p.name, p.document),
+        searchText: `${p.name} ${p.document || ""} ${p.city || ""}`,
+      })),
     [partners]
   );
+
+  const handleParceiroCriado = (id: string) => {
+    setModalParceiroOpen(false);
+    api.customers
+      .listar(0, 100)
+      .then((response) => {
+        setPartners(response.content || []);
+        form.setValue("customerId", id);
+      })
+      .catch(() => {});
+  };
 
   const onSubmit = async (data: TrocaFormData) => {
     setSuccess(null);
     setError(null);
     try {
-      const idVal = data.customerId?.trim();
-      const customerId = idVal && idVal !== "__NONE__" ? idVal : undefined;
-      const valorDiferenca = data.tipoDiferenca === "cliente_paga" ? Number(data.valorAbsoluto) : -Number(data.valorAbsoluto);
-
       const payload = {
         veiculoEntradaLicensePlate: data.veiculoEntradaLicensePlate,
         veiculoSaidaLicensePlate: data.veiculoSaidaLicensePlate,
-        valorDiferenca,
-        ...(customerId ? { customerId } : {}),
+        salePriceLoja: data.salePriceLoja,
+        tradeInEvaluation: data.tradeInEvaluation,
+        customerId: data.customerId.trim(),
+        ...(data.bankAccountId ? { bankAccountId: data.bankAccountId } : {}),
       };
 
       await api.exchanges.realizar(payload);
@@ -160,32 +200,41 @@ export function FormTroca({ onSuccess, insideModal }: FormTrocaProps = {}) {
             <div className="@lg:col-span-2">
               <FormField
                 name="customerId"
-                label="Contato (opcional)"
+                label="Cliente"
+                required
                 error={form.formState.errors.customerId}
               >
-                <Controller
-                  control={form.control}
-                  name="customerId"
-                  render={({ field }) => (
-                    <SearchableSelect
-                      options={parceiroOptions}
-                      value={field.value || "__NONE__"}
-                      onValueChange={(val) => {
-                        if (val === "__NONE__") field.onChange("");
-                        else field.onChange(val);
-                      }}
-                      placeholder={loadingPartners ? "Carregando…" : "Buscar parceiro (opcional)..."}
-                      disabled={loadingPartners}
-                      emptyMessage="Nenhum parceiro encontrado"
-                      error={!!form.formState.errors.customerId}
-                      allowClear
+                <div className="flex min-w-0 gap-2">
+                  <div className="min-w-0 flex-1">
+                    <Controller
+                      control={form.control}
+                      name="customerId"
+                      render={({ field }) => (
+                        <SearchableSelect
+                          options={parceiroOptions}
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          placeholder={loadingPartners ? "Carregando…" : "Buscar cliente..."}
+                          disabled={loadingPartners}
+                          emptyMessage="Nenhum contato encontrado"
+                          error={!!form.formState.errors.customerId}
+                          allowClear
+                        />
+                      )}
                     />
-                  )}
-                />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setModalParceiroOpen(true)}
+                    title="Cadastrar novo contato"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  <strong>Recomendado:</strong> Selecione o parceiro para garantir que a troca seja registrada corretamente. 
-                  Se não especificado, o sistema tentará encontrar o parceiro através da última venda do veículo de entrada 
-                  (apenas se o veículo foi vendido anteriormente pelo sistema).
+                  Quem entrega a moto e leva a da loja. Cadastre um novo contato pelo botão +.
                 </p>
               </FormField>
             </div>
@@ -238,64 +287,84 @@ export function FormTroca({ onSuccess, insideModal }: FormTrocaProps = {}) {
             </FormField>
 
             <FormField
-              name="tipoDiferenca"
-              label="Quem paga a diferença?"
+              name="salePriceLoja"
+              label="Preço da moto da loja"
               required
-              error={form.formState.errors.tipoDiferenca}
-            >
-              <div className="flex flex-col gap-3 rounded-lg border p-4 bg-muted/30">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    value="cliente_paga"
-                    {...form.register("tipoDiferenca")}
-                    className="h-4 w-4 accent-primary"
-                  />
-                  <span className="text-sm font-medium text-green-600 dark:text-green-400">
-                    Cliente paga a diferença
-                  </span>
-                  <span className="text-xs text-muted-foreground">(entrada para a loja)</span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    value="loja_paga"
-                    {...form.register("tipoDiferenca")}
-                    className="h-4 w-4 accent-primary"
-                  />
-                  <span className="text-sm font-medium text-red-600 dark:text-red-400">
-                    Loja paga a diferença
-                  </span>
-                  <span className="text-xs text-muted-foreground">(saída da loja)</span>
-                </label>
-              </div>
-            </FormField>
-
-            <FormField
-              name="valorAbsoluto"
-              label="Valor da diferença (R$)"
-              required
-              error={form.formState.errors.valorAbsoluto}
+              error={form.formState.errors.salePriceLoja}
+              hint={FIELD_HINTS.salePrice}
             >
               <Controller
                 control={form.control}
-                name="valorAbsoluto"
+                name="salePriceLoja"
                 render={({ field }) => (
                   <CurrencyInput
-                    id="valorAbsoluto"
+                    id="salePriceLoja"
                     placeholder="R$ 0,00"
                     value={field.value}
                     onValueChange={field.onChange}
                     onBlur={field.onBlur}
-                    error={!!form.formState.errors.valorAbsoluto}
+                    error={!!form.formState.errors.salePriceLoja}
                   />
                 )}
               />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Informe apenas o valor em R$. O tipo (quem paga) já está definido acima.
-              </p>
+            </FormField>
+
+            <FormField
+              name="tradeInEvaluation"
+              label="Avaliação da moto do cliente"
+              required
+              error={form.formState.errors.tradeInEvaluation}
+              hint={FIELD_HINTS.tradeInEvaluation}
+            >
+              <Controller
+                control={form.control}
+                name="tradeInEvaluation"
+                render={({ field }) => (
+                  <CurrencyInput
+                    id="tradeInEvaluation"
+                    placeholder="R$ 0,00"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    onBlur={field.onBlur}
+                    error={!!form.formState.errors.tradeInEvaluation}
+                  />
+                )}
+              />
             </FormField>
           </div>
+
+          <div
+            className={`rounded-xl border p-3 text-sm ${
+              cashDifference > 0
+                ? "border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-100"
+                : cashDifference < 0
+                  ? "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100"
+                  : "border-line bg-surface text-ink"
+            }`}
+          >
+            <p className="font-medium" title={FIELD_HINTS.cashDifference}>Diferença de caixa</p>
+            <p>
+              {cashDifference > 0
+                ? `A loja recebe ${formatBRL(cashDifference)} do cliente.`
+                : cashDifference < 0
+                  ? `A loja devolve ${formatBRL(Math.abs(cashDifference))} ao cliente.`
+                  : "Troca sem movimentação de caixa."}
+            </p>
+          </div>
+
+          {cashDifference !== 0 && (
+            <Controller
+              control={form.control}
+              name="bankAccountId"
+              render={({ field }) => (
+                <BankAccountSelect
+                  value={field.value}
+                  onChange={field.onChange}
+                  error={form.formState.errors.bankAccountId}
+                />
+              )}
+            />
+          )}
 
           <div className="flex flex-wrap justify-end gap-3">
             <Button type="button" variant="outline" onClick={() => form.reset(defaultValues)}>
@@ -330,6 +399,23 @@ export function FormTroca({ onSuccess, insideModal }: FormTrocaProps = {}) {
       )}
 
       {insideModal && formContent}
+
+      <Dialog open={modalParceiroOpen} onOpenChange={setModalParceiroOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Cadastrar contato</DialogTitle>
+            <DialogDescription>
+              Cadastre o cliente desta troca. Depois do cadastro, ele será selecionado automaticamente.
+            </DialogDescription>
+          </DialogHeader>
+          <FormParceiro
+            insideModal
+            onSuccessWithId={(id) => {
+              handleParceiroCriado(id);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

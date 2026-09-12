@@ -9,6 +9,7 @@ import { AuthGuard } from "@/components/auth/AuthGuard";
 import { LayoutWrapper } from "@/components/layout/LayoutWrapper";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemedToaster } from "@/components/themed-toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { THEME_BOOTSTRAP } from "@/lib/theme";
 
 const dmSans = DM_Sans({
@@ -57,6 +58,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full antialiased font-sans bg-canvas text-ink">
         <ThemeProvider>
+          <TooltipProvider delayDuration={200}>
           <AuthProvider>
             <AuthGuard>
               <DashboardProvider>
@@ -69,6 +71,7 @@ export default function RootLayout({
             </AuthGuard>
           </AuthProvider>
           <ThemedToaster />
+          </TooltipProvider>
         </ThemeProvider>
       </body>
     </html>

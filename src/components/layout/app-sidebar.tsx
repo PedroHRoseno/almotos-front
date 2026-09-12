@@ -19,6 +19,7 @@ import {
   ArrowUpDown,
   BookOpen,
   BadgeDollarSign,
+  Landmark,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ const menuItems = [
   { title: "Vendas", href: "/vendas", icon: ShoppingCart },
   { title: "Trocas", href: "/trocas", icon: Repeat },
   { title: "Fluxo de Caixa", href: "/fluxo-caixa", icon: ArrowUpDown },
+  { title: "Contas & Bancos", href: "/contas", icon: Landmark },
   { title: "Relatórios", href: "/relatorios", icon: BarChart3 },
   { title: "Guia", href: "/guia", icon: BookOpen },
   { title: "Configurações", href: "/configuracoes", icon: Settings },

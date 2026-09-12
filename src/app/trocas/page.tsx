@@ -21,12 +21,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -329,17 +329,17 @@ export default function TrocasPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Registrar Nova Troca</DialogTitle>
-            <DialogDescription>
-              Registre uma troca de veículos. O cliente entrega um veículo como parte do pagamento de outro.
-            </DialogDescription>
-          </DialogHeader>
+      <Sheet modal={false} open={modalOpen} onOpenChange={setModalOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Realizar troca</SheetTitle>
+            <SheetDescription>
+              A lista de trocas continua visível. Confira a diferença de caixa antes de confirmar.
+            </SheetDescription>
+          </SheetHeader>
           <FormTroca onSuccess={handleTrocaSuccess} insideModal />
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
