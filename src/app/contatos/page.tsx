@@ -30,7 +30,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { api } from "@/lib/api";
-import { formatDocumentOrDash } from "@/lib/masks";
+import { formatDocumentOrDash, formatPhoneOrDash } from "@/lib/masks";
 import type { PartnerDetail, PartnerSummary } from "@/types";
 import { FormParceiro } from "@/components/forms/form-parceiro";
 
@@ -47,11 +47,6 @@ export default function ContatosPage() {
   const [loadingEdit, setLoadingEdit] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-
-  const formatPhone = (phone?: string) => {
-    if (!phone) return "-";
-    return phone.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
-  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -179,7 +174,7 @@ export default function ContatosPage() {
                         </TableCell>
                         <TableCell className="font-medium text-sm md:text-base">{partner.name}</TableCell>
                         <TableCell className="text-muted-foreground text-xs md:text-sm">
-                          {formatPhone(partner.phoneNumber1)}
+                          {formatPhoneOrDash(partner.phoneNumber1)}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs md:text-sm">
                           {partner.city || "-"}

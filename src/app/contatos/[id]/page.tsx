@@ -7,7 +7,7 @@ import { ArrowLeft, Edit } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
-import { formatBRL, formatDocumentOrDash } from "@/lib/masks";
+import { formatBRL, formatDocumentOrDash, formatPhoneOrDash } from "@/lib/masks";
 import type { ContactReport, PartnerDetail, Vehicle } from "@/types";
 import { FormParceiro } from "@/components/forms/form-parceiro";
 import {
@@ -53,11 +53,6 @@ export default function ContatoDetailPage() {
   useEffect(() => {
     if (partnerId) fetchPartnerDetail();
   }, [partnerId, fetchPartnerDetail]);
-
-  const formatPhone = (phone?: string) => {
-    if (!phone) return "-";
-    return phone.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
-  };
 
   if (loading) {
     return (
@@ -119,12 +114,12 @@ export default function ContatoDetailPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Telefone 1</p>
-              <p className="text-lg">{formatPhone(partner.phoneNumber1)}</p>
+              <p className="text-lg">{formatPhoneOrDash(partner.phoneNumber1)}</p>
             </div>
             {partner.phoneNumber2 && (
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Telefone 2</p>
-                <p className="text-lg">{formatPhone(partner.phoneNumber2)}</p>
+                <p className="text-lg">{formatPhoneOrDash(partner.phoneNumber2)}</p>
               </div>
             )}
           </CardContent>

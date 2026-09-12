@@ -21,7 +21,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { parceiroSchema, type ParceiroFormData } from "@/lib/validations/schemas";
-import { formatDocument, digitsOnly } from "@/lib/masks";
+import { formatDocument, digitsOnly, formatPhone } from "@/lib/masks";
 import { api } from "@/lib/api";
 import { buscarCep } from "@/lib/viacep";
 import { useState } from "react";
@@ -34,6 +34,16 @@ const defaultValues: Partial<ParceiroFormData> = {
   phoneNumber2: "",
   address: undefined,
 };
+
+function maskPartnerDefaults(data?: Partial<ParceiroFormData>): Partial<ParceiroFormData> {
+  const base = { ...defaultValues, ...data };
+  return {
+    ...base,
+    document: base.document ? formatDocument(base.document) : "",
+    phoneNumber1: formatPhone(base.phoneNumber1 || ""),
+    phoneNumber2: formatPhone(base.phoneNumber2 || ""),
+  };
+}
 
 export interface FormParceiroProps {
   onSuccess?: () => void;
@@ -73,7 +83,7 @@ export function FormParceiro({
 
   const form = useForm<ParceiroFormData>({
     resolver: zodResolver(parceiroSchema),
-    defaultValues: initialData || defaultValues,
+    defaultValues: maskPartnerDefaults(initialData),
   });
 
   const onSubmit = async (data: ParceiroFormData) => {
@@ -217,11 +227,23 @@ export function FormParceiro({
           label="Telefone 1"
           error={form.formState.errors.phoneNumber1}
         >
-          <Input
-            id="phoneNumber1"
-            placeholder="(00) 00000-0000"
-            {...form.register("phoneNumber1")}
-            className={cn(form.formState.errors.phoneNumber1 && "border-destructive")}
+          <Controller
+            control={form.control}
+            name="phoneNumber1"
+            render={({ field }) => (
+              <Input
+                id="phoneNumber1"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder="(00) 00000-0000"
+                value={field.value}
+                onChange={(e) => field.onChange(formatPhone(e.target.value))}
+                onBlur={field.onBlur}
+                maxLength={15}
+                className={cn(form.formState.errors.phoneNumber1 && "border-destructive")}
+              />
+            )}
           />
         </FormField>
 
@@ -230,11 +252,23 @@ export function FormParceiro({
           label="Telefone 2"
           error={form.formState.errors.phoneNumber2}
         >
-          <Input
-            id="phoneNumber2"
-            placeholder="(00) 00000-0000"
-            {...form.register("phoneNumber2")}
-            className={cn(form.formState.errors.phoneNumber2 && "border-destructive")}
+          <Controller
+            control={form.control}
+            name="phoneNumber2"
+            render={({ field }) => (
+              <Input
+                id="phoneNumber2"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder="(00) 00000-0000"
+                value={field.value}
+                onChange={(e) => field.onChange(formatPhone(e.target.value))}
+                onBlur={field.onBlur}
+                maxLength={15}
+                className={cn(form.formState.errors.phoneNumber2 && "border-destructive")}
+              />
+            )}
           />
         </FormField>
       </div>
