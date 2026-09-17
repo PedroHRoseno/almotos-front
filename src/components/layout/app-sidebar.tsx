@@ -20,6 +20,7 @@ import {
   BookOpen,
   BadgeDollarSign,
   Landmark,
+  Filter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ const menuItems = [
   { title: "Veículos", href: "/motos", icon: Bike },
   { title: "Consulta FIPE", href: "/consulta-fipe", icon: BadgeDollarSign },
   { title: "Contatos", href: "/contatos", icon: Users },
+  { title: "Leads (Espera)", href: "/leads", icon: Filter, hideForFinance: true },
   { title: "Compras", href: "/compras", icon: ShoppingBag, hideForFinance: true },
   { title: "Vendas", href: "/vendas", icon: ShoppingCart, hideForFinance: true },
   { title: "Trocas", href: "/trocas", icon: Repeat, hideForFinance: true },

@@ -13,6 +13,7 @@ const FINANCE_BLOCKED_PREFIXES = [
   "/fluxo-caixa",
   "/relatorios",
   "/contas",
+  "/leads",
 ] as const;
 
 export function isFinanceRole(role?: string | null): boolean {

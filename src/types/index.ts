@@ -544,6 +544,18 @@ export interface PageResponse<T> {
   last: boolean;
 }
 
+export type VehicleInterestStatus = "PENDING" | "COMPLETED" | "CANCELLED";
+
+/** Lead da lista de espera – GET /vehicles/interests */
+export interface VehicleInterest {
+  id: string;
+  contactPhone: string;
+  desiredBrand: string;
+  desiredModel: string;
+  status: VehicleInterestStatus | string;
+  createdAt: string;
+}
+
 /** Histórico completo do veículo */
 export interface VehicleHistory {
   vehicle: Vehicle;

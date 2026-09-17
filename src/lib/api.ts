@@ -37,6 +37,8 @@ import type {
   FipeConsultaResponse,
   VehicleTag,
   InternalUser,
+  VehicleInterest,
+  VehicleInterestStatus,
 } from "@/types";
 import {
   clearStoredAuth,
@@ -571,6 +573,27 @@ export const api = {
     deletar: (id: number) =>
       request<void>(`/store-transactions/${id}`, {
         method: "DELETE",
+      }),
+  },
+  interests: {
+    listar: (
+      page: number = 0,
+      size: number = 20,
+      status?: VehicleInterestStatus
+    ) => {
+      const params: Record<string, string> = {
+        ...buildPaginationParams(page, size, "createdAt,desc"),
+      };
+      if (status) params.status = status;
+      return request<PageResponse<VehicleInterest>>("/vehicles/interests", { params });
+    },
+    completar: (id: string) =>
+      request<VehicleInterest>(`/vehicles/interests/${encodeURIComponent(id)}/complete`, {
+        method: "PATCH",
+      }),
+    cancelar: (id: string) =>
+      request<VehicleInterest>(`/vehicles/interests/${encodeURIComponent(id)}/cancel`, {
+        method: "PATCH",
       }),
   },
 };

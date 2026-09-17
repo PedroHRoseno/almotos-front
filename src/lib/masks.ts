@@ -83,6 +83,13 @@ export function formatPhone(value: string): string {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7, 11)}`;
 }
 
+/** Telefone gravado (E.164 BR, com 55) ou local, formatado para exibição. */
+export function formatStoredPhone(value?: string | null): string {
+  let d = digitsOnly(value || "");
+  if (d.startsWith("55") && d.length >= 12) d = d.slice(2);
+  return formatPhone(d) || "—";
+}
+
 /** Telefone formatado ou travessão quando vazio. */
 export function formatPhoneOrDash(value?: string | null): string {
   const formatted = formatPhone(value || "");
