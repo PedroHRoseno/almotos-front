@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { hasValidSession } from "@/lib/auth-token";
+import { getStoredUser, hasValidSession } from "@/lib/auth-token";
+import { homePathForRole } from "@/lib/roles";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
@@ -20,7 +21,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (hasValidSession()) {
-      window.location.replace("/");
+      window.location.replace(homePathForRole(getStoredUser()?.role));
     }
   }, []);
 
@@ -32,7 +33,7 @@ export default function LoginPage() {
       await login(username, password);
       toast.success("Login realizado com sucesso!");
       // Recarrega a app para o AuthGuard ler o token do localStorage (evita race com setState)
-      window.location.assign("/");
+      window.location.assign(homePathForRole(getStoredUser()?.role));
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Erro ao fazer login. Verifique suas credenciais."

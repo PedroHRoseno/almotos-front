@@ -279,10 +279,12 @@ export interface FipeConsultaResponse {
   dataConsulta?: string | null;
 }
 
+export type InternalUserRole = "ADMIN" | "USER" | "FINANCE";
+
 export interface InternalUser {
   id: number;
   username: string;
-  role: "ADMIN" | "USER" | string;
+  role: InternalUserRole | string;
 }
 
 /** Venda (Sale) – GET /sales, POST /sales */

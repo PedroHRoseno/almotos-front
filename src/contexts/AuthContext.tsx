@@ -7,10 +7,11 @@ import {
   getValidStoredToken,
   hasValidSession,
 } from "@/lib/auth-token";
+import type { UserRole } from "@/lib/roles";
 
 interface User {
   username: string;
-  role: string;
+  role: UserRole | string;
 }
 
 interface AuthContextType {

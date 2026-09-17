@@ -42,6 +42,7 @@ import {
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { InternalUser } from "@/types";
+import { USER_ROLES, type UserRole } from "@/lib/roles";
 
 function apiErrorMessage(error: unknown, fallback: string): string {
   if (!(error instanceof Error)) return fallback;
@@ -68,7 +69,7 @@ export default function ConfiguracoesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [newUsername, setNewUsername] = useState("");
   const [newUserPassword, setNewUserPassword] = useState("");
-  const [newUserRole, setNewUserRole] = useState<"ADMIN" | "USER">("USER");
+  const [newUserRole, setNewUserRole] = useState<UserRole>("USER");
   const [creating, setCreating] = useState(false);
 
   const [resetTarget, setResetTarget] = useState<InternalUser | null>(null);
@@ -278,6 +279,7 @@ export default function ConfiguracoesPage() {
                           <SelectContent>
                             <SelectItem value="ADMIN">ADMIN</SelectItem>
                             <SelectItem value="USER">USER</SelectItem>
+                            <SelectItem value="FINANCE">FINANCE</SelectItem>
                           </SelectContent>
                         </Select>
                       </TableCell>
@@ -352,13 +354,16 @@ export default function ConfiguracoesPage() {
             </div>
             <div className="space-y-2">
               <Label>Papel</Label>
-              <Select value={newUserRole} onValueChange={(v) => setNewUserRole(v as "ADMIN" | "USER")}>
+              <Select value={newUserRole} onValueChange={(v) => setNewUserRole(v as UserRole)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="USER">USER</SelectItem>
-                  <SelectItem value="ADMIN">ADMIN</SelectItem>
+                  {USER_ROLES.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {role}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

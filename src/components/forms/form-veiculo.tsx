@@ -120,6 +120,8 @@ export interface FormVeiculoProps {
   onSuccessWithPlate?: (licensePlate: string) => void;
   insideModal?: boolean;
   readOnly?: boolean;
+  /** Oculta custo, repasse, lucro e tags internas (perfil FINANCE). */
+  hideFinancial?: boolean;
 }
 
 export function FormVeiculo({
@@ -132,10 +134,12 @@ export function FormVeiculo({
   onSuccessWithPlate,
   insideModal,
   readOnly = false,
+  hideFinancial = false,
 }: FormVeiculoProps = {}) {
   const isEdit = mode === "edit";
   const showPhotos = includePhotos;
   const showCatalogFields = includeCatalogFields;
+  const showFinancial = !hideFinancial;
   const plateForPath = currentPlate ?? vehicle?.licensePlate ?? "";
 
   const [success, setSuccess] = useState<string | null>(null);
@@ -478,6 +482,7 @@ export function FormVeiculo({
           )}
         </FormField>
 
+        {showFinancial && (
         <FormField name="ownershipKind" label="Propriedade" error={form.formState.errors.ownershipKind}>
           <Controller
             control={form.control}
@@ -501,8 +506,9 @@ export function FormVeiculo({
             )}
           />
         </FormField>
+        )}
 
-        {watchedOwnership === "OWN" && (
+        {showFinancial && watchedOwnership === "OWN" && (
           <FormField
             name="baseCost"
             label="Custo base"
@@ -528,7 +534,7 @@ export function FormVeiculo({
           </FormField>
         )}
 
-        {watchedOwnership === "THIRD_PARTY" && (
+        {showFinancial && watchedOwnership === "THIRD_PARTY" && (
           <FormField
             name="ownerId"
             label="Dono / consignante"
@@ -553,7 +559,7 @@ export function FormVeiculo({
           </FormField>
         )}
 
-        {watchedOwnership === "THIRD_PARTY" && (
+        {showFinancial && watchedOwnership === "THIRD_PARTY" && (
           <FormField
             name="agreedPayout"
             label="Valor de repasse combinado"
@@ -615,6 +621,7 @@ export function FormVeiculo({
           </div>
         )}
 
+        {showFinancial && (
         <FormField
           name="internalTags"
           label="Tags internas"
@@ -636,6 +643,7 @@ export function FormVeiculo({
           />
           <p className="text-xs text-ink-subtle">Só o painel admin vê estas tags.</p>
         </FormField>
+        )}
 
         <FormField
           name="publicTags"
@@ -769,9 +777,13 @@ export function FormVeiculo({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{isEdit ? "Editar veículo" : "Cadastrar veículo"}</CardTitle>
+        <CardTitle>
+          {hideFinancial ? "Ficha comercial" : isEdit ? "Editar veículo" : "Cadastrar veículo"}
+        </CardTitle>
         <CardDescription>
-          {isEdit
+          {hideFinancial
+            ? "Dados para simulação de financiamento. Custos e lucro não aparecem neste perfil."
+            : isEdit
             ? "Atualize os dados estruturais, inclusive a placa."
             : "Preencha os dados do veículo para adicionar ao estoque."}
         </CardDescription>

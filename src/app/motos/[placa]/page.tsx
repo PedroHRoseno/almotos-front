@@ -9,7 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { formatDocumentOrDash, formatLicensePlate, formatBRL } from "@/lib/masks";
-import type { VehicleHistory } from "@/types";
+import { isFinanceRole } from "@/lib/roles";
+import { useAuth } from "@/contexts/AuthContext";
+import type { Vehicle, VehicleHistory } from "@/types";
 import {
   Dialog,
   DialogContent,
@@ -65,9 +67,12 @@ function formatDate(dateString: string): string {
 export default function VeiculoDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { user } = useAuth();
+  const isFinance = isFinanceRole(user?.role);
   const placa = params.placa as string;
   
   const [history, setHistory] = useState<VehicleHistory | null>(null);
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [costModalOpen, setCostModalOpen] = useState(false);
@@ -90,36 +95,41 @@ export default function VeiculoDetailPage() {
   const [cancelPurchaseOpen, setCancelPurchaseOpen] = useState(false);
   const [acting, setActing] = useState(false);
 
-  const fetchHistory = useCallback(() => {
+  const fetchPage = useCallback(() => {
     setLoading(true);
     setError(null);
-    api.vehicles
-      .historico(placa)
-      .then((data) => {
-        setHistory(data);
-      })
+    const request = isFinance
+      ? api.vehicles.buscarPorPlaca(placa).then((data) => {
+          setVehicle(data);
+          setHistory(null);
+        })
+      : api.vehicles.historico(placa).then((data) => {
+          setHistory(data);
+          setVehicle(data.vehicle);
+        });
+    request
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Erro ao carregar histórico do veículo");
+        setError(err instanceof Error ? err.message : "Erro ao carregar o veículo");
       })
       .finally(() => setLoading(false));
-  }, [placa]);
+  }, [placa, isFinance]);
 
   useEffect(() => {
     if (placa) {
-      fetchHistory();
+      fetchPage();
     }
-  }, [placa, fetchHistory]);
+  }, [placa, fetchPage]);
 
   useEffect(() => {
-    if (!history) return;
-    const list = history.vehicle.imageUrlList || [];
+    if (!vehicle) return;
+    const list = vehicle.imageUrlList || [];
     setImages(list);
-    setDescriptionDraft(history.vehicle.description ?? "");
-  }, [history]);
+    setDescriptionDraft(vehicle.description ?? "");
+  }, [vehicle]);
 
   const handleTogglePublished = async () => {
-    if (!history) return;
-    const v = history.vehicle;
+    if (!vehicle) return;
+    const v = vehicle;
     const isAvailable = isVehicleAvailable(v);
     const next = !v.published;
     if (next && !isAvailable) {
@@ -130,7 +140,7 @@ export default function VeiculoDetailPage() {
     try {
       await api.vehicles.atualizarCatalogo(placa, { published: next });
       toast.success(next ? "Veículo publicado com sucesso!" : "Removido do catálogo.");
-      fetchHistory();
+      fetchPage();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao atualizar publicação");
     } finally {
@@ -146,7 +156,7 @@ export default function VeiculoDetailPage() {
         description: descriptionDraft.trim() || null,
       });
       toast.success("Vitrine atualizada com sucesso!");
-      fetchHistory();
+      fetchPage();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Erro ao salvar galeria");
     } finally {
@@ -171,7 +181,7 @@ export default function VeiculoDetailPage() {
       toast.success("Custo adicionado com sucesso!");
       setCostModalOpen(false);
       setNewCost({ cost: undefined, description: "", costDate: "" });
-      fetchHistory();
+      fetchPage();
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Erro ao adicionar custo"
@@ -185,7 +195,7 @@ export default function VeiculoDetailPage() {
     try {
       await api.vehicles.custos.deletar(placa, id);
       toast.success("Custo removido com sucesso!");
-      fetchHistory();
+      fetchPage();
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Erro ao remover custo"
@@ -201,7 +211,7 @@ export default function VeiculoDetailPage() {
     );
   }
 
-  if (error || !history) {
+  if (error || !vehicle) {
     return (
       <div className="space-y-4">
         <Button variant="ghost" onClick={() => router.push("/motos")}>
@@ -219,13 +229,12 @@ export default function VeiculoDetailPage() {
     );
   }
 
-  const vehicle = history.vehicle;
   const isThirdParty = (vehicle.ownershipKind ?? "OWN") === "THIRD_PARTY";
-  const activeSales = history.sales.filter(s => s.status === "ACTIVE");
-  const activePurchases = history.purchases.filter(p => p.status === "ACTIVE");
+  const activeSales = history?.sales.filter((s) => s.status === "ACTIVE") ?? [];
+  const activePurchases = history?.purchases.filter((p) => p.status === "ACTIVE") ?? [];
   const totalPurchasePrice = activePurchases.reduce((sum, p) => sum + p.purchasePrice, 0);
   const totalSalePrice = activeSales.reduce((sum, s) => sum + s.salePrice, 0);
-  const totalCosts = history.totalCosts;
+  const totalCosts = history?.totalCosts ?? 0;
   const derivedProfit = totalSalePrice - (totalPurchasePrice + totalCosts);
   const recordedProfit = activeSales.reduce((sum, s) => sum + (s.storeProfit ?? 0), 0);
   const recordedPayout = activeSales.reduce((sum, s) => sum + (s.payoutAmount ?? 0), 0);
@@ -247,12 +256,15 @@ export default function VeiculoDetailPage() {
             </h1>
             <p className="text-sm md:text-base text-ink-muted tabular-nums">
               Placa: {vehicle.licensePlate}
-              {isThirdParty
-                ? ` · De terceiro (${vehicle.ownerName || vehicle.ownerDocument || "contato"})`
-                : " · Estoque próprio"}
+              {isFinance
+                ? null
+                : isThirdParty
+                  ? ` · De terceiro (${vehicle.ownerName || vehicle.ownerDocument || "contato"})`
+                  : " · Estoque próprio"}
             </p>
           </div>
         </div>
+        {!isFinance && (
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setEditing((value) => !value)}>
             <Pencil className="mr-2 h-4 w-4" />
@@ -277,6 +289,7 @@ export default function VeiculoDetailPage() {
             </>
           )}
         </div>
+        )}
       </div>
 
       <FormVeiculo
@@ -285,7 +298,8 @@ export default function VeiculoDetailPage() {
         currentPlate={placa}
         includePhotos={false}
         includeCatalogFields={false}
-        readOnly={!editing}
+        readOnly={isFinance || !editing}
+        hideFinancial={isFinance}
         onSuccessWithPlate={(nextPlate) => {
           setEditing(false);
           const next = formatLicensePlate(nextPlate);
@@ -293,12 +307,35 @@ export default function VeiculoDetailPage() {
           if (next !== current) {
             router.replace(`/motos/${encodeURIComponent(next)}`);
           } else {
-            fetchHistory();
+            fetchPage();
           }
         }}
       />
 
-      {/* Vitrine Pública */}
+      {isFinance ? (
+      <Card>
+        <CardHeader>
+          <CardTitle>Fotos</CardTitle>
+          <CardDescription>Imagens da moto para a simulação de financiamento.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {images.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Sem fotos cadastradas.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+              {images.map((url) => (
+                <img
+                  key={url}
+                  src={url}
+                  alt={`${vehicle.brand} ${vehicle.modelName}`}
+                  className="aspect-[4/3] w-full rounded-xl object-cover"
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+      ) : (
       <Card>
         <CardHeader>
           <CardTitle>Vitrine Pública</CardTitle>
@@ -375,7 +412,10 @@ export default function VeiculoDetailPage() {
           </div>
         </CardContent>
       </Card>
+      )}
 
+      {!isFinance && history && (
+      <>
       {/* Resumo Financeiro */}
       <Card>
         <CardHeader>
@@ -595,9 +635,11 @@ export default function VeiculoDetailPage() {
           </div>
         </CardContent>
       </Card>
+      </>
+      )}
 
       {/* Modal de Adicionar Custo */}
-      <Dialog open={costModalOpen} onOpenChange={setCostModalOpen}>
+      <Dialog open={!isFinance && costModalOpen} onOpenChange={setCostModalOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Adicionar Custo Adicional</DialogTitle>
@@ -656,7 +698,7 @@ export default function VeiculoDetailPage() {
         </DialogContent>
       </Dialog>
 
-      <Sheet modal={false} open={sellOpen} onOpenChange={setSellOpen}>
+      <Sheet modal={false} open={!isFinance && sellOpen} onOpenChange={setSellOpen}>
         <SheetContent>
           <SheetHeader>
             <SheetTitle>Vender Veículo</SheetTitle>
@@ -667,13 +709,13 @@ export default function VeiculoDetailPage() {
             defaultPlate={vehicle.licensePlate}
             onSuccess={() => {
               setSellOpen(false);
-              fetchHistory();
+              fetchPage();
             }}
           />
         </SheetContent>
       </Sheet>
 
-      <Sheet modal={false} open={tradeOpen} onOpenChange={setTradeOpen}>
+      <Sheet modal={false} open={!isFinance && tradeOpen} onOpenChange={setTradeOpen}>
         <SheetContent>
           <SheetHeader>
             <SheetTitle>Realizar Troca</SheetTitle>
@@ -684,7 +726,7 @@ export default function VeiculoDetailPage() {
             defaultSaidaPlate={vehicle.licensePlate}
             onSuccess={() => {
               setTradeOpen(false);
-              fetchHistory();
+              fetchPage();
             }}
           />
         </SheetContent>
@@ -708,7 +750,7 @@ export default function VeiculoDetailPage() {
                   await api.vehicles.devolverConsignado(placa);
                   toast.success("Consignado devolvido ao proprietário.");
                   setReturnOpen(false);
-                  fetchHistory();
+                  fetchPage();
                 } catch (e) {
                   toast.error(e instanceof Error ? e.message : "Não foi possível devolver.");
                 } finally {
@@ -740,7 +782,7 @@ export default function VeiculoDetailPage() {
                   await api.vehicles.estornarCompra(placa);
                   toast.success("Compra estornada.");
                   setCancelPurchaseOpen(false);
-                  fetchHistory();
+                  fetchPage();
                 } catch (e) {
                   toast.error(e instanceof Error ? e.message : "Não foi possível estornar.");
                 } finally {

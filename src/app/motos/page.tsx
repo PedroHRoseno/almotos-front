@@ -37,6 +37,8 @@ import { isVehicleAvailable } from "@/lib/vehicle-status";
 import { FilterChip } from "@/components/ui/filter-chip";
 import { api } from "@/lib/api";
 import { formatBRL, formatLicensePlate } from "@/lib/masks";
+import { isFinanceRole } from "@/lib/roles";
+import { useAuth } from "@/contexts/AuthContext";
 import type { OwnershipKind, Vehicle } from "@/types";
 import { toast } from "sonner";
 
@@ -127,6 +129,8 @@ function publishedFilterToPublished(filter: PublishedFilter): boolean | undefine
 
 export default function MotosPage() {
   const router = useRouter();
+  const { user } = useAuth();
+  const isFinance = isFinanceRole(user?.role);
   const [veiculos, setVeiculos] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<{ type: "create" } | { type: "sell"; plate: string } | null>(null);
@@ -207,13 +211,17 @@ export default function MotosPage() {
         <div>
           <h1 className="font-display text-3xl font-extrabold tracking-tight text-ink">Motos</h1>
           <p className="text-ink-muted">
-            Gerencie o inventário de motos. Pesquise, filtre e cadastre novos veículos.
+            {isFinance
+              ? "Vitrine interna para simulação. Sem custos, lucro ou ações de compra e venda."
+              : "Gerencie o inventário de motos. Pesquise, filtre e cadastre novos veículos."}
           </p>
         </div>
+        {!isFinance && (
         <Button onClick={() => setModal({ type: "create" })} className="shrink-0">
           <Plus className="mr-2 h-4 w-4" />
           Cadastrar veículo
         </Button>
+        )}
       </div>
 
       <div className="rounded-card border border-line-soft bg-surface">
@@ -507,7 +515,7 @@ export default function MotosPage() {
                               <Eye className="h-4 w-4" />
                             </Button>
                           </Link>
-                          {isVehicleAvailable(v) && (
+                          {isVehicleAvailable(v) && !isFinance && (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -605,7 +613,7 @@ export default function MotosPage() {
         </div>
       </div>
 
-      <Sheet modal={false} open={modal?.type === "create"} onOpenChange={(open) => !open && setModal(null)}>
+      <Sheet modal={false} open={!isFinance && modal?.type === "create"} onOpenChange={(open) => !open && setModal(null)}>
         <SheetContent>
           <SheetHeader>
             <SheetTitle>Cadastrar veículo</SheetTitle>
@@ -622,7 +630,7 @@ export default function MotosPage() {
         </SheetContent>
       </Sheet>
 
-      <Sheet modal={false} open={modal?.type === "sell"} onOpenChange={(open) => !open && setModal(null)}>
+      <Sheet modal={false} open={!isFinance && modal?.type === "sell"} onOpenChange={(open) => !open && setModal(null)}>
         <SheetContent>
           <SheetHeader>
             <SheetTitle>Vender Veículo</SheetTitle>

@@ -28,18 +28,19 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LogOut } from "lucide-react";
 import { useState, useEffect } from "react";
+import { homePathForRole, isFinanceRole } from "@/lib/roles";
 
 const menuItems = [
-  { title: "Dashboard", href: "/", icon: LayoutDashboard },
+  { title: "Dashboard", href: "/", icon: LayoutDashboard, hideForFinance: true },
   { title: "Veículos", href: "/motos", icon: Bike },
   { title: "Consulta FIPE", href: "/consulta-fipe", icon: BadgeDollarSign },
   { title: "Contatos", href: "/contatos", icon: Users },
-  { title: "Compras", href: "/compras", icon: ShoppingBag },
-  { title: "Vendas", href: "/vendas", icon: ShoppingCart },
-  { title: "Trocas", href: "/trocas", icon: Repeat },
-  { title: "Fluxo de Caixa", href: "/fluxo-caixa", icon: ArrowUpDown },
-  { title: "Contas & Bancos", href: "/contas", icon: Landmark },
-  { title: "Relatórios", href: "/relatorios", icon: BarChart3 },
+  { title: "Compras", href: "/compras", icon: ShoppingBag, hideForFinance: true },
+  { title: "Vendas", href: "/vendas", icon: ShoppingCart, hideForFinance: true },
+  { title: "Trocas", href: "/trocas", icon: Repeat, hideForFinance: true },
+  { title: "Fluxo de Caixa", href: "/fluxo-caixa", icon: ArrowUpDown, hideForFinance: true },
+  { title: "Contas & Bancos", href: "/contas", icon: Landmark, hideForFinance: true },
+  { title: "Relatórios", href: "/relatorios", icon: BarChart3, hideForFinance: true },
   { title: "Guia", href: "/guia", icon: BookOpen },
   { title: "Configurações", href: "/configuracoes", icon: Settings },
 ];
@@ -49,6 +50,9 @@ export function AppSidebar() {
   const { collapsed, toggle } = useSidebar();
   const { logout, user } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const isFinance = isFinanceRole(user?.role);
+  const homeHref = homePathForRole(user?.role);
+  const visibleMenuItems = menuItems.filter((item) => !(isFinance && item.hideForFinance));
 
   // Fechar sidebar mobile ao mudar de rota
   useEffect(() => {
@@ -93,7 +97,7 @@ export function AppSidebar() {
         )}
       >
         {!collapsed ? (
-          <Link href="/" className="flex shrink-0 items-center overflow-hidden">
+          <Link href={homeHref} className="flex shrink-0 items-center overflow-hidden">
             <Image
               src="/logo.png"
               alt="AlMotos"
@@ -104,7 +108,7 @@ export function AppSidebar() {
             />
           </Link>
         ) : (
-          <Link href="/" className="flex shrink-0 items-center justify-center overflow-hidden">
+          <Link href={homeHref} className="flex shrink-0 items-center justify-center overflow-hidden">
             <Image
               src="/logo.png"
               alt="AlMotos"
@@ -147,7 +151,7 @@ export function AppSidebar() {
       {/* Navigation */}
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
         <ul className="space-y-1">
-          {menuItems.map((item) => {
+          {visibleMenuItems.map((item) => {
             const isActive =
               item.href === "/"
                 ? pathname === "/"
