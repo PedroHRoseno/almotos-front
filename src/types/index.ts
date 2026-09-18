@@ -546,6 +546,13 @@ export interface PageResponse<T> {
 
 export type VehicleInterestStatus = "PENDING" | "COMPLETED" | "CANCELLED";
 
+/** Body de POST /vehicles/interests (painel ou bot). */
+export interface VehicleInterestCreate {
+  phone: string;
+  brand: string;
+  model: string;
+}
+
 /** Lead da lista de espera – GET /vehicles/interests */
 export interface VehicleInterest {
   id: string;

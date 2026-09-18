@@ -38,6 +38,7 @@ import type {
   VehicleTag,
   InternalUser,
   VehicleInterest,
+  VehicleInterestCreate,
   VehicleInterestStatus,
 } from "@/types";
 import {
@@ -587,6 +588,11 @@ export const api = {
       if (status) params.status = status;
       return request<PageResponse<VehicleInterest>>("/vehicles/interests", { params });
     },
+    criar: (body: VehicleInterestCreate) =>
+      request<VehicleInterest>("/vehicles/interests", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     completar: (id: string) =>
       request<VehicleInterest>(`/vehicles/interests/${encodeURIComponent(id)}/complete`, {
         method: "PATCH",

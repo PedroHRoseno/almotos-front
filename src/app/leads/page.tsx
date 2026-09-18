@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, Loader2, MoreHorizontal, X } from "lucide-react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { Check, ChevronLeft, ChevronRight, Loader2, MoreHorizontal, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { FilterChip } from "@/components/ui/filter-chip";
+import { FormField } from "@/components/ui/form-field";
 import {
   Table,
   TableBody,
@@ -31,9 +33,35 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { api } from "@/lib/api";
-import { formatStoredPhone } from "@/lib/masks";
+import { digitsOnly, formatPhone, formatStoredPhone } from "@/lib/masks";
 import type { VehicleInterest, VehicleInterestStatus } from "@/types";
+
+function apiErrorMessage(error: unknown, fallback: string): string {
+  if (!(error instanceof Error)) return fallback;
+  const raw = error.message.trim();
+  try {
+    const parsed = JSON.parse(raw) as { error?: unknown };
+    if (typeof parsed.error === "string" && parsed.error) return parsed.error;
+  } catch {
+    /* texto puro */
+  }
+  return raw || fallback;
+}
+
+function phoneForApi(raw: string): string {
+  const digits = digitsOnly(raw);
+  if (digits.startsWith("55") && digits.length >= 12) return digits;
+  return digits;
+}
 
 type StatusFilter = "PENDING" | "ALL";
 
@@ -70,6 +98,11 @@ export default function LeadsPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("PENDING");
   const [acting, setActing] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newPhone, setNewPhone] = useState("");
+  const [newBrand, setNewBrand] = useState("");
+  const [newModel, setNewModel] = useState("");
   const [confirm, setConfirm] = useState<{
     type: "complete" | "cancel";
     lead: VehicleInterest;
@@ -104,6 +137,44 @@ export default function LeadsPage() {
     setPage(0);
   };
 
+  const resetCreateForm = () => {
+    setNewPhone("");
+    setNewBrand("");
+    setNewModel("");
+  };
+
+  const handleCreate = async (event: FormEvent) => {
+    event.preventDefault();
+    const phone = phoneForApi(newPhone);
+    const brand = newBrand.trim();
+    const model = newModel.trim();
+    if (phone.length < 10) {
+      toast.error("Informe o WhatsApp com DDD (10 ou 11 dígitos).");
+      return;
+    }
+    if (brand.length < 2 || model.length < 2) {
+      toast.error("Marca e modelo são obrigatórios.");
+      return;
+    }
+    setCreating(true);
+    try {
+      await api.interests.criar({ phone, brand, model });
+      toast.success("Lead adicionado à lista de espera.");
+      setCreateOpen(false);
+      resetCreateForm();
+      if (statusFilter === "PENDING" && page === 0) {
+        fetchLeads();
+      } else {
+        setStatusFilter("PENDING");
+        setPage(0);
+      }
+    } catch (error) {
+      toast.error(apiErrorMessage(error, "Não foi possível cadastrar o lead."));
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const handleConfirm = async () => {
     if (!confirm) return;
     setActing(true);
@@ -126,13 +197,20 @@ export default function LeadsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-3xl font-extrabold tracking-tight text-ink">
-          Leads (Espera)
-        </h1>
-        <p className="text-ink-muted">
-          Clientes que pediram aviso quando a moto entrar no estoque.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="font-display text-3xl font-extrabold tracking-tight text-ink">
+            Leads (Espera)
+          </h1>
+          <p className="text-ink-muted">
+            Clientes que pediram aviso quando a moto entrar no estoque. Dá para cadastrar na mão,
+            além do bot.
+          </p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Novo lead
+        </Button>
       </div>
 
       <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar leads">
@@ -269,6 +347,69 @@ export default function LeadsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          if (creating) return;
+          setCreateOpen(open);
+          if (!open) resetCreateForm();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Novo lead</DialogTitle>
+            <DialogDescription>
+              Mesmos dados do bot: WhatsApp com DDD, marca e modelo desejados.
+            </DialogDescription>
+          </DialogHeader>
+          <form className="grid gap-4" onSubmit={handleCreate}>
+            <FormField name="lead-phone" label="WhatsApp" required>
+              <Input
+                id="lead-phone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder="(81) 99999-0000"
+                value={newPhone}
+                onChange={(event) => setNewPhone(formatPhone(event.target.value))}
+              />
+            </FormField>
+            <FormField name="lead-brand" label="Marca" required>
+              <Input
+                id="lead-brand"
+                placeholder="Honda"
+                value={newBrand}
+                onChange={(event) => setNewBrand(event.target.value)}
+              />
+            </FormField>
+            <FormField name="lead-model" label="Modelo" required>
+              <Input
+                id="lead-model"
+                placeholder="Pop 110i"
+                value={newModel}
+                onChange={(event) => setNewModel(event.target.value)}
+              />
+            </FormField>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={creating}
+                onClick={() => {
+                  setCreateOpen(false);
+                  resetCreateForm();
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={creating}>
+                {creating ? "Salvando…" : "Cadastrar"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
