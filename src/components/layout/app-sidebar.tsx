@@ -19,7 +19,6 @@ import {
   ArrowUpDown,
   BookOpen,
   BadgeDollarSign,
-  Landmark,
   Filter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -41,7 +40,6 @@ const menuItems = [
   { title: "Vendas", href: "/vendas", icon: ShoppingCart, hideForFinance: true },
   { title: "Trocas", href: "/trocas", icon: Repeat, hideForFinance: true },
   { title: "Fluxo de Caixa", href: "/fluxo-caixa", icon: ArrowUpDown, hideForFinance: true },
-  { title: "Contas & Bancos", href: "/contas", icon: Landmark, hideForFinance: true },
   { title: "Relatórios", href: "/relatorios", icon: BarChart3, hideForFinance: true },
   { title: "Guia", href: "/guia", icon: BookOpen },
   { title: "Configurações", href: "/configuracoes", icon: Settings },

@@ -28,7 +28,6 @@ import { partnerSelectLabel } from "@/lib/masks";
 import type { Vehicle, PartnerSummary } from "@/types";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { FormParceiro } from "@/components/forms/form-parceiro";
-import { BankAccountSelect } from "@/components/forms/bank-account-select";
 import { FIELD_HINTS } from "@/lib/field-hints";
 import { isVehicleAvailable } from "@/lib/vehicle-status";
 import { formatBRL } from "@/lib/masks";
@@ -39,7 +38,6 @@ const defaultValues: Partial<TrocaFormData> = {
   salePriceLoja: undefined,
   tradeInEvaluation: undefined,
   customerId: "",
-  bankAccountId: "",
 };
 
 export interface FormTrocaProps {
@@ -166,7 +164,6 @@ export function FormTroca({ onSuccess, insideModal, defaultSaidaPlate }: FormTro
         salePriceLoja: data.salePriceLoja,
         tradeInEvaluation: data.tradeInEvaluation,
         customerId: data.customerId.trim(),
-        ...(data.bankAccountId ? { bankAccountId: data.bankAccountId } : {}),
       };
 
       await api.exchanges.realizar(payload);
@@ -351,20 +348,6 @@ export function FormTroca({ onSuccess, insideModal, defaultSaidaPlate }: FormTro
                   : "Troca sem movimentação de caixa."}
             </p>
           </div>
-
-          {cashDifference !== 0 && (
-            <Controller
-              control={form.control}
-              name="bankAccountId"
-              render={({ field }) => (
-                <BankAccountSelect
-                  value={field.value}
-                  onChange={field.onChange}
-                  error={form.formState.errors.bankAccountId}
-                />
-              )}
-            />
-          )}
 
           <div className="flex flex-wrap justify-end gap-3">
             <Button type="button" variant="outline" onClick={() => form.reset(defaultValues)}>

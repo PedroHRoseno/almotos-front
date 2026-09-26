@@ -86,7 +86,6 @@ export const vendaSchema = z.object({
   ownershipKind: z.enum(["OWN", "THIRD_PARTY"]).optional(),
   payoutId: z.string().optional().or(z.literal("")),
   payoutAmount: z.number().optional(),
-  bankAccountId: z.string().optional().or(z.literal("")),
 }).superRefine((data, ctx) => {
   if (data.ownershipKind !== "THIRD_PARTY") return;
   if (!data.payoutId) {
@@ -122,7 +121,6 @@ export const trocaSchema = z
       .string()
       .min(1, "Selecione o contato do cliente nesta troca")
       .refine((value) => value !== "__NONE__", "Selecione o contato do cliente nesta troca"),
-    bankAccountId: z.string().optional().or(z.literal("")),
   })
   .superRefine((data, ctx) => {
     if (!data.veiculoEntradaLicensePlate) {
@@ -159,7 +157,6 @@ export const compraSchema = z.object({
     .string()
     .min(1, "Data da compra é obrigatória")
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Data deve estar no formato YYYY-MM-DD"),
-  bankAccountId: z.string().optional().or(z.literal("")),
 });
 
 export type CompraFormData = z.infer<typeof compraSchema>;

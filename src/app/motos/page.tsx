@@ -37,6 +37,7 @@ import { isVehicleAvailable } from "@/lib/vehicle-status";
 import { FilterChip } from "@/components/ui/filter-chip";
 import { api } from "@/lib/api";
 import { formatBRL, formatLicensePlate } from "@/lib/masks";
+import { formatFipePercent } from "@/lib/fipe-compare";
 import { isFinanceRole } from "@/lib/roles";
 import { useAuth } from "@/contexts/AuthContext";
 import type { OwnershipKind, Vehicle } from "@/types";
@@ -60,6 +61,30 @@ type SortField =
 function parseSort(sort: string): { field: string; dir: "asc" | "desc" } {
   const [field, dir] = sort.split(",");
   return { field: field || "createdAt", dir: dir === "asc" ? "asc" : "desc" };
+}
+
+function FipeStockBadge({ vehicle }: { vehicle: Vehicle }) {
+  const pct = vehicle.fipeDiscountPercentage;
+  if (pct == null || vehicle.fipeValue == null) return null;
+  if (vehicle.isBelowFipe) {
+    return (
+      <Badge variant="success" className="px-2 py-0.5 text-[10px]">
+        🔥 {formatFipePercent(pct)}% abaixo
+      </Badge>
+    );
+  }
+  if (pct > 3) {
+    return (
+      <Badge variant="destructive" className="px-2 py-0.5 text-[10px]">
+        {formatFipePercent(pct)}% acima
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="warning" className="px-2 py-0.5 text-[10px]">
+      Na FIPE
+    </Badge>
+  );
 }
 
 function SortableHead({
@@ -495,8 +520,13 @@ export default function MotosPage() {
                       <TableCell className="text-right tabular-nums">
                         {formatKm(v.kilometersDriven)}
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {v.suggestedPrice != null ? formatBRL(v.suggestedPrice) : "—"}
+                      <TableCell className="text-right">
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="tabular-nums">
+                            {v.suggestedPrice != null ? formatBRL(v.suggestedPrice) : "—"}
+                          </span>
+                          <FipeStockBadge vehicle={v} />
+                        </div>
                       </TableCell>
                       <TableCell className="text-xs">
                         {v.ownershipKind === "THIRD_PARTY"

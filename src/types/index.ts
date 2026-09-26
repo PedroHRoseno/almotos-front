@@ -115,8 +115,6 @@ export type VehicleStatus = "AVAILABLE" | "SOLD" | "INACTIVE" | "DISPONIVEL" | "
 
 export type AcquisitionOrigin = "PURCHASE" | "CONSIGNMENT" | "TRADE_IN" | "STOCK_ADJUSTMENT";
 
-export type BankAccountOwner = "PEDRO" | "MAE" | "PAI" | "LOJA";
-
 /** Status da transação – enum do back-end (TransactionStatus) */
 export type TransactionStatus = "ACTIVE" | "CANCELLED";
 
@@ -125,19 +123,20 @@ export type TransactionTypeEnum = "ENTRY" | "EXIT";
 
 /** Categoria de transação da loja */
 export type TransactionCategory =
-  | "OPERACIONAL"
-  | "ADMINISTRATIVO"
-  | "MARKETING"
-  | "INFRAESTRUTURA"
-  | "PESSOAL"
-  | "SERVICOS_PRESTADOS"
-  | "REPASSE_PARCEIRO"
-  | "RETIRADA_PEDRO"
-  | "RETIRADA_MAE"
-  | "RETIRADA_PAI"
-  | "DESPESA_PESSOAL_FAMILIA"
-  | "AJUSTE_SALDO"
-  | "OUTROS";
+  | "VEHICLE_SALE"
+  | "EXCHANGE_IN"
+  | "OTHER_INFLOW"
+  | "VEHICLE_PURCHASE"
+  | "EXCHANGE_OUT"
+  | "CONSIGNMENT_PAYOUT"
+  | "STORE_EXPENSE"
+  | "WITHDRAWAL";
+
+export const MANUAL_CASH_CATEGORIES: readonly TransactionCategory[] = [
+  "OTHER_INFLOW",
+  "STORE_EXPENSE",
+  "WITHDRAWAL",
+];
 
 /** Origem da movimentação */
 export type MovementOrigin = "VEHICLE" | "STORE";
@@ -154,8 +153,6 @@ export interface FinancialMovement {
   category?: string;
   vehicleLicensePlate?: string;
   transactionType?: string;
-  bankAccountId?: string | null;
-  bankAccountName?: string | null;
 }
 
 /** Transação da loja */
@@ -167,7 +164,6 @@ export interface StoreTransaction {
   type: TransactionTypeEnum;
   category: TransactionCategory;
   status: TransactionStatus;
-  bankAccountId?: string | null;
 }
 
 /** DTO para criar transação da loja */
@@ -177,7 +173,6 @@ export interface StoreTransactionCreate {
   date?: string;
   type: TransactionTypeEnum;
   category: TransactionCategory;
-  bankAccountId?: string | null;
 }
 
 /** Veículo (Vehicle) – GET /vehicles, POST /vehicles */
@@ -197,6 +192,10 @@ export interface Vehicle {
   color: string;
   kilometersDriven: number;
   suggestedPrice?: number | null;
+  fipeValue?: number | null;
+  fipeDiscountPercentage?: number | null;
+  isBelowFipe?: boolean;
+  fipeSavingsAmount?: number | null;
   status: VehicleStatus;
   inStock: boolean;
   published?: boolean;
@@ -224,6 +223,7 @@ export interface VehicleCreate {
   color: string;
   kilometersDriven: number;
   suggestedPrice?: number | null;
+  fipeValue?: number | null;
   inStock: boolean;
   published?: boolean;
   description?: string | null;
@@ -317,7 +317,6 @@ export interface SaleResponse {
   payoutName?: string | null;
   payoutAmount?: number;
   storeProfit?: number | null;
-  bankAccountId?: string | null;
   baseCost?: number | null;
 }
 
@@ -329,7 +328,6 @@ export interface SaleCreate {
   payoutPartner?: PartnerRef;
   payoutAmount?: number;
   storeProfit?: number;
-  bankAccountId?: string | null;
 }
 
 /** Payload para editar venda – PUT /sales/{id} */
@@ -371,7 +369,6 @@ export interface PurchaseResponse {
   purchasePrice: number;
   purchaseDate: string;
   status: TransactionStatus;
-  bankAccountId?: string | null;
 }
 
 /** Payload para criar compra – POST /purchases */
@@ -380,7 +377,6 @@ export interface PurchaseCreate {
   customer: PartnerRef;
   purchasePrice: number;
   purchaseDate: string; // ISO format string (yyyy-MM-dd)
-  bankAccountId?: string | null;
 }
 
 /** Payload para editar compra – PUT /purchases/{id} */
@@ -399,7 +395,6 @@ export interface TrocaInput {
   incomingVehicle?: VehicleCreate;
   customerId?: string;
   customerDocument?: string;
-  bankAccountId?: string | null;
 }
 
 /** DTO de resposta de troca do backend */
@@ -419,7 +414,6 @@ export interface ExchangeResponse {
   tradeInEvaluation?: number;
   exchangeDate: string;
   status: TransactionStatus;
-  bankAccountId?: string | null;
 }
 
 /** Payload para editar troca – PUT /exchanges/{id} */
@@ -507,31 +501,6 @@ export interface ContactReport {
   totalElements: number;
   page: number;
   size: number;
-}
-
-/** Resposta paginada do Spring */
-export interface BankAccount {
-  id: string;
-  name: string;
-  ownerPerson: BankAccountOwner;
-  bankName: string;
-  initialBalance: number;
-  isActive: boolean;
-  balance: number;
-}
-
-export interface BankAccountCreate {
-  name: string;
-  ownerPerson: BankAccountOwner;
-  bankName: string;
-  initialBalance: number;
-  isActive?: boolean;
-}
-
-export interface BankAccountsOverview {
-  accounts: BankAccount[];
-  totalsByOwner: Record<string, number>;
-  unifiedBalance: number;
 }
 
 export interface PageResponse<T> {

@@ -24,14 +24,12 @@ import { cn } from "@/lib/utils";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormParceiro } from "./form-parceiro";
 import { FormVeiculo } from "./form-veiculo";
-import { BankAccountSelect } from "./bank-account-select";
 
 const defaultValues: Partial<CompraFormData> = {
   vehicleLicensePlate: "",
   customerId: "",
   purchasePrice: 0,
   purchaseDate: new Date().toISOString().split("T")[0], // yyyy-MM-dd
-  bankAccountId: "",
 };
 
 export interface FormCompraProps {
@@ -182,7 +180,6 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
         vehicle: { licensePlate: data.vehicleLicensePlate.trim().toUpperCase() },
         customer: { id: data.customerId },
         purchasePrice: data.purchasePrice,
-        ...(data.bankAccountId ? { bankAccountId: data.bankAccountId } : {}),
         purchaseDate: data.purchaseDate,
       });
 
@@ -329,18 +326,6 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
           </FormField>
         </div>
       </div>
-
-      <Controller
-        control={form.control}
-        name="bankAccountId"
-        render={({ field }) => (
-          <BankAccountSelect
-            value={field.value}
-            onChange={field.onChange}
-            error={form.formState.errors.bankAccountId}
-          />
-        )}
-      />
 
       <div className="flex flex-wrap justify-end gap-3">
         <Button

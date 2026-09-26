@@ -28,9 +28,6 @@ import type {
   FinancialMovement,
   StoreTransaction,
   StoreTransactionCreate,
-  BankAccount,
-  BankAccountCreate,
-  BankAccountsOverview,
   FipeModelsResponse,
   FipeCodigoResponse,
   FipeAnosResponse,
@@ -292,7 +289,7 @@ export const api = {
     custos: {
       listar: (licensePlate: string) =>
         request<VehicleCostItem[]>(`/vehicles/${encodeURIComponent(licensePlate)}/costs`),
-      criar: (licensePlate: string, body: { cost: number; description: string; costDate?: string; bankAccountId?: string | null }) =>
+      criar: (licensePlate: string, body: { cost: number; description: string; costDate?: string }) =>
         request<VehicleCostItem>(`/vehicles/${encodeURIComponent(licensePlate)}/costs`, {
           method: "POST",
           body: JSON.stringify(body),
@@ -533,24 +530,6 @@ export const api = {
       if (category) params.category = category;
       return request<PageResponse<FinancialMovement>>("/financial/movements", { params });
     },
-  },
-  bankAccounts: {
-    listar: () => request<BankAccountsOverview>("/financial/bank-accounts"),
-    criar: (body: BankAccountCreate) =>
-      request<BankAccount>("/financial/bank-accounts", {
-        method: "POST",
-        body: JSON.stringify(body),
-      }),
-    atualizar: (id: string, body: Partial<BankAccountCreate>) =>
-      request<BankAccount>(`/financial/bank-accounts/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(body),
-      }),
-    conciliar: (id: string, realBalance: number) =>
-      request<BankAccount>(`/financial/bank-accounts/${id}/reconcile`, {
-        method: "POST",
-        body: JSON.stringify({ realBalance }),
-      }),
   },
   storeTransactions: {
     listar: (page: number = 0, size: number = 20) =>

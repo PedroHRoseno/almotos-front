@@ -28,7 +28,6 @@ import { partnerSelectLabel } from "@/lib/masks";
 import type { Vehicle, PartnerSummary } from "@/types";
 import { useState, useEffect, useMemo } from "react";
 import { FormParceiro } from "@/components/forms/form-parceiro";
-import { BankAccountSelect } from "@/components/forms/bank-account-select";
 import { FIELD_HINTS } from "@/lib/field-hints";
 import { isVehicleAvailable } from "@/lib/vehicle-status";
 import { formatBRL } from "@/lib/masks";
@@ -40,7 +39,6 @@ const defaultValues: Partial<VendaFormData> = {
   ownershipKind: "OWN",
   payoutId: "",
   payoutAmount: 0,
-  bankAccountId: "",
 };
 
 export interface FormVendaProps {
@@ -143,7 +141,6 @@ export function FormVenda({ onSuccess, insideModal, defaultPlate }: FormVendaPro
         vehicle: { licensePlate: data.vehicleLicensePlate },
         customer: { id: data.customerId },
         salePrice: data.salePrice,
-        ...(data.bankAccountId ? { bankAccountId: data.bankAccountId } : {}),
         ...(data.ownershipKind === "THIRD_PARTY" && data.payoutId
           ? {
               payoutPartner: { id: data.payoutId },
@@ -325,17 +322,6 @@ export function FormVenda({ onSuccess, insideModal, defaultPlate }: FormVendaPro
               />
             </FormField>
           </div>
-          <Controller
-            control={form.control}
-            name="bankAccountId"
-            render={({ field }) => (
-              <BankAccountSelect
-                value={field.value}
-                onChange={field.onChange}
-                error={form.formState.errors.bankAccountId}
-              />
-            )}
-          />
 
           <div className="flex flex-wrap justify-end gap-3">
             <Button

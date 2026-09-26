@@ -43,7 +43,6 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { VehiclePhotoPipeline } from "@/components/vehicle/vehicle-photo-pipeline";
 import { FormVeiculo } from "@/components/forms/form-veiculo";
-import { BankAccountSelect } from "@/components/forms/bank-account-select";
 import { CurrencyInput } from "@/components/ui/currency-input";
 
 function formatCurrency(value: number): string {
@@ -80,7 +79,6 @@ export default function VeiculoDetailPage() {
     cost: number | undefined;
     description: string;
     costDate: string;
-    bankAccountId?: string;
   }>({ cost: undefined, description: "", costDate: "" });
   const [addingCost, setAddingCost] = useState(false);
   const [images, setImages] = useState<string[]>([]);
@@ -176,7 +174,6 @@ export default function VeiculoDetailPage() {
         cost: newCost.cost,
         description: newCost.description,
         costDate: newCost.costDate || undefined,
-        bankAccountId: newCost.bankAccountId || null,
       });
       toast.success("Custo adicionado com sucesso!");
       setCostModalOpen(false);
@@ -675,10 +672,6 @@ export default function VeiculoDetailPage() {
                 onChange={(e) => setNewCost({ ...newCost, costDate: e.target.value })}
               />
             </div>
-            <BankAccountSelect
-              value={newCost.bankAccountId}
-              onChange={(bankAccountId) => setNewCost({ ...newCost, bankAccountId })}
-            />
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setCostModalOpen(false)}>
                 Cancelar

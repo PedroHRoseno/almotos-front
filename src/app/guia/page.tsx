@@ -96,10 +96,10 @@ export default function GuiaPage() {
               Fluxo de Caixa
             </h3>
             <p className="text-sm text-muted-foreground mb-2">
-              Visão unificada de todas as movimentações: vendas, compras, trocas, custos de veículos e transações gerais da loja. Use os filtros &quot;Este Mês&quot;, &quot;Entradas&quot;, &quot;Saídas&quot; e &quot;Categoria&quot;. Valores de entrada em verde, saída em vermelho; itens cancelados aparecem riscados.
+              O caixa operacional da loja registra só entradas e saídas. Venda, compra, troca e repasse de consignado entram automaticamente. Use os filtros &quot;Este Mês&quot;, &quot;Entradas&quot;, &quot;Saídas&quot; e &quot;Categoria&quot;.
             </p>
             <p className="text-sm text-muted-foreground mb-2">
-              O botão <strong>Novo Lançamento</strong> serve para registrar despesas ou receitas da loja (aluguel, salários, marketing etc.), escolhendo tipo (Entrada/Saída) e categoria (Operacional, Administrativo, Marketing, Infraestrutura, Pessoal, Serviços Prestados, Outros).
+              O botão <strong>Novo Lançamento</strong> serve para aportes, despesas da loja ou retiradas. Lançamentos gerados por venda, compra ou troca não se editam aqui: cancele a operação de origem.
             </p>
           </section>
 
@@ -131,7 +131,7 @@ export default function GuiaPage() {
             <h4 className="font-medium mb-2">Fórmulas principais</h4>
             <ul className="text-sm text-muted-foreground space-y-2 list-disc pl-5">
               <li><strong>Lucro Bruto:</strong> Total Vendas (ativas) − Total Compras (ativas) + Total Trocas (ativas) − Custos Adicionais de Veículos.</li>
-              <li><strong>Despesas Operacionais:</strong> Soma das transações da loja do tipo Saída nas categorias Operacional, Administrativo, Marketing e Infraestrutura (apenas ativas).</li>
+              <li><strong>Despesas Operacionais:</strong> Soma das saídas ativas do caixa na categoria Despesas da loja.</li>
               <li><strong>Lucro Líquido:</strong> Lucro Bruto − Despesas Operacionais.</li>
             </ul>
           </div>

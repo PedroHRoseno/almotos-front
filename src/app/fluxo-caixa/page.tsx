@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
 import { formatBRL } from "@/lib/masks";
 import type { FinancialMovement, StoreTransactionCreate, TransactionCategory } from "@/types";
+import { MANUAL_CASH_CATEGORIES } from "@/types";
 import {
   Dialog,
   DialogContent,
@@ -37,15 +38,28 @@ import {
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import { BankAccountSelect } from "@/components/forms/bank-account-select";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const EMPTY_TRANSACTION: StoreTransactionCreate = {
   description: "",
   value: 0,
   type: "EXIT",
-  category: "OUTROS",
+  category: "STORE_EXPENSE",
 };
+
+const CATEGORY_LABELS: Record<string, string> = {
+  VEHICLE_SALE: "Venda de veículo",
+  EXCHANGE_IN: "Diferença recebida na troca",
+  OTHER_INFLOW: "Outros aportes",
+  VEHICLE_PURCHASE: "Compra de veículo",
+  EXCHANGE_OUT: "Diferença paga na troca",
+  CONSIGNMENT_PAYOUT: "Repasse de consignado",
+  STORE_EXPENSE: "Despesas da loja",
+  WITHDRAWAL: "Retiradas",
+};
+
+const MANUAL_ENTRY_CATEGORIES: TransactionCategory[] = ["OTHER_INFLOW"];
+const MANUAL_EXIT_CATEGORIES: TransactionCategory[] = ["STORE_EXPENSE", "WITHDRAWAL"];
 
 function formatCurrency(value: number): string {
   return formatBRL(value);
@@ -70,29 +84,14 @@ function toDateInputValue(dateString: string): string {
 }
 
 function getCategoryLabel(category: string): string {
-  const labels: Record<string, string> = {
-    OPERACIONAL: "Operacional",
-    ADMINISTRATIVO: "Administrativo",
-    MARKETING: "Marketing",
-    INFRAESTRUTURA: "Infraestrutura",
-    PESSOAL: "Pessoal",
-    SERVICOS_PRESTADOS: "Serviços Prestados",
-    REPASSE_PARCEIRO: "Repasse a parceiro",
-    RETIRADA_PEDRO: "Retirada Pedro",
-    RETIRADA_MAE: "Retirada Mãe",
-    RETIRADA_PAI: "Retirada Pai",
-    DESPESA_PESSOAL_FAMILIA: "Despesa pessoal da família",
-    AJUSTE_SALDO: "Ajuste de saldo",
-    OUTROS: "Outros",
-  };
-  return labels[category] || category;
+  return CATEGORY_LABELS[category] || category;
 }
 
 function isMutableStoreMovement(movement: FinancialMovement): boolean {
   return (
-    movement.origin === "STORE" &&
     movement.status === "ACTIVE" &&
-    movement.category !== "REPASSE_PARCEIRO"
+    !!movement.category &&
+    MANUAL_CASH_CATEGORIES.includes(movement.category as TransactionCategory)
   );
 }
 
@@ -159,9 +158,8 @@ export default function FluxoCaixaPage() {
       description: movement.description,
       value: movement.value,
       type: movement.type,
-      category: (movement.category as TransactionCategory) || "OUTROS",
+      category: (movement.category as TransactionCategory) || "STORE_EXPENSE",
       date: toDateInputValue(movement.date) || undefined,
-      bankAccountId: movement.bankAccountId || undefined,
     });
     setModalOpen(true);
   };
@@ -244,7 +242,7 @@ export default function FluxoCaixaPage() {
         <div>
           <h1 className="font-display text-2xl md:text-3xl font-extrabold tracking-tight text-ink">Fluxo de Caixa</h1>
           <p className="text-sm md:text-base text-muted-foreground">
-            Visualize todas as movimentações financeiras da loja
+            Caixa operacional da loja: entradas e saídas
           </p>
         </div>
         <Button onClick={openCreateModal}>
@@ -293,19 +291,14 @@ export default function FluxoCaixaPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas as Categorias</SelectItem>
-                <SelectItem value="OPERACIONAL">Operacional</SelectItem>
-                <SelectItem value="ADMINISTRATIVO">Administrativo</SelectItem>
-                <SelectItem value="MARKETING">Marketing</SelectItem>
-                <SelectItem value="INFRAESTRUTURA">Infraestrutura</SelectItem>
-                <SelectItem value="PESSOAL">Pessoal</SelectItem>
-                <SelectItem value="SERVICOS_PRESTADOS">Serviços Prestados</SelectItem>
-                <SelectItem value="REPASSE_PARCEIRO">Repasse a parceiro</SelectItem>
-                <SelectItem value="RETIRADA_PEDRO">Retirada Pedro</SelectItem>
-                <SelectItem value="RETIRADA_MAE">Retirada Mãe</SelectItem>
-                <SelectItem value="RETIRADA_PAI">Retirada Pai</SelectItem>
-                <SelectItem value="DESPESA_PESSOAL_FAMILIA">Despesa pessoal da família</SelectItem>
-                <SelectItem value="AJUSTE_SALDO">Ajuste de saldo</SelectItem>
-                <SelectItem value="OUTROS">Outros</SelectItem>
+                <SelectItem value="VEHICLE_SALE">Venda de veículo</SelectItem>
+                <SelectItem value="EXCHANGE_IN">Diferença recebida na troca</SelectItem>
+                <SelectItem value="OTHER_INFLOW">Outros aportes</SelectItem>
+                <SelectItem value="VEHICLE_PURCHASE">Compra de veículo</SelectItem>
+                <SelectItem value="EXCHANGE_OUT">Diferença paga na troca</SelectItem>
+                <SelectItem value="CONSIGNMENT_PAYOUT">Repasse de consignado</SelectItem>
+                <SelectItem value="STORE_EXPENSE">Despesas da loja</SelectItem>
+                <SelectItem value="WITHDRAWAL">Retiradas</SelectItem>
               </SelectContent>
             </Select>
             {(filterType || filterCategory || dateFilter) && (
@@ -475,7 +468,11 @@ export default function FluxoCaixaPage() {
               <Select
                 value={newTransaction.type}
                 onValueChange={(value: "ENTRY" | "EXIT") =>
-                  setNewTransaction({ ...newTransaction, type: value })
+                  setNewTransaction({
+                    ...newTransaction,
+                    type: value,
+                    category: value === "ENTRY" ? "OTHER_INFLOW" : "STORE_EXPENSE",
+                  })
                 }
               >
                 <SelectTrigger>
@@ -499,19 +496,13 @@ export default function FluxoCaixaPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="OPERACIONAL">Operacional</SelectItem>
-                  <SelectItem value="ADMINISTRATIVO">Administrativo</SelectItem>
-                  <SelectItem value="MARKETING">Marketing</SelectItem>
-                  <SelectItem value="INFRAESTRUTURA">Infraestrutura</SelectItem>
-                  <SelectItem value="PESSOAL">Pessoal</SelectItem>
-                  <SelectItem value="SERVICOS_PRESTADOS">Serviços Prestados</SelectItem>
-                  <SelectItem value="REPASSE_PARCEIRO">Repasse a parceiro</SelectItem>
-                  <SelectItem value="RETIRADA_PEDRO">Retirada Pedro</SelectItem>
-                  <SelectItem value="RETIRADA_MAE">Retirada Mãe</SelectItem>
-                  <SelectItem value="RETIRADA_PAI">Retirada Pai</SelectItem>
-                  <SelectItem value="DESPESA_PESSOAL_FAMILIA">Despesa pessoal da família</SelectItem>
-                  <SelectItem value="AJUSTE_SALDO">Ajuste de saldo</SelectItem>
-                  <SelectItem value="OUTROS">Outros</SelectItem>
+                  {(newTransaction.type === "ENTRY" ? MANUAL_ENTRY_CATEGORIES : MANUAL_EXIT_CATEGORIES).map(
+                    (category) => (
+                      <SelectItem key={category} value={category}>
+                        {getCategoryLabel(category)}
+                      </SelectItem>
+                    )
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -551,12 +542,6 @@ export default function FluxoCaixaPage() {
                 }
               />
             </div>
-            <BankAccountSelect
-              value={newTransaction.bankAccountId || undefined}
-              onChange={(bankAccountId) =>
-                setNewTransaction({ ...newTransaction, bankAccountId: bankAccountId || null })
-              }
-            />
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => handleModalChange(false)}>
                 Cancelar

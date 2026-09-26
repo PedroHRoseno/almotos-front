@@ -36,6 +36,8 @@ import { FipeModelAutocomplete } from "@/components/forms/fipe-model-autocomplet
 import { FipeConsultaCard } from "@/components/forms/fipe-consulta-card";
 import { TagInput } from "@/components/forms/tag-input";
 import { FIELD_HINTS } from "@/lib/field-hints";
+import { compareFipe, formatFipePercent } from "@/lib/fipe-compare";
+import { formatBRL } from "@/lib/masks";
 
 const emptyDefaults: Partial<VeiculoFormData> = {
   licensePlate: "",
@@ -193,6 +195,20 @@ export function FormVeiculo({
   );
   const watchedBrand = form.watch("brand");
   const watchedModelYear = form.watch("modelYear");
+  const watchedSuggestedPrice = form.watch("suggestedPrice");
+  const fipeIdentityChanged = Boolean(
+    vehicle &&
+      (watchedBrand !== vehicle.brand || Number(watchedModelYear) !== vehicle.modelYear)
+  );
+  const liveFipeValue =
+    fipeConsulta?.available && fipeConsulta.valor != null
+      ? fipeConsulta.valor
+      : codigoModelo && !fipeLoading
+        ? null
+        : fipeIdentityChanged && !fipeLoading
+          ? null
+          : (vehicle?.fipeValue ?? null);
+  const fipeHint = compareFipe(watchedSuggestedPrice, liveFipeValue);
   const plateChanged = useMemo(() => {
     if (!isEdit || !plateForPath) return false;
     return formatLicensePlate(watchedPlate || "") !== formatLicensePlate(plateForPath);
@@ -238,6 +254,7 @@ export function FormVeiculo({
       color: data.color.trim().toLowerCase(),
       kilometersDriven: data.kilometersDriven,
       suggestedPrice: data.suggestedPrice ?? null,
+      fipeValue: liveFipeValue,
       inStock: data.inStock,
       published: showCatalogFields ? data.published : Boolean(vehicle?.published),
       description: showCatalogFields
@@ -587,23 +604,44 @@ export function FormVeiculo({
 
         <FormField
           name="suggestedPrice"
-          label="Preço sugerido"
+          label="Preço sugerido (tabela da loja)"
           error={form.formState.errors.suggestedPrice}
+          className="@lg:col-span-2"
         >
-          <Controller
-            control={form.control}
-            name="suggestedPrice"
-            render={({ field }) => (
-              <CurrencyInput
-                id="suggestedPrice"
-                placeholder="R$ 0,00"
-                value={field.value}
-                onValueChange={field.onChange}
-                onBlur={field.onBlur}
-                error={!!form.formState.errors.suggestedPrice}
-              />
+          <div className="flex flex-col gap-2 @md:flex-row @md:items-center">
+            <div className="min-w-[12rem] @md:max-w-xs @md:flex-1">
+            <Controller
+              control={form.control}
+              name="suggestedPrice"
+              render={({ field }) => (
+                <CurrencyInput
+                  id="suggestedPrice"
+                  placeholder="R$ 0,00"
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  onBlur={field.onBlur}
+                  error={!!form.formState.errors.suggestedPrice}
+                />
+              )}
+            />
+            </div>
+            {fipeHint?.tone === "below" && (
+              <p className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                🔥 {formatFipePercent(fipeHint.percentage)}% abaixo da FIPE (Economia de{" "}
+                {formatBRL(fipeHint.savings)})
+              </p>
             )}
-          />
+            {fipeHint?.tone === "aligned" && (
+              <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-800 dark:text-amber-200">
+                Preço alinhado com a Tabela FIPE
+              </p>
+            )}
+            {fipeHint?.tone === "above" && (
+              <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-700 dark:text-red-300">
+                Atenção: {formatFipePercent(fipeHint.percentage)}% acima da Tabela FIPE
+              </p>
+            )}
+          </div>
           <p className="text-xs text-ink-subtle">
             Valor público do catálogo. A IA de atendimento usa este número — não inventa preço.
           </p>
