@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ShoppingCart, Plus, ChevronLeft, ChevronRight, Loader2, Search, X, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ShoppingCart, Plus, ChevronLeft, ChevronRight, Loader2, Search, X, Trash2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { api } from "@/lib/api";
+import { buildDocumentHref } from "@/lib/documents";
 import { formatDocumentOrDash } from "@/lib/masks";
 import type { SaleResponse } from "@/types";
 import { FormVenda } from "@/components/forms/form-venda";
@@ -69,6 +71,7 @@ function formatDate(dateString: string): string {
 
 
 export default function VendasPage() {
+  const router = useRouter();
   const [sales, setSales] = useState<SaleResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
@@ -235,7 +238,7 @@ export default function VendasPage() {
                       <TableHead className="min-w-[180px]">Cliente</TableHead>
                       <TableHead className="text-right min-w-[120px]">Valor</TableHead>
                       <TableHead className="w-[110px]">Status</TableHead>
-                      <TableHead className="w-[100px]">Ações</TableHead>
+                      <TableHead className="w-[120px]">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -277,17 +280,38 @@ export default function VendasPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {sale.status === "ACTIVE" ? (
+                          <div className="flex items-center gap-1">
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleDeleteClick(sale)}
-                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              title="Cancelar venda"
+                              onClick={() =>
+                                router.push(
+                                  buildDocumentHref({
+                                    vehicleId: sale.vehicleLicensePlate,
+                                    contactId: sale.partnerId,
+                                    type: "contrato",
+                                    amount: sale.salePrice,
+                                    date: sale.saleDate,
+                                  })
+                                )
+                              }
+                              className="h-8 w-8"
+                              title="Gerar documento"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <FileText className="h-4 w-4" />
                             </Button>
-                          ) : null}
+                            {sale.status === "ACTIVE" ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteClick(sale)}
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                title="Cancelar venda"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            ) : null}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}

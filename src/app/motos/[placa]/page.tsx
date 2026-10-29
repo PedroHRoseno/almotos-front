@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, DollarSign, Calendar, User, Loader2, Pencil } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, DollarSign, Calendar, User, Loader2, Pencil, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
+import { buildDocumentHref } from "@/lib/documents";
 import { formatDocumentOrDash, formatLicensePlate, formatBRL } from "@/lib/masks";
 import { isFinanceRole } from "@/lib/roles";
 import { useAuth } from "@/contexts/AuthContext";
@@ -228,6 +229,20 @@ export default function VeiculoDetailPage() {
 
   const isThirdParty = (vehicle.ownershipKind ?? "OWN") === "THIRD_PARTY";
   const activeSales = history?.sales.filter((s) => s.status === "ACTIVE") ?? [];
+  const latestActiveSale = [...activeSales].sort((a, b) => String(b.saleDate).localeCompare(String(a.saleDate)))[0];
+  const openVehicleDocument = () => {
+    const consignment = !latestActiveSale && vehicle.acquisitionOrigin === "CONSIGNMENT";
+    const reference = consignment ? vehicle.agreedPayout : vehicle.suggestedPrice;
+    router.push(
+      buildDocumentHref({
+        vehicleId: vehicle.licensePlate,
+        contactId: latestActiveSale?.partnerId || vehicle.ownerId,
+        type: consignment ? "consignacao" : "contrato",
+        amount: latestActiveSale?.salePrice ?? (reference != null && reference > 0 ? reference : undefined),
+        date: latestActiveSale?.saleDate,
+      })
+    );
+  };
   const activePurchases = history?.purchases.filter((p) => p.status === "ACTIVE") ?? [];
   const totalPurchasePrice = activePurchases.reduce((sum, p) => sum + p.purchasePrice, 0);
   const totalSalePrice = activeSales.reduce((sum, s) => sum + s.salePrice, 0);
@@ -261,8 +276,13 @@ export default function VeiculoDetailPage() {
             </p>
           </div>
         </div>
-        {!isFinance && (
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={openVehicleDocument}>
+            <FileText className="mr-2 h-4 w-4" />
+            Gerar Documento
+          </Button>
+          {!isFinance && (
+          <>
           <Button variant="outline" onClick={() => setEditing((value) => !value)}>
             <Pencil className="mr-2 h-4 w-4" />
             {editing ? "Cancelar edição" : "Editar Informações"}
@@ -285,8 +305,9 @@ export default function VeiculoDetailPage() {
               )}
             </>
           )}
+          </>
+          )}
         </div>
-        )}
       </div>
 
       <FormVeiculo
@@ -585,6 +606,25 @@ export default function VeiculoDetailPage() {
                           {formatDate(sale.saleDate.toString())} • {sale.partnerName} ({formatDocumentOrDash(sale.partnerDocument)})
                         </p>
                       </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() =>
+                          router.push(
+                            buildDocumentHref({
+                              vehicleId: vehicle.licensePlate,
+                              contactId: sale.partnerId,
+                              type: "contrato",
+                              amount: sale.salePrice,
+                              date: sale.saleDate,
+                            })
+                          )
+                        }
+                      >
+                        <FileText className="mr-2 h-4 w-4" />
+                        Gerar Documento
+                      </Button>
                     </div>
                   ))}
                 </div>
