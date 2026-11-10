@@ -13,7 +13,7 @@ function priceClause(draft: DocumentDraft): string {
   return `O preço certo e ajustado é de ${draft.amountLabel} (${draft.amountWords}). ${payment} Este contrato não estipula parcelas, juros ou financiamento além da forma de pagamento aqui declarada.`;
 }
 
-export function SalesContractPdf({ draft }: { draft: DocumentDraft }) {
+export function SalesContractPdf({ draft, logoSrc }: { draft: DocumentDraft; logoSrc?: string | null }) {
   const vehicle = draft.vehicle;
   const missingIds = [vehicle.chassis ? "" : "chassi", vehicle.renavam ? "" : "RENAVAM"].filter(Boolean);
   const idNote = missingIds.length
@@ -21,7 +21,7 @@ export function SalesContractPdf({ draft }: { draft: DocumentDraft }) {
     : "";
 
   return (
-    <PdfShell title="Contrato de compra e venda de veículo usado">
+    <PdfShell title="Contrato de compra e venda de veículo usado" logoSrc={logoSrc}>
       <Text style={styles.intro} hyphenationCallback={(word) => [word]}>
         {`Pelo presente instrumento particular, de um lado ${STORE.legalName}, inscrita no CNPJ sob o nº ${STORE.cnpj}, com atuação em ${STORE.cityLine}, doravante VENDEDORA, e, de outro lado, a pessoa qualificada abaixo, doravante COMPRADOR, têm entre si justo e contratado o seguinte.`}
       </Text>

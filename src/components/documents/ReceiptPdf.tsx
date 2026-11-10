@@ -10,14 +10,14 @@ function moneyLine(draft: DocumentDraft): string {
   return `${draft.amountLabel} (${draft.amountWords})`;
 }
 
-export function ReceiptPdf({ draft }: { draft: DocumentDraft }) {
-  const plateToken = draft.vehicle.licensePlate.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+export function ReceiptPdf({ draft, logoSrc }: { draft: DocumentDraft; logoSrc?: string | null }) {
+  const plateToken = (draft.vehicle.licensePlate || "").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
   const plate = /^[A-Z0-9]{5,8}$/.test(plateToken) ? plateToken : "MOTO";
   const receiptNo = `REC-${plate}-${draft.dateIso.replace(/-/g, "")}`;
   const body = `Recebemos de ${draft.party.name}, ${draft.party.document}, a importância de ${moneyLine(draft)}, a título de pagamento ou sinal referente ao veículo ${draft.vehicle.brandModel}, ano ${draft.vehicle.year}, cor ${draft.vehicle.color}, placa ${draft.vehicle.licensePlate}. Forma de pagamento: ${draft.paymentMethod}. Para clareza, firmamos o presente recibo em ${STORE.cityLine}, em ${draft.dateLabel}.`;
 
   return (
-    <PdfShell title="Recibo de pagamento">
+    <PdfShell title="Recibo de pagamento" logoSrc={logoSrc}>
       <Text style={styles.meta}>{`Nº ${receiptNo}`}</Text>
       <Text style={styles.amountLabel}>VALOR</Text>
       <Text style={styles.amountValue}>{draft.amountLabel}</Text>

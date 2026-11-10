@@ -12,11 +12,11 @@ function referenceClause(draft: DocumentDraft): string {
   return `As partes informam como referência comercial o valor de ${draft.amountLabel} (${draft.amountWords}). Esse número não fecha o preço de venda, não define comissão e não substitui o contrato com o futuro comprador nem o recibo de repasse. Forma relacionada a este termo: ${draft.paymentMethod}.`;
 }
 
-export function ConsignmentTermPdf({ draft }: { draft: DocumentDraft }) {
+export function ConsignmentTermPdf({ draft, logoSrc }: { draft: DocumentDraft; logoSrc?: string | null }) {
   const vehicle = draft.vehicle;
 
   return (
-    <PdfShell title="Termo de entrega de veículo em consignação">
+    <PdfShell title="Termo de entrega de veículo em consignação" logoSrc={logoSrc}>
       <Text style={styles.intro} hyphenationCallback={(word) => [word]}>
         {`Pelo presente termo, o CONSIGNANTE, pessoa qualificada abaixo, entrega à CONSIGNATÁRIA ${STORE.legalName}, CNPJ ${STORE.cnpj}, em ${STORE.cityLine}, o veículo descrito a seguir, para guarda, exposição e intermediação de venda, sem transferência de propriedade.`}
       </Text>

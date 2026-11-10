@@ -1,6 +1,6 @@
 "use client";
 
-import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { Document, Image, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
 import type { ReactNode } from "react";
 import { STORE } from "@/lib/documents";
 
@@ -29,6 +29,11 @@ export const styles = StyleSheet.create({
     fontSize: 9,
     letterSpacing: 1.4,
     color: "#e10600",
+  },
+  logo: {
+    width: 84,
+    height: 37,
+    marginBottom: 2,
   },
   legal: {
     fontFamily: "Helvetica-Bold",
@@ -188,7 +193,15 @@ export const styles = StyleSheet.create({
   },
 });
 
-export function PdfShell({ title, children }: { title: string; children: ReactNode }) {
+export function PdfShell({
+  title,
+  logoSrc,
+  children,
+}: {
+  title: string;
+  logoSrc?: string | null;
+  children: ReactNode;
+}) {
   return (
     <Document
       title={title}
@@ -199,7 +212,11 @@ export function PdfShell({ title, children }: { title: string; children: ReactNo
     >
       <Page size="A4" style={styles.page}>
         <View style={styles.accent} fixed />
-        <Text style={styles.kicker}>{STORE.tradeName.toUpperCase()}</Text>
+        {logoSrc ? (
+          <Image src={logoSrc} style={styles.logo} />
+        ) : (
+          <Text style={styles.kicker}>{STORE.tradeName.toUpperCase()}</Text>
+        )}
         <Text style={styles.legal}>{STORE.legalName}</Text>
         <Text style={styles.meta}>
           {`CNPJ ${STORE.cnpj}  ·  ${STORE.cityLine}`}

@@ -1,7 +1,7 @@
 "use client";
 
 import { pdf, PDFViewer } from "@react-pdf/renderer";
-import { Component, useMemo, useState, type ReactElement, type ReactNode } from "react";
+import { Component, useEffect, useMemo, useState, type ReactElement, type ReactNode } from "react";
 import { Download, Loader2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -17,10 +17,10 @@ function asPdfNode(node: ReactElement): PdfNode {
   return node as PdfNode;
 }
 
-function renderPdfElement(draft: DocumentDraft): ReactElement {
-  if (draft.kind === "recibo") return <ReceiptPdf draft={draft} />;
-  if (draft.kind === "consignacao") return <ConsignmentTermPdf draft={draft} />;
-  return <SalesContractPdf draft={draft} />;
+function renderPdfElement(draft: DocumentDraft, logoSrc: string | null): ReactElement {
+  if (draft.kind === "recibo") return <ReceiptPdf draft={draft} logoSrc={logoSrc} />;
+  if (draft.kind === "consignacao") return <ConsignmentTermPdf draft={draft} logoSrc={logoSrc} />;
+  return <SalesContractPdf draft={draft} logoSrc={logoSrc} />;
 }
 
 class PreviewErrorBoundary extends Component<{ children: ReactNode }, { message: string | null }> {
@@ -39,8 +39,37 @@ class PreviewErrorBoundary extends Component<{ children: ReactNode }, { message:
 }
 
 export function DocumentPreview({ draft }: { draft: DocumentDraft }) {
-  const element = useMemo(() => renderPdfElement(draft), [draft]);
-  const previewKey = useMemo(() => JSON.stringify(draft), [draft]);
+  const [logoSrc, setLogoSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/logo-documento.png")
+      .then((response) => {
+        if (!response.ok) throw new Error("Logo indisponível");
+        return response.blob();
+      })
+      .then(
+        (blob) =>
+          new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result));
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(blob);
+          })
+      )
+      .then((src) => {
+        if (!cancelled) setLogoSrc(src);
+      })
+      .catch(() => {
+        if (!cancelled) setLogoSrc(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const element = useMemo(() => renderPdfElement(draft, logoSrc), [draft, logoSrc]);
+  const previewKey = useMemo(() => `${logoSrc ? "logo" : "text"}:${JSON.stringify(draft)}`, [draft, logoSrc]);
   const [busy, setBusy] = useState<"download" | "print" | null>(null);
   const fileName = documentFileName(draft.kind, draft.vehicle.licensePlate, draft.dateIso);
 
