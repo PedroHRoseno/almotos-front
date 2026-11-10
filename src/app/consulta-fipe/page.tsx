@@ -14,8 +14,9 @@ import {
 import { FipeModelAutocomplete } from "@/components/forms/fipe-model-autocomplete";
 import { FipeConsultaCard } from "@/components/forms/fipe-consulta-card";
 import { api } from "@/lib/api";
-import type { FipeAno, FipeConsultaResponse, VehicleBrand } from "@/types";
-import { VEHICLE_BRANDS } from "@/types";
+import type { FipeAno, FipeConsultaResponse } from "@/types";
+import { MOTO_BRANDS, PINNED_MOTO_BRANDS } from "@/types";
+import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 
 function yearFromCodigo(codigoAno: string): number | null {
   const match = codigoAno.match(/^(\d{4})/);
@@ -24,7 +25,7 @@ function yearFromCodigo(codigoAno: string): number | null {
 }
 
 export default function ConsultaFipePage() {
-  const [brand, setBrand] = useState<VehicleBrand>("HONDA");
+  const [brand, setBrand] = useState("HONDA");
   const [modelName, setModelName] = useState("");
   const [codigoModelo, setCodigoModelo] = useState<string | null>(null);
   const [anos, setAnos] = useState<FipeAno[]>([]);
@@ -111,25 +112,20 @@ export default function ConsultaFipePage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="consulta-brand">Marca</Label>
-              <Select
+              <CreatableCombobox
+                id="consulta-brand"
                 value={brand}
+                pinned={[...PINNED_MOTO_BRANDS]}
+                options={MOTO_BRANDS.map((item) => ({
+                  value: item,
+                  label: item.replace(/_/g, " "),
+                }))}
                 onValueChange={(next) => {
-                  setBrand(next as VehicleBrand);
+                  setBrand(next);
                   setModelName("");
                   setCodigoModelo(null);
                 }}
-              >
-                <SelectTrigger id="consulta-brand">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {VEHICLE_BRANDS.map((item) => (
-                    <SelectItem key={item} value={item}>
-                      {item.replace(/_/g, " ")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="consulta-modelo">Modelo</Label>

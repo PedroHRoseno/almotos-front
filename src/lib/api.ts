@@ -254,7 +254,7 @@ export const api = {
     detalhes: (licensePlate: string) =>
       request<Vehicle>(`/vehicles/${encodeURIComponent(licensePlate)}`),
     criar: (body: VehicleCreate) =>
-      request<void>("/vehicles", {
+      request<Vehicle>("/vehicles", {
         method: "POST",
         body: JSON.stringify(body),
       }),

@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { buildDocumentHref } from "@/lib/documents";
-import { formatDocumentOrDash, formatLicensePlate, formatBRL } from "@/lib/masks";
+import { formatDocumentOrDash, formatBRL } from "@/lib/masks";
+import { plateLabel, vehicleKey } from "@/lib/vehicle-ref";
 import { isFinanceRole } from "@/lib/roles";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Vehicle, VehicleHistory } from "@/types";
@@ -235,7 +236,7 @@ export default function VeiculoDetailPage() {
     const reference = consignment ? vehicle.agreedPayout : vehicle.suggestedPrice;
     router.push(
       buildDocumentHref({
-        vehicleId: vehicle.licensePlate,
+        vehicleId: vehicleKey(vehicle),
         contactId: latestActiveSale?.partnerId || vehicle.ownerId,
         type: consignment ? "consignacao" : "contrato",
         amount: latestActiveSale?.salePrice ?? (reference != null && reference > 0 ? reference : undefined),
@@ -267,7 +268,7 @@ export default function VeiculoDetailPage() {
               {vehicle.modelName}
             </h1>
             <p className="text-sm md:text-base text-ink-muted tabular-nums">
-              Placa: {vehicle.licensePlate}
+              Placa: {plateLabel(vehicle.licensePlate)}
               {isFinance
                 ? null
                 : isThirdParty
@@ -318,12 +319,10 @@ export default function VeiculoDetailPage() {
         includeCatalogFields={false}
         readOnly={isFinance || !editing}
         hideFinancial={isFinance}
-        onSuccessWithPlate={(nextPlate) => {
+        onSuccessWithPlate={(nextRef) => {
           setEditing(false);
-          const next = formatLicensePlate(nextPlate);
-          const current = formatLicensePlate(placa);
-          if (next !== current) {
-            router.replace(`/motos/${encodeURIComponent(next)}`);
+          if (nextRef && nextRef !== placa) {
+            router.replace(`/motos/${encodeURIComponent(nextRef)}`);
           } else {
             fetchPage();
           }
@@ -613,7 +612,7 @@ export default function VeiculoDetailPage() {
                         onClick={() =>
                           router.push(
                             buildDocumentHref({
-                              vehicleId: vehicle.licensePlate,
+                              vehicleId: vehicleKey(vehicle),
                               contactId: sale.partnerId,
                               type: "contrato",
                               amount: sale.salePrice,
@@ -739,7 +738,7 @@ export default function VeiculoDetailPage() {
           </SheetHeader>
           <FormVenda
             insideModal
-            defaultPlate={vehicle.licensePlate}
+            defaultPlate={vehicle.licensePlate || vehicle.id || ""}
             onSuccess={() => {
               setSellOpen(false);
               fetchPage();
@@ -756,7 +755,7 @@ export default function VeiculoDetailPage() {
           </SheetHeader>
           <FormTroca
             insideModal
-            defaultSaidaPlate={vehicle.licensePlate}
+            defaultSaidaPlate={vehicle.licensePlate || vehicle.id || ""}
             onSuccess={() => {
               setTradeOpen(false);
               fetchPage();

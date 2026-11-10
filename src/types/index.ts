@@ -3,56 +3,34 @@
  * Controllers: VehicleController, SaleController, CustomerController, PurchaseController.
  */
 
-/** Marca do veículo – enum do back-end (VehicleBrand) */
-export type VehicleBrand =
-  | "TOYOTA"
-  | "HONDA"
-  | "FORD"
-  | "CHEVROLET"
-  | "NISSAN"
-  | "VOLKSWAGEN"
-  | "BMW"
-  | "MERCEDES_BENZ"
-  | "AUDI"
-  | "HYUNDAI"
-  | "KIA"
-  | "MAZDA"
-  | "SUBARU"
-  | "LEXUS"
-  | "ACURA"
-  | "INFINITI"
-  | "PORSCHE"
-  | "JAGUAR"
-  | "LAND_ROVER"
-  | "TESLA"
-  | "VOLVO"
-  | "PEUGEOT"
-  | "RENAULT"
-  | "CITROEN"
-  | "FIAT"
-  | "ALFA_ROMEO"
-  | "LAMBORGHINI"
-  | "FERRARI"
-  | "MASERATI"
-  | "YAMAHA"
-  | "KAWASAKI"
-  | "SUZUKI"
-  | "HARLEY_DAVIDSON"
-  | "BMW_MOTORRAD"
-  | "DUCATI"
-  | "APRILIA"
-  | "TRIUMPH"
-  | "KTM";
+/** Marca livre persistida no SoR. A lista é só a sugestão do cadastro. */
+export type VehicleBrand = string;
 
-/** Lista de marcas para selects e validação */
-export const VEHICLE_BRANDS: VehicleBrand[] = [
-  "TOYOTA", "HONDA", "FORD", "CHEVROLET", "NISSAN", "VOLKSWAGEN", "BMW",
-  "MERCEDES_BENZ", "AUDI", "HYUNDAI", "KIA", "MAZDA", "SUBARU", "LEXUS",
-  "ACURA", "INFINITI", "PORSCHE", "JAGUAR", "LAND_ROVER", "TESLA", "VOLVO",
-  "PEUGEOT", "RENAULT", "CITROEN", "FIAT", "ALFA_ROMEO", "LAMBORGHINI",
-  "FERRARI", "MASERATI", "YAMAHA", "KAWASAKI", "SUZUKI", "HARLEY_DAVIDSON",
-  "BMW_MOTORRAD", "DUCATI", "APRILIA", "TRIUMPH", "KTM",
-];
+/** Honda e Yamaha ficam fixas no topo; o restante são marcas de moto. */
+export const MOTO_BRANDS = [
+  "HONDA",
+  "YAMAHA",
+  "SUZUKI",
+  "KAWASAKI",
+  "BMW",
+  "HARLEY_DAVIDSON",
+  "DUCATI",
+  "TRIUMPH",
+  "KTM",
+  "APRILIA",
+  "ROYAL ENFIELD",
+  "BAJAJ",
+  "HAOJUE",
+  "SHINERAY",
+  "DAFRA",
+  "AVELLOZ",
+  "VOLTZ",
+  "TRAXX",
+  "HUSQVARNA",
+  "BENELLI",
+] as const;
+
+export const PINNED_MOTO_BRANDS = ["HONDA", "YAMAHA"] as const;
 
 /** Endereço (Address) – usado em Customer */
 export interface Address {
@@ -183,8 +161,9 @@ export interface VehicleTag {
 }
 
 export interface Vehicle {
-  licensePlate: string;
-  brand: VehicleBrand;
+  id?: string;
+  licensePlate: string | null;
+  brand: string;
   modelName: string;
   codigoFipe?: string | null;
   manufactureYear: number;
@@ -214,8 +193,8 @@ export interface Vehicle {
 
 /** Payload para criar veículo – POST /vehicles */
 export interface VehicleCreate {
-  licensePlate: string;
-  brand: VehicleBrand;
+  licensePlate?: string | null;
+  brand: string;
   modelName: string;
   codigoFipe?: string | null;
   manufactureYear: number;

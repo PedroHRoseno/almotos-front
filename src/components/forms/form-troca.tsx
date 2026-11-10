@@ -23,6 +23,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { trocaSchema, type TrocaFormData } from "@/lib/validations/schemas";
+import { plateLabel, vehicleKey } from "@/lib/vehicle-ref";
 import { api, API_MAX_PAGE_SIZE } from "@/lib/api";
 import { digitsOnly, formatBRL, partnerSelectLabel } from "@/lib/masks";
 import type { Vehicle, PartnerSummary } from "@/types";
@@ -155,7 +156,7 @@ export function FormTroca({ onSuccess, insideModal, defaultSaidaPlate }: FormTro
       return;
     }
     if (prefilledSaidaPlate.current === saidaPlaca) return;
-    const saida = disponiveis.find((v) => v.licensePlate === saidaPlaca);
+    const saida = disponiveis.find((v) => vehicleKey(v) === saidaPlaca);
     if (!saida) return;
     if (saida.suggestedPrice != null) {
       form.setValue("salePriceLoja", saida.suggestedPrice);
@@ -167,9 +168,9 @@ export function FormTroca({ onSuccess, insideModal, defaultSaidaPlate }: FormTro
   const veiculoEntradaOptions: SearchableSelectOption[] = useMemo(
     () =>
       veiculos.map((v) => ({
-        value: v.licensePlate,
-        label: `${v.brand} ${v.modelName} (${v.modelYear}) – ${v.licensePlate}`,
-        searchText: `${v.brand} ${v.modelName} ${v.modelYear} ${v.licensePlate} ${v.color}`,
+        value: vehicleKey(v),
+        label: `${v.brand} ${v.modelName} (${v.modelYear}) – ${plateLabel(v.licensePlate)}`,
+        searchText: `${v.brand} ${v.modelName} ${v.modelYear} ${v.licensePlate ?? ""} ${v.color}`,
       })),
     [veiculos]
   );
@@ -178,11 +179,11 @@ export function FormTroca({ onSuccess, insideModal, defaultSaidaPlate }: FormTro
   const veiculoSaidaOptions: SearchableSelectOption[] = useMemo(
     () =>
       disponiveis
-        .filter((v) => v.licensePlate !== entradaPlaca)
+        .filter((v) => vehicleKey(v) !== entradaPlaca)
         .map((v) => ({
-          value: v.licensePlate,
-          label: `${v.brand} ${v.modelName} (${v.modelYear}) – ${v.licensePlate}`,
-          searchText: `${v.brand} ${v.modelName} ${v.modelYear} ${v.licensePlate} ${v.color}`,
+          value: vehicleKey(v),
+          label: `${v.brand} ${v.modelName} (${v.modelYear}) – ${plateLabel(v.licensePlate)}`,
+          searchText: `${v.brand} ${v.modelName} ${v.modelYear} ${v.licensePlate ?? ""} ${v.color}`,
         })),
     [disponiveis, entradaPlaca]
   );
@@ -251,7 +252,7 @@ export function FormTroca({ onSuccess, insideModal, defaultSaidaPlate }: FormTro
   };
 
   const renderVeiculoLabel = (v: Vehicle) =>
-    `${v.brand} ${v.modelName} (${v.modelYear}) – ${v.licensePlate}`;
+    `${v.brand} ${v.modelName} (${v.modelYear}) – ${plateLabel(v.licensePlate)}`;
 
   const formContent = (
     <form onSubmit={form.handleSubmit(onSubmit)} className="@container min-w-0 space-y-6">

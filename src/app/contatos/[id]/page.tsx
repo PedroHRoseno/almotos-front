@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { formatBRL, formatDocumentOrDash, formatPhoneOrDash } from "@/lib/masks";
+import { plateLabel, vehicleKey } from "@/lib/vehicle-ref";
 import type { ContactReport, PartnerDetail, Vehicle } from "@/types";
 import { FormParceiro } from "@/components/forms/form-parceiro";
 import {
@@ -202,12 +203,12 @@ export default function ContatoDetailPage() {
           <CardContent className="space-y-2">
             {owned.map((vehicle) => (
               <Link
-                key={vehicle.licensePlate}
-                href={`/motos/${encodeURIComponent(vehicle.licensePlate)}`}
+                key={vehicleKey(vehicle)}
+                href={`/motos/${encodeURIComponent(vehicleKey(vehicle))}`}
                 className="flex justify-between rounded-md border px-3 py-2 text-sm hover:bg-muted/50"
               >
                 <span>
-                  {vehicle.brand} {vehicle.modelName} · {vehicle.licensePlate}
+                  {vehicle.brand} {vehicle.modelName} · {plateLabel(vehicle.licensePlate)}
                 </span>
                 <span className="text-muted-foreground">
                   {vehicle.ownershipKind === "THIRD_PARTY" ? "Terceiro" : "Própria"} · {vehicle.status}

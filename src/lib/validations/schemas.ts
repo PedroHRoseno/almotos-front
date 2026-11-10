@@ -1,18 +1,15 @@
 import { z } from "zod";
-import { VEHICLE_BRANDS } from "@/types";
 
-const vehicleBrandEnum = z.enum(
-  VEHICLE_BRANDS as unknown as [string, ...string[]]
-);
+const PLATE_PATTERN = /^[A-Z]{3}-[0-9][A-Z0-9][0-9]{2}$/;
 
-/** Schema de validação para cadastro de Veículo (POST /vehicles). Formato LLL-XXXX: tradicional (AAA-9999) ou Mercosul (AAA-1A11). */
+/** Schema de validação para cadastro de Veículo (POST /vehicles). Placa vazia vale para elétrica. */
 export const veiculoSchema = z.object({
-  licensePlate: z
+  licensePlate: z.string().optional().or(z.literal("")).nullable(),
+  brand: z
     .string()
-    .min(1, "Placa é obrigatória")
-    .length(8, "Placa deve ter 8 caracteres (ex.: KIU-1437 ou ABC-1B23)")
-    .regex(/^[A-Z]{3}-[0-9][A-Z0-9][0-9]{2}$/, "Placa no formato LLL-XXXX: 3 letras, hífen, 1 número, 1 letra ou número, 2 números (ex.: KIU-1437 ou ABC-1B23)"),
-  brand: vehicleBrandEnum,
+    .trim()
+    .min(1, "Marca é obrigatória")
+    .max(64, "Marca deve ter no máximo 64 caracteres"),
   modelName: z
     .string()
     .min(1, "Modelo é obrigatório")
@@ -51,6 +48,15 @@ export const veiculoSchema = z.object({
   baseCost: z.number().min(0, "Custo base não pode ser negativo").optional(),
   agreedPayout: z.number().min(0, "Repasse combinado não pode ser negativo").optional(),
 }).superRefine((data, ctx) => {
+  const plate = data.licensePlate?.trim() ?? "";
+  if (plate && !PLATE_PATTERN.test(plate)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["licensePlate"],
+      message:
+        "Placa no formato LLL-XXXX: 3 letras, hífen, 1 número, 1 letra ou número, 2 números (ex.: ABC-1B23)",
+    });
+  }
   if (data.ownershipKind === "THIRD_PARTY" && !data.ownerId) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,

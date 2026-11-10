@@ -36,7 +36,8 @@ import { FormVenda } from "@/components/forms/form-venda";
 import { isVehicleAvailable } from "@/lib/vehicle-status";
 import { FilterChip } from "@/components/ui/filter-chip";
 import { api } from "@/lib/api";
-import { formatBRL, formatLicensePlate } from "@/lib/masks";
+import { formatBRL } from "@/lib/masks";
+import { plateLabel, vehicleKey } from "@/lib/vehicle-ref";
 import { formatFipePercent } from "@/lib/fipe-compare";
 import { isFinanceRole } from "@/lib/roles";
 import { useAuth } from "@/contexts/AuthContext";
@@ -213,9 +214,13 @@ export default function MotosPage() {
     fetchVehicles();
   }, [fetchVehicles]);
 
-  const handleCadastroSuccess = (licensePlate: string) => {
+  const handleCadastroSuccess = (ref: string) => {
     setModal(null);
-    router.push(`/motos/${encodeURIComponent(formatLicensePlate(licensePlate))}`);
+    if (!ref) {
+      fetchVehicles();
+      return;
+    }
+    router.push(`/motos/${encodeURIComponent(ref)}`);
   };
 
   const applySort = (next: string) => {
@@ -488,8 +493,8 @@ export default function MotosPage() {
                 </TableHeader>
                 <TableBody>
                   {veiculos.map((v) => (
-                    <TableRow key={v.licensePlate}>
-                      <TableCell className="font-medium tabular-nums">{v.licensePlate}</TableCell>
+                    <TableRow key={vehicleKey(v)}>
+                      <TableCell className="font-medium tabular-nums">{plateLabel(v.licensePlate)}</TableCell>
                       <TableCell>{(v.brand ?? "").replace(/_/g, " ")}</TableCell>
                       <TableCell>{v.modelName}</TableCell>
                       <TableCell>
@@ -540,7 +545,7 @@ export default function MotosPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <Link href={`/motos/${v.licensePlate}`}>
+                          <Link href={`/motos/${encodeURIComponent(vehicleKey(v))}`}>
                             <Button variant="ghost" size="icon" className="h-8 w-8" title="Abrir ficha">
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -551,7 +556,7 @@ export default function MotosPage() {
                               size="icon"
                               className="h-8 w-8"
                               title="Vender veículo"
-                              onClick={() => setModal({ type: "sell", plate: v.licensePlate })}
+                              onClick={() => setModal({ type: "sell", plate: vehicleKey(v) })}
                             >
                               <DollarSign className="h-4 w-4" />
                             </Button>

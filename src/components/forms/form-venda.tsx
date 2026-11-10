@@ -30,6 +30,7 @@ import { useState, useEffect, useMemo } from "react";
 import { FormParceiro } from "@/components/forms/form-parceiro";
 import { FIELD_HINTS } from "@/lib/field-hints";
 import { isVehicleAvailable } from "@/lib/vehicle-status";
+import { plateLabel, vehicleKey } from "@/lib/vehicle-ref";
 import { formatBRL } from "@/lib/masks";
 
 const defaultValues: Partial<VendaFormData> = {
@@ -81,7 +82,7 @@ export function FormVenda({ onSuccess, insideModal, defaultPlate }: FormVendaPro
 
   const disponiveis = veiculos.filter((v) => isVehicleAvailable(v));
   const selectedPlate = form.watch("vehicleLicensePlate");
-  const selectedVehicle = disponiveis.find((v) => v.licensePlate === selectedPlate);
+  const selectedVehicle = disponiveis.find((v) => vehicleKey(v) === selectedPlate);
   const isThirdParty = (selectedVehicle?.ownershipKind ?? "OWN") === "THIRD_PARTY";
   const watchedSalePrice = form.watch("salePrice") ?? 0;
   const watchedPayout = form.watch("payoutAmount") ?? 0;
@@ -110,9 +111,9 @@ export function FormVenda({ onSuccess, insideModal, defaultPlate }: FormVendaPro
   const veiculoOptions: SearchableSelectOption[] = useMemo(
     () =>
       disponiveis.map((v) => ({
-        value: v.licensePlate,
-        label: `${v.brand} ${v.modelName} (${v.modelYear}) – ${v.licensePlate}`,
-        searchText: `${v.brand} ${v.modelName} ${v.modelYear} ${v.licensePlate} ${v.color}`,
+        value: vehicleKey(v),
+        label: `${v.brand} ${v.modelName} (${v.modelYear}) – ${plateLabel(v.licensePlate)}`,
+        searchText: `${v.brand} ${v.modelName} ${v.modelYear} ${v.licensePlate ?? ""} ${v.color}`,
       })),
     [disponiveis]
   );

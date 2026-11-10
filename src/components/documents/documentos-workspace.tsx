@@ -28,6 +28,7 @@ import {
   type DocumentKind,
 } from "@/lib/documents";
 import { formatBRL, formatDocument, formatStoredPhone, partnerSelectLabel } from "@/lib/masks";
+import { plateLabel, vehicleKey } from "@/lib/vehicle-ref";
 import type { Address, PartnerDetail, PartnerSummary, Vehicle } from "@/types";
 import type { DocumentDraft } from "./types";
 
@@ -224,15 +225,15 @@ export function DocumentosWorkspace() {
 
   const vehicleSelectOptions = useMemo(() => {
     const options = vehicleOptions.map((item) => ({
-      value: item.licensePlate,
-      label: `${item.brand.replace(/_/g, " ")} ${item.modelName} (${item.modelYear}) - ${item.licensePlate}`,
-      searchText: `${item.brand} ${item.modelName} ${item.licensePlate} ${item.color}`,
+      value: vehicleKey(item),
+      label: `${item.brand.replace(/_/g, " ")} ${item.modelName} (${item.modelYear}) - ${plateLabel(item.licensePlate)}`,
+      searchText: `${item.brand} ${item.modelName} ${item.licensePlate ?? ""} ${item.color}`,
     }));
-    if (vehicle && !options.some((option) => option.value === vehicle.licensePlate)) {
+    if (vehicle && !options.some((option) => option.value === vehicleKey(vehicle))) {
       options.unshift({
-        value: vehicle.licensePlate,
-        label: `${vehicle.brand.replace(/_/g, " ")} ${vehicle.modelName} (${vehicle.modelYear}) - ${vehicle.licensePlate}`,
-        searchText: `${vehicle.brand} ${vehicle.modelName} ${vehicle.licensePlate} ${vehicle.color}`,
+        value: vehicleKey(vehicle),
+        label: `${vehicle.brand.replace(/_/g, " ")} ${vehicle.modelName} (${vehicle.modelYear}) - ${plateLabel(vehicle.licensePlate)}`,
+        searchText: `${vehicle.brand} ${vehicle.modelName} ${vehicle.licensePlate ?? ""} ${vehicle.color}`,
       });
     }
     return options;
@@ -332,7 +333,7 @@ export function DocumentosWorkspace() {
               {vehicle ? (
                 <p className="text-xs text-muted-foreground">
                   {vehicle.brand.replace(/_/g, " ")} {vehicle.modelName} · {formatVehicleYear(vehicle)} · {vehicle.color} ·{" "}
-                  {vehicle.licensePlate}
+                  {plateLabel(vehicle.licensePlate)}
                 </p>
               ) : (
                 <p className="text-xs text-muted-foreground">Selecione uma moto para levar placa, ano, modelo e cor ao PDF.</p>
@@ -465,7 +466,7 @@ function buildDraft(input: {
     },
     vehicle: input.vehicle
       ? {
-          licensePlate: input.vehicle.licensePlate,
+          licensePlate: plateLabel(input.vehicle.licensePlate),
           brandModel: `${input.vehicle.brand.replace(/_/g, " ")} ${input.vehicle.modelName}`.trim(),
           year: formatVehicleYear(input.vehicle),
           color: input.vehicle.color?.trim() || "não informada",

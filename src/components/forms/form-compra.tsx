@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormParceiro } from "./form-parceiro";
 import { FormVeiculo } from "./form-veiculo";
+import { plateLabel, vehicleKey } from "@/lib/vehicle-ref";
 
 const defaultValues: Partial<CompraFormData> = {
   vehicleLicensePlate: "",
@@ -40,7 +41,9 @@ export interface FormCompraProps {
 export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [veiculos, setVeiculos] = useState<Array<{ licensePlate: string; brand: string; modelName: string }>>([]);
+  const [veiculos, setVeiculos] = useState<
+    Array<{ id?: string; licensePlate: string | null; brand: string; modelName: string }>
+  >([]);
   const [loadingVeiculos, setLoadingVeiculos] = useState(true);
   const [partners, setPartners] = useState<Array<{ id: string; document?: string | null; name: string; city?: string }>>([]);
   const [loadingPartners, setLoadingPartners] = useState(true);
@@ -72,6 +75,7 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
         if (cancelled) return;
         setVeiculos(
           (response.content || []).map((v) => ({
+            id: v.id,
             licensePlate: v.licensePlate,
             brand: v.brand,
             modelName: v.modelName,
@@ -121,11 +125,11 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
   const veiculoOptions = useMemo(
     () =>
       [...veiculos]
-        .sort((a, b) => a.licensePlate.localeCompare(b.licensePlate))
+        .sort((a, b) => plateLabel(a.licensePlate).localeCompare(plateLabel(b.licensePlate)))
         .map((v) => ({
-          value: v.licensePlate,
-          label: `${v.brand} ${v.modelName} - ${v.licensePlate}`,
-          searchText: `${v.brand} ${v.modelName} ${v.licensePlate}`,
+          value: vehicleKey(v),
+          label: `${v.brand} ${v.modelName} - ${plateLabel(v.licensePlate)}`,
+          searchText: `${v.brand} ${v.modelName} ${v.licensePlate ?? ""}`,
         })),
     [veiculos]
   );
@@ -159,13 +163,17 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
       .then((response) => {
         setVeiculos(
           (response.content || []).map((v) => ({
+            id: v.id,
             licensePlate: v.licensePlate,
             brand: v.brand,
             modelName: v.modelName,
           }))
         );
         form.setValue("vehicleLicensePlate", licensePlate);
-        toast.success(`Veículo ${licensePlate} cadastrado e selecionado para esta compra.`);
+        const shown = /^[A-Z]{3}-[0-9][A-Z0-9][0-9]{2}$/.test(licensePlate)
+          ? licensePlate
+          : "sem placa";
+        toast.success(`Veículo ${shown} cadastrado e selecionado para esta compra.`);
       })
       .catch(() => {});
   };

@@ -20,14 +20,15 @@ import { formatLicensePlate, partnerSelectLabel } from "@/lib/masks";
 import { api } from "@/lib/api";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import type { SearchableSelectOption } from "@/components/ui/searchable-select";
+import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import type {
   AcquisitionOrigin,
   FipeConsultaResponse,
   PartnerSummary,
   Vehicle,
-  VehicleBrand,
 } from "@/types";
-import { VEHICLE_BRANDS } from "@/types";
+import { MOTO_BRANDS, PINNED_MOTO_BRANDS } from "@/types";
+import { vehicleKey } from "@/lib/vehicle-ref";
 import { cn } from "@/lib/utils";
 import { VehiclePhotoPipeline } from "@/components/vehicle/vehicle-photo-pipeline";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -62,7 +63,7 @@ const emptyDefaults: Partial<VeiculoFormData> = {
 
 function valuesFromVehicle(vehicle: Vehicle): VeiculoFormData {
   return {
-    licensePlate: formatLicensePlate(vehicle.licensePlate),
+    licensePlate: formatLicensePlate(vehicle.licensePlate || ""),
     brand: vehicle.brand,
     modelName: vehicle.modelName,
     manufactureYear: vehicle.manufactureYear,
@@ -142,7 +143,7 @@ export function FormVeiculo({
   const showPhotos = includePhotos;
   const showCatalogFields = includeCatalogFields;
   const showFinancial = !hideFinancial;
-  const plateForPath = currentPlate ?? vehicle?.licensePlate ?? "";
+  const plateForPath = currentPlate ?? (vehicle ? vehicleKey(vehicle) : "");
 
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -160,15 +161,13 @@ export function FormVeiculo({
     defaultValues: vehicle ? valuesFromVehicle(vehicle) : emptyDefaults,
   });
 
-  const loadedPlateRef = useRef<string | null>(
-    vehicle ? formatLicensePlate(vehicle.licensePlate) : null
-  );
+  const loadedKeyRef = useRef<string | null>(vehicle ? vehicleKey(vehicle) : null);
 
   useEffect(() => {
     if (!isEdit || !vehicle) return;
-    const nextPlate = formatLicensePlate(vehicle.licensePlate);
-    if (loadedPlateRef.current === nextPlate) return;
-    loadedPlateRef.current = nextPlate;
+    const nextKey = vehicleKey(vehicle);
+    if (loadedKeyRef.current === nextKey) return;
+    loadedKeyRef.current = nextKey;
     form.reset(valuesFromVehicle(vehicle));
     setVehicleImageUrls(vehicle.imageUrlList ?? []);
   }, [form, isEdit, vehicle]);
@@ -210,9 +209,13 @@ export function FormVeiculo({
           : (vehicle?.fipeValue ?? null);
   const fipeHint = compareFipe(watchedSuggestedPrice, liveFipeValue);
   const plateChanged = useMemo(() => {
-    if (!isEdit || !plateForPath) return false;
-    return formatLicensePlate(watchedPlate || "") !== formatLicensePlate(plateForPath);
-  }, [isEdit, plateForPath, watchedPlate]);
+    if (!isEdit) return false;
+    const current = vehicle?.licensePlate?.trim()
+      ? formatLicensePlate(vehicle.licensePlate || "")
+      : "";
+    const next = (watchedPlate || "").trim() ? formatLicensePlate(watchedPlate || "") : "";
+    return current !== next;
+  }, [isEdit, vehicle?.licensePlate, watchedPlate]);
 
   useEffect(() => {
     if (!watchedBrand || !codigoModelo || !watchedModelYear) {
@@ -240,13 +243,15 @@ export function FormVeiculo({
   const onSubmit = async (data: VeiculoFormData) => {
     setSuccess(null);
     setError(null);
-    const plateFormatted = formatLicensePlate(data.licensePlate);
+    const plateFormatted = data.licensePlate?.trim()
+      ? formatLicensePlate(data.licensePlate)
+      : "";
     const imageUrlList = showPhotos
       ? vehicleImageUrls
       : vehicle?.imageUrlList ?? [];
     const body = {
-      licensePlate: plateFormatted,
-      brand: data.brand as VehicleBrand,
+      licensePlate: plateFormatted || null,
+      brand: data.brand.trim(),
       modelName: data.modelName.trim(),
       codigoFipe: data.codigoFipe?.trim() || null,
       manufactureYear: data.manufactureYear,
@@ -271,20 +276,23 @@ export function FormVeiculo({
     };
 
     try {
+      let ref = plateFormatted;
       if (isEdit) {
         if (!plateForPath) {
-          setError("Placa atual ausente. Recarregue a página.");
+          setError("Não foi possível identificar o veículo. Recarregue a página.");
           return;
         }
         await api.vehicles.atualizar(plateForPath, body);
+        ref = plateFormatted || vehicle?.id || plateForPath;
         setSuccess("Veículo atualizado com sucesso.");
       } else {
-        await api.vehicles.criar(body);
+        const created = await api.vehicles.criar(body);
+        ref = plateFormatted || created.id || "";
         setSuccess("Veículo cadastrado com sucesso.");
         form.reset(emptyDefaults);
         setVehicleImageUrls([]);
       }
-      onSuccessWithPlate?.(plateFormatted);
+      onSuccessWithPlate?.(ref);
       onSuccess?.();
     } catch (e) {
       setError(
@@ -321,7 +329,6 @@ export function FormVeiculo({
         <FormField
           name="licensePlate"
           label="Placa"
-          required
           error={form.formState.errors.licensePlate}
         >
           <Controller
@@ -330,9 +337,12 @@ export function FormVeiculo({
             render={({ field }) => (
               <Input
                 id="licensePlate"
-                placeholder="Ex.: KIU-1437 ou ABC-1B23"
-                value={field.value}
-                onChange={(e) => field.onChange(formatLicensePlate(e.target.value))}
+                placeholder="Ex.: ABC-1B23 (Deixe em branco para elétricas)"
+                value={field.value ?? ""}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  field.onChange(raw.trim() ? formatLicensePlate(raw) : "");
+                }}
                 onBlur={field.onBlur}
                 maxLength={8}
                 className={cn(form.formState.errors.licensePlate && "border-destructive")}
@@ -346,29 +356,24 @@ export function FormVeiculo({
             control={form.control}
             name="brand"
             render={({ field }) => (
-              <Select
+              <CreatableCombobox
+                id="brand"
                 value={field.value}
+                error={!!form.formState.errors.brand}
+                placeholder="Selecione ou digite a marca"
+                searchPlaceholder="Buscar ou adicionar marca"
+                pinned={[...PINNED_MOTO_BRANDS]}
+                options={MOTO_BRANDS.map((brand) => ({
+                  value: brand,
+                  label: brand.replace(/_/g, " "),
+                }))}
                 onValueChange={(next) => {
                   field.onChange(next);
                   form.setValue("codigoFipe", null);
                   setCodigoModelo(null);
                   setFipeConsulta(null);
                 }}
-              >
-                <SelectTrigger
-                  id="brand"
-                  className={cn(form.formState.errors.brand && "border-destructive")}
-                >
-                  <SelectValue placeholder="Selecione a marca" />
-                </SelectTrigger>
-                <SelectContent>
-                  {VEHICLE_BRANDS.map((b) => (
-                    <SelectItem key={b} value={b}>
-                      {b.replace(/_/g, " ")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              />
             )}
           />
         </FormField>
