@@ -24,13 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { DockedForm } from "@/components/layout/form-dock";
 import { FormVeiculo } from "@/components/forms/form-veiculo";
 import { FormVenda } from "@/components/forms/form-venda";
 import { isVehicleAvailable } from "@/lib/vehicle-status";
@@ -648,41 +642,38 @@ export default function MotosPage() {
         </div>
       </div>
 
-      <Sheet modal={false} open={!isFinance && modal?.type === "create"} onOpenChange={(open) => !open && setModal(null)}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>Cadastrar veículo</SheetTitle>
-            <SheetDescription>
-              A lista de motos continua visível. Fotos e recorte ficam na ficha depois do cadastro.
-            </SheetDescription>
-          </SheetHeader>
-          <FormVeiculo
-            insideModal
-            includePhotos={false}
-            includeCatalogFields
-            onSuccessWithPlate={handleCadastroSuccess}
-          />
-        </SheetContent>
-      </Sheet>
+      <DockedForm
+        id={"vehicle:create"}
+        open={!isFinance && modal?.type === "create"}
+        onOpenChange={(open) => !open && setModal(null)}
+        title={"Cadastrar veículo"}
+        description={"Fotos e recorte ficam na ficha depois do cadastro."}
+      >
+        <FormVeiculo
+          insideModal
+          includePhotos={false}
+          includeCatalogFields
+          onSuccessWithPlate={handleCadastroSuccess}
+        />
+      </DockedForm>
 
-      <Sheet modal={false} open={!isFinance && modal?.type === "sell"} onOpenChange={(open) => !open && setModal(null)}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>Vender Veículo</SheetTitle>
-            <SheetDescription>A lista de motos continua visível à esquerda.</SheetDescription>
-          </SheetHeader>
-          {modal?.type === "sell" && (
-            <FormVenda
-              insideModal
-              defaultPlate={modal.plate}
-              onSuccess={() => {
-                setModal(null);
-                fetchVehicles();
-              }}
-            />
-          )}
-        </SheetContent>
-      </Sheet>
+      <DockedForm
+        id={`sale:${modal?.type === "sell" ? modal.plate : ""}`}
+        open={!isFinance && modal?.type === "sell"}
+        onOpenChange={(open) => !open && setModal(null)}
+        title={"Vender veículo"}
+      >
+        {modal?.type === "sell" && (
+          <FormVenda
+            insideModal
+            defaultPlate={modal.plate}
+            onSuccess={() => {
+              setModal(null);
+              fetchVehicles();
+            }}
+          />
+        )}
+      </DockedForm>
     </div>
   );
 }

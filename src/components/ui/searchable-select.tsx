@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronsUpDown, X } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,16 @@ export interface SearchableSelectProps<T = string> {
   allowClear?: boolean;
   /** Chamado a cada alteração do campo de busca (útil para busca no servidor). */
   onSearchChange?: (term: string) => void;
+  /** `false` quando as opções já vêm filtradas do servidor. */
+  filterLocally?: boolean;
+  /** Mostra "Buscando…" no lugar da lista. */
+  loading?: boolean;
+  /** Avisado quando o dropdown abre/fecha (ex.: carregar só ao abrir). */
+  onOpenChange?: (open: boolean) => void;
+  /** Linha discreta no rodapé da lista (ex.: "Digite para ver mais"). */
+  footer?: React.ReactNode;
+  /** Texto do campo de busca dentro do dropdown. */
+  searchPlaceholder?: string;
 }
 
 export function SearchableSelect<T extends string = string>({
@@ -37,14 +47,26 @@ export function SearchableSelect<T extends string = string>({
   error = false,
   allowClear = false,
   onSearchChange,
+  filterLocally = true,
+  loading = false,
+  onOpenChange,
+  footer,
+  searchPlaceholder = "Digite para buscar...",
 }: SearchableSelectProps<T>) {
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpenState] = React.useState(false);
+  const setOpen = React.useCallback(
+    (next: boolean) => {
+      setOpenState(next);
+      onOpenChange?.(next);
+    },
+    [onOpenChange]
+  );
   const [searchTerm, setSearchTerm] = React.useState("");
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   // Filtrar opções baseado no termo de busca
   const filteredOptions = React.useMemo(() => {
-    if (!searchTerm.trim()) return options;
+    if (!filterLocally || !searchTerm.trim()) return options;
 
     const term = searchTerm.toLowerCase().trim();
     return options.filter((option) => {
@@ -52,7 +74,7 @@ export function SearchableSelect<T extends string = string>({
       const searchMatch = option.searchText?.toLowerCase().includes(term);
       return labelMatch || searchMatch;
     });
-  }, [options, searchTerm]);
+  }, [filterLocally, options, searchTerm]);
 
   // Encontrar a opção selecionada
   const selectedOption = React.useMemo(
@@ -77,7 +99,7 @@ export function SearchableSelect<T extends string = string>({
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [open, onSearchChange]);
+  }, [open, onSearchChange, setOpen]);
 
   const handleSelect = (optionValue: T) => {
     onValueChange?.(optionValue);
@@ -128,7 +150,7 @@ export function SearchableSelect<T extends string = string>({
         <div className="absolute z-50 mt-1 w-full min-w-0 overflow-hidden rounded-xl border border-line bg-surface">
           <div className="p-2">
             <Input
-              placeholder="Digite para buscar..."
+              placeholder={searchPlaceholder}
               value={searchTerm}
               onChange={(e) => {
                 const next = e.target.value;
@@ -140,7 +162,12 @@ export function SearchableSelect<T extends string = string>({
             />
           </div>
           <div className="max-h-[300px] overflow-x-hidden overflow-y-auto p-1">
-            {filteredOptions.length === 0 ? (
+            {loading && filteredOptions.length === 0 ? (
+              <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Buscando…
+              </div>
+            ) : filteredOptions.length === 0 ? (
               <div className="py-6 text-center text-sm text-muted-foreground">
                 {emptyMessage}
               </div>
@@ -165,6 +192,14 @@ export function SearchableSelect<T extends string = string>({
               ))
             )}
           </div>
+          {(footer || (loading && filteredOptions.length > 0)) && (
+            <div className="flex items-center gap-2 border-t border-line px-3 py-2 text-xs text-ink-subtle">
+              {loading && filteredOptions.length > 0 ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : null}
+              {footer}
+            </div>
+          )}
         </div>
       )}
     </div>

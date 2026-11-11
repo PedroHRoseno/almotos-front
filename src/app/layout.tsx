@@ -7,6 +7,7 @@ import { DashboardProvider } from "@/contexts/DashboardContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { LayoutWrapper } from "@/components/layout/LayoutWrapper";
+import { FormDockProvider } from "@/components/layout/form-dock";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemedToaster } from "@/components/themed-toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -63,9 +64,11 @@ export default function RootLayout({
             <AuthGuard>
               <DashboardProvider>
                 <SidebarProvider>
-                  <LayoutWrapper>
-                    <MainContent>{children}</MainContent>
-                  </LayoutWrapper>
+                  <FormDockProvider>
+                    <LayoutWrapper>
+                      <MainContent>{children}</MainContent>
+                    </LayoutWrapper>
+                  </FormDockProvider>
                 </SidebarProvider>
               </DashboardProvider>
             </AuthGuard>

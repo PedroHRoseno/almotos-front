@@ -8,18 +8,12 @@ import { Input } from "@/components/ui/input";
 import { FormField } from "@/components/ui/form-field";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { DockedForm } from "@/components/layout/form-dock";
 import { compraSchema, type CompraFormData } from "@/lib/validations/schemas";
 import { api, API_MAX_PAGE_SIZE } from "@/lib/api";
-import { partnerSelectLabel } from "@/lib/masks";
+import { ContactPicker } from "@/components/forms/contact-picker";
 import { toast } from "sonner";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useId } from "react";
 import { cn } from "@/lib/utils";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormParceiro } from "./form-parceiro";
@@ -39,14 +33,13 @@ export interface FormCompraProps {
 }
 
 export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
+  const dockUid = useId();
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [veiculos, setVeiculos] = useState<
     Array<{ id?: string; licensePlate: string | null; brand: string; modelName: string }>
   >([]);
   const [loadingVeiculos, setLoadingVeiculos] = useState(true);
-  const [partners, setPartners] = useState<Array<{ id: string; document?: string | null; name: string; city?: string }>>([]);
-  const [loadingPartners, setLoadingPartners] = useState(true);
   const [modalParceiroOpen, setModalParceiroOpen] = useState(false);
   const [modalVeiculoOpen, setModalVeiculoOpen] = useState(false);
   const [vehicleSearch, setVehicleSearch] = useState("");
@@ -103,25 +96,6 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
     setVehicleSearch(term);
   }, []);
 
-  // Buscar parceiros
-  useEffect(() => {
-    setLoadingPartners(true);
-    api.customers
-      .listar(0, API_MAX_PAGE_SIZE)
-      .then((response) => {
-        setPartners(response.content || []);
-      })
-      .catch((err: unknown) => {
-        setPartners([]);
-        toast.error(
-          err instanceof Error && err.message
-            ? `Erro ao carregar parceiros: ${err.message}`
-            : "Erro ao carregar parceiros. Tente novamente."
-        );
-      })
-      .finally(() => setLoadingPartners(false));
-  }, []);
-
   const veiculoOptions = useMemo(
     () =>
       [...veiculos]
@@ -134,25 +108,9 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
     [veiculos]
   );
 
-  const parceiroOptions = useMemo(
-    () =>
-      partners.map((p) => ({
-        value: p.id,
-        label: partnerSelectLabel(p.name, p.document),
-        searchText: `${p.name} ${p.document || ""} ${p.city || ""}`,
-      })),
-    [partners]
-  );
-
   const handleParceiroCriado = (id: string) => {
     setModalParceiroOpen(false);
-    api.customers
-      .listar(0, 100)
-      .then((response) => {
-        setPartners(response.content || []);
-        form.setValue("customerId", id);
-      })
-      .catch(() => {});
+    form.setValue("customerId", id, { shouldValidate: true });
   };
 
   const handleVeiculoCriado = (licensePlate: string) => {
@@ -268,15 +226,11 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
                 control={form.control}
                 name="customerId"
                 render={({ field }) => (
-                  <SearchableSelect
-                    options={parceiroOptions}
+                  <ContactPicker
                     value={field.value}
-                    onValueChange={field.onChange}
-                    placeholder={loadingPartners ? "Carregando…" : "Buscar fornecedor/parceiro..."}
-                    disabled={loadingPartners}
-                    emptyMessage="Nenhum parceiro encontrado"
+                    onValueChange={(id) => field.onChange(id)}
+                    placeholder="Buscar fornecedor/parceiro..."
                     error={!!form.formState.errors.customerId}
-                    allowClear
                   />
                 )}
               />
@@ -343,7 +297,7 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
         >
           Limpar
         </Button>
-        <Button type="submit" disabled={form.formState.isSubmitting || loadingVeiculos || loadingPartners}>
+        <Button type="submit" disabled={form.formState.isSubmitting || loadingVeiculos}>
           {form.formState.isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -373,39 +327,37 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
 
       {insideModal && formContent}
 
-      <Dialog open={modalParceiroOpen} onOpenChange={setModalParceiroOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Cadastrar Novo Parceiro</DialogTitle>
-            <DialogDescription>
-              Cadastre um novo parceiro/fornecedor para realizar a compra. Após o cadastro, ele será automaticamente selecionado.
-            </DialogDescription>
-          </DialogHeader>
-          <FormParceiro
-            insideModal
-            onSuccessWithId={(id) => {
-              handleParceiroCriado(id);
-            }}
-          />
-        </DialogContent>
-      </Dialog>
+      <DockedForm
+        id={`contact:new:${dockUid}`}
+        open={modalParceiroOpen}
+        onOpenChange={setModalParceiroOpen}
+        title="Novo contato"
+        description="Cadastre um novo parceiro/fornecedor para realizar a compra. Após o cadastro, ele será automaticamente selecionado."
+        closeOnUnmount
+      >
+        <FormParceiro
+          insideModal
+          onSuccessWithId={(id) => {
+            handleParceiroCriado(id);
+          }}
+        />
+      </DockedForm>
 
-      <Dialog open={modalVeiculoOpen} onOpenChange={setModalVeiculoOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Cadastrar Novo Veículo</DialogTitle>
-            <DialogDescription>
-              Cadastre um novo veículo para realizar a compra. Fotos e recorte ficam na ficha do veículo depois.
-            </DialogDescription>
-          </DialogHeader>
-          <FormVeiculo
-            insideModal
-            includePhotos={false}
-            includeCatalogFields
-            onSuccessWithPlate={handleVeiculoCriado}
-          />
-        </DialogContent>
-      </Dialog>
+      <DockedForm
+        id={`vehicle:new:${dockUid}`}
+        open={modalVeiculoOpen}
+        onOpenChange={setModalVeiculoOpen}
+        title="Novo veículo"
+        description="Cadastre um novo veículo para realizar a compra. Fotos e recorte ficam na ficha do veículo depois."
+        closeOnUnmount
+      >
+        <FormVeiculo
+          insideModal
+          includePhotos={false}
+          includeCatalogFields
+          onSuccessWithPlate={handleVeiculoCriado}
+        />
+      </DockedForm>
     </>
   );
 }

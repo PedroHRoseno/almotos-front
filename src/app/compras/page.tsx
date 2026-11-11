@@ -28,13 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { DockedForm } from "@/components/layout/form-dock";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -396,17 +390,15 @@ export default function ComprasPage() {
         </CardContent>
       </Card>
 
-      <Sheet modal={false} open={modalOpen} onOpenChange={setModalOpen}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>Registrar compra</SheetTitle>
-            <SheetDescription>
-              A lista de compras continua visível. Selecione o veículo e o fornecedor sem perder o contexto.
-            </SheetDescription>
-          </SheetHeader>
-          <FormCompra onSuccess={handleCompraSuccess} insideModal />
-        </SheetContent>
-      </Sheet>
+      <DockedForm
+        id={"purchase:new"}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        title={"Nova compra"}
+        description={<>Selecione o veículo e o fornecedor sem perder o contexto.</>}
+      >
+        <FormCompra onSuccess={handleCompraSuccess} insideModal />
+      </DockedForm>
 
       <FiscalSheet
         target={fiscalTarget}

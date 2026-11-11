@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { AppSidebar } from "./app-sidebar";
+import { FormDock } from "./form-dock";
 
 export function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -11,6 +12,7 @@ export function LayoutWrapper({ children }: { children: React.ReactNode }) {
     <>
       {!isLoginPage && <AppSidebar />}
       {children}
+      {!isLoginPage && <FormDock />}
     </>
   );
 }

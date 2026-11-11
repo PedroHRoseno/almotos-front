@@ -6,9 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
-import type { ContactReport, FinancialReport, OwnershipKind, PartnerSummary } from "@/types";
-import { SearchableSelect } from "@/components/ui/searchable-select";
-import { partnerSelectLabel } from "@/lib/masks";
+import type { ContactReport, FinancialReport, OwnershipKind } from "@/types";
+import { ContactPicker } from "@/components/forms/contact-picker";
+
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -22,7 +22,6 @@ export default function RelatoriosPage() {
   const [loading, setLoading] = useState(true);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [partners, setPartners] = useState<PartnerSummary[]>([]);
   const [contactId, setContactId] = useState("");
   const [ownershipKind, setOwnershipKind] = useState<OwnershipKind | "">("");
   const [contactReport, setContactReport] = useState<ContactReport | null>(null);
@@ -39,13 +38,6 @@ export default function RelatoriosPage() {
   useEffect(() => {
     fetchReport();
   }, [fetchReport]);
-
-  useEffect(() => {
-    api.customers
-      .listar(0, 100)
-      .then((response) => setPartners(response.content || []))
-      .catch(() => setPartners([]));
-  }, []);
 
   useEffect(() => {
     if (!contactId) {
@@ -117,17 +109,10 @@ export default function RelatoriosPage() {
           </form>
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="w-full sm:max-w-sm">
-              <SearchableSelect
-                options={partners.map((p) => ({
-                  value: p.id,
-                  label: partnerSelectLabel(p.name, p.document),
-                  searchText: `${p.name} ${p.document || ""}`,
-                }))}
+              <ContactPicker
                 value={contactId}
                 onValueChange={(value) => setContactId(value || "")}
                 placeholder="Filtrar por contato..."
-                emptyMessage="Nenhum contato"
-                allowClear
               />
             </div>
             <select

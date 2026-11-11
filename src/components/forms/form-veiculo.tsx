@@ -21,15 +21,13 @@ import {
   veiculoSchema,
   type VeiculoFormData,
 } from "@/lib/validations/schemas";
-import { formatLicensePlate, partnerSelectLabel } from "@/lib/masks";
+import { formatLicensePlate } from "@/lib/masks";
 import { api } from "@/lib/api";
-import { SearchableSelect } from "@/components/ui/searchable-select";
-import type { SearchableSelectOption } from "@/components/ui/searchable-select";
+import { ContactPicker } from "@/components/forms/contact-picker";
 import { CreatableCombobox } from "@/components/ui/creatable-combobox";
 import type {
   AcquisitionOrigin,
   FipeConsultaResponse,
-  PartnerSummary,
   Vehicle,
 } from "@/types";
 import { MOTO_BRANDS, PINNED_MOTO_BRANDS } from "@/types";
@@ -149,6 +147,10 @@ export interface FormVeiculoProps {
   readOnly?: boolean;
   /** Oculta custo, repasse, lucro e tags internas (perfil FINANCE). */
   hideFinancial?: boolean;
+  /** Pré-preenchimento no cadastro (ex.: vindo da Consulta FIPE). */
+  initialValues?: Partial<VeiculoFormData>;
+  /** `codigoModelo` FIPE do modelo pré-preenchido: já consulta o valor. */
+  initialCodigoModelo?: string | null;
 }
 
 export function FormVeiculo({
@@ -162,6 +164,8 @@ export function FormVeiculo({
   insideModal,
   readOnly = false,
   hideFinancial = false,
+  initialValues,
+  initialCodigoModelo = null,
 }: FormVeiculoProps = {}) {
   const isEdit = mode === "edit";
   const showPhotos = includePhotos;
@@ -175,14 +179,15 @@ export function FormVeiculo({
     vehicle?.imageUrlList ?? []
   );
   const [photosBlockingSave, setPhotosBlockingSave] = useState(false);
-  const [codigoModelo, setCodigoModelo] = useState<string | null>(null);
+  const [codigoModelo, setCodigoModelo] = useState<string | null>(
+    vehicle ? null : initialCodigoModelo
+  );
   const [fipeConsulta, setFipeConsulta] = useState<FipeConsultaResponse | null>(null);
   const [fipeLoading, setFipeLoading] = useState(false);
-  const [partners, setPartners] = useState<PartnerSummary[]>([]);
 
   const form = useForm<VeiculoFormData>({
     resolver: zodResolver(veiculoSchema),
-    defaultValues: vehicle ? valuesFromVehicle(vehicle) : emptyDefaults,
+    defaultValues: vehicle ? valuesFromVehicle(vehicle) : { ...emptyDefaults, ...initialValues },
   });
 
   const loadedKeyRef = useRef<string | null>(vehicle ? vehicleKey(vehicle) : null);
@@ -203,22 +208,6 @@ export function FormVeiculo({
   const watchedEngineCc = form.watch("engineCc");
   const ncmSugerido = ncmPorCilindrada(watchedEngineCc, watchedFuel);
 
-  useEffect(() => {
-    api.customers
-      .listar(0, 100)
-      .then((response) => setPartners(response.content || []))
-      .catch(() => setPartners([]));
-  }, []);
-
-  const ownerOptions: SearchableSelectOption[] = useMemo(
-    () =>
-      partners.map((p) => ({
-        value: p.id,
-        label: partnerSelectLabel(p.name, p.document),
-        searchText: `${p.name} ${p.document || ""}`,
-      })),
-    [partners]
-  );
   const watchedBrand = form.watch("brand");
   const watchedModelYear = form.watch("modelYear");
   const watchedSuggestedPrice = form.watch("suggestedPrice");
@@ -674,14 +663,11 @@ export function FormVeiculo({
               control={form.control}
               name="ownerId"
               render={({ field }) => (
-                <SearchableSelect
-                  options={ownerOptions}
+                <ContactPicker
                   value={field.value || ""}
-                  onValueChange={field.onChange}
+                  onValueChange={(id) => field.onChange(id)}
                   placeholder="Buscar contato dono..."
-                  emptyMessage="Nenhum contato encontrado"
                   error={!!form.formState.errors.ownerId}
-                  allowClear
                 />
               )}
             />

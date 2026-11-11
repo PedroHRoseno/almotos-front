@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { DockedForm } from "@/components/layout/form-dock";
 import { FiscalPanel } from "@/components/fiscal/fiscal-panel";
 import type { FiscalSourceKind } from "@/types";
 
@@ -21,14 +15,14 @@ export function FiscalSheet({
   onChanged?: () => void;
 }) {
   return (
-    <Sheet modal={false} open={target !== null} onOpenChange={onOpenChange}>
-      <SheetContent>
-        <SheetHeader>
-          <SheetTitle>Nota fiscal</SheetTitle>
-          <SheetDescription>{target?.title}</SheetDescription>
-        </SheetHeader>
-        {target && <FiscalPanel key={`${target.kind}-${target.id}`} sourceKind={target.kind} sourceId={target.id} onChanged={onChanged} />}
-      </SheetContent>
-    </Sheet>
+    <DockedForm
+      id={`nfe:${target?.kind}:${target?.id}`}
+      open={target !== null}
+      onOpenChange={onOpenChange}
+      title={"Nota fiscal"}
+      description={<>{target?.title}</>}
+    >
+      {target && <FiscalPanel key={`${target.kind}-${target.id}`} sourceKind={target.kind} sourceId={target.id} onChanged={onChanged} />}
+    </DockedForm>
   );
 }

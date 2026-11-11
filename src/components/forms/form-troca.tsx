@@ -6,13 +6,7 @@ import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import type { SearchableSelectOption } from "@/components/ui/searchable-select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { DockedForm } from "@/components/layout/form-dock";
 import { FormField } from "@/components/ui/form-field";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import {
@@ -24,10 +18,11 @@ import {
 } from "@/components/ui/card";
 import { trocaSchema, type TrocaFormData } from "@/lib/validations/schemas";
 import { plateLabel, vehicleKey } from "@/lib/vehicle-ref";
-import { api, API_MAX_PAGE_SIZE } from "@/lib/api";
-import { digitsOnly, formatBRL, partnerSelectLabel } from "@/lib/masks";
-import type { Vehicle, PartnerSummary } from "@/types";
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { api } from "@/lib/api";
+import { formatBRL } from "@/lib/masks";
+import { ContactPicker } from "@/components/forms/contact-picker";
+import type { Vehicle } from "@/types";
+import { useState, useEffect, useMemo, useRef, useCallback, useId } from "react";
 import { FormParceiro } from "@/components/forms/form-parceiro";
 import { PaymentMethodSelect } from "@/components/fiscal/payment-method-select";
 import { FIELD_HINTS } from "@/lib/field-hints";
@@ -42,21 +37,6 @@ const defaultValues: Partial<TrocaFormData> = {
   paymentMethod: "",
 };
 
-/** CPF/CNPJ com máscara vai só com dígitos: a API compara o documento assim. */
-function partnerSearchParam(term: string): string | undefined {
-  const trimmed = term.trim();
-  if (!trimmed) return undefined;
-  const compact = trimmed.replace(/[\s.\-/]/g, "");
-  const digits = compact.replace(/\D/g, "");
-  if (digits.length >= 3 && digits === compact) return digits;
-  return trimmed;
-}
-
-function mergePartners(primary: PartnerSummary[], extra: PartnerSummary[]): PartnerSummary[] {
-  const seen = new Set(primary.map((partner) => partner.id));
-  return [...primary, ...extra.filter((partner) => !seen.has(partner.id))];
-}
-
 export interface FormTrocaProps {
   onSuccess?: () => void;
   insideModal?: boolean;
@@ -64,18 +44,12 @@ export interface FormTrocaProps {
 }
 
 export function FormTroca({ onSuccess, insideModal, defaultSaidaPlate }: FormTrocaProps = {}) {
+  const dockUid = useId();
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [veiculos, setVeiculos] = useState<Vehicle[]>([]);
   const [loadingVeiculos, setLoadingVeiculos] = useState(true);
-  const [partners, setPartners] = useState<PartnerSummary[]>([]);
-  const [pinnedPartner, setPinnedPartner] = useState<PartnerSummary | null>(null);
-  const [loadingPartners, setLoadingPartners] = useState(true);
-  const [searchingPartners, setSearchingPartners] = useState(false);
-  const [partnerQuery, setPartnerQuery] = useState("");
-  const [debouncedPartnerQuery, setDebouncedPartnerQuery] = useState("");
   const [modalParceiroOpen, setModalParceiroOpen] = useState(false);
-  const basePartnersRef = useRef<PartnerSummary[]>([]);
 
   const form = useForm<TrocaFormData>({
     resolver: zodResolver(trocaSchema),
@@ -91,49 +65,6 @@ export function FormTroca({ onSuccess, insideModal, defaultSaidaPlate }: FormTro
       .catch(() => setVeiculos([]))
       .finally(() => setLoadingVeiculos(false));
   }, []);
-
-  useEffect(() => {
-    if (!partnerQuery.trim()) {
-      setDebouncedPartnerQuery("");
-      return;
-    }
-    const timer = setTimeout(() => setDebouncedPartnerQuery(partnerQuery), 300);
-    return () => clearTimeout(timer);
-  }, [partnerQuery]);
-
-  // A lista inicial cabe em uma página (teto 200). O que o usuário digita consulta o cadastro inteiro.
-  useEffect(() => {
-    let cancelled = false;
-    const query = partnerSearchParam(debouncedPartnerQuery);
-    const isInitial = !query && basePartnersRef.current.length === 0;
-    if (isInitial) setLoadingPartners(true);
-    else setSearchingPartners(true);
-
-    api.customers
-      .listar(0, API_MAX_PAGE_SIZE, query)
-      .then((response) => {
-        if (cancelled) return;
-        const found = response.content || [];
-        if (!query) {
-          basePartnersRef.current = found;
-          setPartners(found);
-        } else {
-          setPartners(mergePartners(found, basePartnersRef.current));
-        }
-      })
-      .catch(() => {
-        if (!cancelled && !query) setPartners([]);
-      })
-      .finally(() => {
-        if (cancelled) return;
-        setLoadingPartners(false);
-        setSearchingPartners(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [debouncedPartnerQuery]);
 
   const entradaPlaca = form.watch("veiculoEntradaLicensePlate");
   const saidaPlaca = form.watch("veiculoSaidaLicensePlate");
@@ -190,44 +121,9 @@ export function FormTroca({ onSuccess, insideModal, defaultSaidaPlate }: FormTro
     [disponiveis, entradaPlaca]
   );
 
-  const parceiroOptions: SearchableSelectOption[] = useMemo(() => {
-    const list =
-      pinnedPartner && !partners.some((partner) => partner.id === pinnedPartner.id)
-        ? [pinnedPartner, ...partners]
-        : partners;
-    return list.map((p) => ({
-      value: p.id,
-      label: partnerSelectLabel(p.name, p.document),
-      searchText: [p.name, p.document, digitsOnly(p.document || ""), p.city]
-        .filter(Boolean)
-        .join(" "),
-    }));
-  }, [partners, pinnedPartner]);
-
-  const handlePartnerSearchChange = useCallback((term: string) => {
-    setPartnerQuery(term);
-  }, []);
-
   const handleParceiroCriado = (id: string) => {
     setModalParceiroOpen(false);
-    api.customers
-      .buscarPorId(id)
-      .then((detail) => {
-        const summary: PartnerSummary = {
-          id: detail.id,
-          name: detail.name,
-          document: detail.document,
-          phoneNumber1: detail.phoneNumber1,
-          city: detail.address?.city,
-        };
-        setPinnedPartner(summary);
-        basePartnersRef.current = mergePartners([summary], basePartnersRef.current);
-        setPartners((current) => mergePartners([summary], current));
-        form.setValue("customerId", id);
-      })
-      .catch(() => {
-        form.setValue("customerId", id);
-      });
+    form.setValue("customerId", id, { shouldValidate: true });
   };
 
   const onSubmit = async (data: TrocaFormData) => {
@@ -284,28 +180,11 @@ export function FormTroca({ onSuccess, insideModal, defaultSaidaPlate }: FormTro
                       control={form.control}
                       name="customerId"
                       render={({ field }) => (
-                        <SearchableSelect
-                          options={parceiroOptions}
+                        <ContactPicker
                           value={field.value}
-                          onValueChange={(id) => {
-                            field.onChange(id);
-                            if (!id) {
-                              setPinnedPartner(null);
-                              return;
-                            }
-                            const found = partners.find((partner) => partner.id === id);
-                            if (found) setPinnedPartner(found);
-                          }}
-                          onSearchChange={handlePartnerSearchChange}
-                          placeholder={loadingPartners ? "Carregando…" : "Buscar cliente..."}
-                          disabled={loadingPartners}
-                          emptyMessage={
-                            searchingPartners || partnerQuery.trim() !== debouncedPartnerQuery.trim()
-                              ? "Buscando…"
-                              : "Nenhum contato encontrado"
-                          }
+                          onValueChange={(id) => field.onChange(id)}
+                          placeholder="Buscar cliente..."
                           error={!!form.formState.errors.customerId}
-                          allowClear
                         />
                       )}
                     />
@@ -492,22 +371,21 @@ export function FormTroca({ onSuccess, insideModal, defaultSaidaPlate }: FormTro
 
       {insideModal && formContent}
 
-      <Dialog open={modalParceiroOpen} onOpenChange={setModalParceiroOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Cadastrar contato</DialogTitle>
-            <DialogDescription>
-              Cadastre o cliente desta troca. Depois do cadastro, ele será selecionado automaticamente.
-            </DialogDescription>
-          </DialogHeader>
-          <FormParceiro
-            insideModal
-            onSuccessWithId={(id) => {
-              handleParceiroCriado(id);
-            }}
-          />
-        </DialogContent>
-      </Dialog>
+      <DockedForm
+        id={`contact:new:${dockUid}`}
+        open={modalParceiroOpen}
+        onOpenChange={setModalParceiroOpen}
+        title="Novo contato"
+        description="Cadastre o cliente desta troca. Depois do cadastro, ele será selecionado automaticamente."
+        closeOnUnmount
+      >
+        <FormParceiro
+          insideModal
+          onSuccessWithId={(id) => {
+            handleParceiroCriado(id);
+          }}
+        />
+      </DockedForm>
     </>
   );
 }

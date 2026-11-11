@@ -135,3 +135,18 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Consulta FIPE: duas colunas só quando sobra largura (o painel lateral de forms pode estar aberto). */
+.fipe-layout {
+  container-type: inline-size;
+}
+@container (min-width: 56rem) {
+  .fipe-layout > .fipe-grid {
+    grid-template-columns: minmax(0, 1fr) 24rem;
+  }
+  .fipe-layout .fipe-result {
+    position: sticky;
+    top: 1.5rem;
+    align-self: start;
+  }
+}

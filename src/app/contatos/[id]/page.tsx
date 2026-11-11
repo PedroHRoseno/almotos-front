@@ -11,13 +11,7 @@ import { formatBRL, formatDocumentOrDash, formatPhoneOrDash } from "@/lib/masks"
 import { plateLabel, vehicleKey } from "@/lib/vehicle-ref";
 import type { ContactReport, PartnerDetail, Vehicle } from "@/types";
 import { FormParceiro } from "@/components/forms/form-parceiro";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { DockedForm } from "@/components/layout/form-dock";
 import { Loader2 } from "lucide-react";
 
 export default function ContatoDetailPage() {
@@ -243,46 +237,44 @@ export default function ContatoDetailPage() {
         </Card>
       )}
 
-      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Editar contato</DialogTitle>
-            <DialogDescription>
-              Atualize os dados. O CPF/CNPJ é opcional.
-            </DialogDescription>
-          </DialogHeader>
-          <FormParceiro
-            insideModal
-            partnerId={partner.id}
-            initialData={{
-              document: partner.document || "",
-              name: partner.name,
-              phoneNumber1: partner.phoneNumber1 || "",
-              phoneNumber2: partner.phoneNumber2 || "",
-              address: partner.address
-                ? {
-                    streetName: partner.address.streetName || "",
-                    number: partner.address.number || "",
-                    city: partner.address.city || "",
-                    state: partner.address.state || "",
-                    reference: partner.address.reference || "",
-                    zipCode: partner.address.zipCode || "",
-                    neighborhood: partner.address.neighborhood || "",
-                    complement: partner.address.complement || "",
-                    ibgeCode: partner.address.ibgeCode || "",
-                  }
-                : undefined,
-              email: partner.email || "",
-              stateRegistration: partner.stateRegistration || "",
-            }}
-            onSuccess={() => {
-              setEditModalOpen(false);
-              fetchPartnerDetail();
-            }}
-            isEdit={true}
-          />
-        </DialogContent>
-      </Dialog>
+      <DockedForm
+        id={`contact:${partner.id}`}
+        open={editModalOpen}
+        onOpenChange={setEditModalOpen}
+        title="Editar contato"
+        description="Atualize os dados. O CPF/CNPJ é opcional."
+      >
+        <FormParceiro
+          insideModal
+          partnerId={partner.id}
+          initialData={{
+            document: partner.document || "",
+            name: partner.name,
+            phoneNumber1: partner.phoneNumber1 || "",
+            phoneNumber2: partner.phoneNumber2 || "",
+            address: partner.address
+              ? {
+                  streetName: partner.address.streetName || "",
+                  number: partner.address.number || "",
+                  city: partner.address.city || "",
+                  state: partner.address.state || "",
+                  reference: partner.address.reference || "",
+                  zipCode: partner.address.zipCode || "",
+                  neighborhood: partner.address.neighborhood || "",
+                  complement: partner.address.complement || "",
+                  ibgeCode: partner.address.ibgeCode || "",
+                }
+              : undefined,
+            email: partner.email || "",
+            stateRegistration: partner.stateRegistration || "",
+          }}
+          onSuccess={() => {
+            setEditModalOpen(false);
+            fetchPartnerDetail();
+          }}
+          isEdit={true}
+        />
+      </DockedForm>
     </div>
   );
 }

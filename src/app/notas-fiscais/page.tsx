@@ -25,13 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { DockedForm } from "@/components/layout/form-dock";
 import { CancelNfeDialog } from "@/components/fiscal/cancel-nfe-dialog";
 import { FiscalEnvironmentBanner } from "@/components/fiscal/environment-banner";
 import { FiscalPanel } from "@/components/fiscal/fiscal-panel";
@@ -375,17 +369,15 @@ function DivergenceCard({ doc, onResolved }: { doc: FiscalDocument; onResolved: 
         </div>
       </div>
       <CancelNfeDialog doc={doc} open={cancelOpen} onOpenChange={setCancelOpen} onDone={onResolved} />
-      <Sheet modal={false} open={returnOpen} onOpenChange={setReturnOpen}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>Devolução da NF-e nº {doc.number}</SheetTitle>
-            <SheetDescription>
-              A devolução referencia a nota original. Quando for autorizada, a divergência fecha sozinha.
-            </SheetDescription>
-          </SheetHeader>
-          {returnOpen && <FiscalPanel sourceKind="RETURN" sourceId={doc.id} onChanged={onResolved} />}
-        </SheetContent>
-      </Sheet>
+      <DockedForm
+        id={`nfe-return:${doc.id}`}
+        open={returnOpen}
+        onOpenChange={setReturnOpen}
+        title={`Devolução da NF-e nº ${doc.number}`}
+        description={<>A devolução referencia a nota original. Quando for autorizada, a divergência fecha sozinha.</>}
+      >
+        {returnOpen && <FiscalPanel sourceKind="RETURN" sourceId={doc.id} onChanged={onResolved} />}
+      </DockedForm>
     </article>
   );
 }

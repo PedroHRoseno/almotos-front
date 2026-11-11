@@ -20,13 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { DockedForm } from "@/components/layout/form-dock";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -354,17 +348,15 @@ export default function TrocasPage() {
         </CardContent>
       </Card>
 
-      <Sheet modal={false} open={modalOpen} onOpenChange={setModalOpen}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>Realizar troca</SheetTitle>
-            <SheetDescription>
-              A lista de trocas continua visível. Confira a diferença de caixa antes de confirmar.
-            </SheetDescription>
-          </SheetHeader>
-          <FormTroca onSuccess={handleTrocaSuccess} insideModal />
-        </SheetContent>
-      </Sheet>
+      <DockedForm
+        id={"trade:new"}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        title={"Nova troca"}
+        description={<>Confira a diferença de caixa antes de confirmar.</>}
+      >
+        <FormTroca onSuccess={handleTrocaSuccess} insideModal />
+      </DockedForm>
 
       <FiscalSheet
         target={fiscalTarget}

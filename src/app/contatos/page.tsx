@@ -22,13 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { DockedForm } from "@/components/layout/form-dock";
 import { api } from "@/lib/api";
 import { formatDocumentOrDash, formatPhoneOrDash } from "@/lib/masks";
 import type { PartnerDetail, PartnerSummary } from "@/types";
@@ -271,68 +265,61 @@ export default function ContatosPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Cadastrar contato</DialogTitle>
-            <DialogDescription>
-              Preencha os dados. O endereço é opcional. Sem categoria fixa — o mesmo contato pode comprar, vender ou consignar.
-            </DialogDescription>
-          </DialogHeader>
-          <FormParceiro insideModal onSuccess={() => { setModalOpen(false); fetchPartners(); }} />
-        </DialogContent>
-      </Dialog>
+      <DockedForm
+        id={"contact:new"}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        title="Cadastrar contato"
+        description="Preencha os dados. O endereço é opcional. Sem categoria fixa — o mesmo contato pode comprar, vender ou consignar."
+      >
+        <FormParceiro insideModal onSuccess={() => { setModalOpen(false); fetchPartners(); }} />
+      </DockedForm>
 
-      <Dialog
+      <DockedForm
+        id={`contact:${editingPartner?.id ?? "edit"}`}
         open={editModalOpen}
         onOpenChange={(open) => {
           setEditModalOpen(open);
           if (!open) setEditingPartner(null);
         }}
+        title={editingPartner ? `Editar ${editingPartner.name}` : "Editar contato"}
+        description="Atualize os dados. O CPF/CNPJ é opcional."
       >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Editar contato</DialogTitle>
-            <DialogDescription>
-              Atualize os dados. O CPF/CNPJ é opcional.
-            </DialogDescription>
-          </DialogHeader>
-          {editingPartner && (
-            <FormParceiro
-              key={editingPartner.id}
-              insideModal
-              isEdit
-              partnerId={editingPartner.id}
-              initialData={{
-                document: editingPartner.document || "",
-                name: editingPartner.name,
-                phoneNumber1: editingPartner.phoneNumber1 || "",
-                phoneNumber2: editingPartner.phoneNumber2 || "",
-                address: editingPartner.address
-                  ? {
-                      streetName: editingPartner.address.streetName || "",
-                      number: editingPartner.address.number || "",
-                      city: editingPartner.address.city || "",
-                      state: editingPartner.address.state || "",
-                      reference: editingPartner.address.reference || "",
-                      zipCode: editingPartner.address.zipCode || "",
-                      neighborhood: editingPartner.address.neighborhood || "",
-                      complement: editingPartner.address.complement || "",
-                      ibgeCode: editingPartner.address.ibgeCode || "",
-                    }
-                  : undefined,
-                email: editingPartner.email || "",
-                stateRegistration: editingPartner.stateRegistration || "",
-              }}
-              onSuccess={() => {
-                setEditModalOpen(false);
-                setEditingPartner(null);
-                fetchPartners();
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+        {editingPartner && (
+          <FormParceiro
+            key={editingPartner.id}
+            insideModal
+            isEdit
+            partnerId={editingPartner.id}
+            initialData={{
+              document: editingPartner.document || "",
+              name: editingPartner.name,
+              phoneNumber1: editingPartner.phoneNumber1 || "",
+              phoneNumber2: editingPartner.phoneNumber2 || "",
+              address: editingPartner.address
+                ? {
+                    streetName: editingPartner.address.streetName || "",
+                    number: editingPartner.address.number || "",
+                    city: editingPartner.address.city || "",
+                    state: editingPartner.address.state || "",
+                    reference: editingPartner.address.reference || "",
+                    zipCode: editingPartner.address.zipCode || "",
+                    neighborhood: editingPartner.address.neighborhood || "",
+                    complement: editingPartner.address.complement || "",
+                    ibgeCode: editingPartner.address.ibgeCode || "",
+                  }
+                : undefined,
+              email: editingPartner.email || "",
+              stateRegistration: editingPartner.stateRegistration || "",
+            }}
+            onSuccess={() => {
+              setEditModalOpen(false);
+              setEditingPartner(null);
+              fetchPartners();
+            }}
+          />
+        )}
+      </DockedForm>
     </div>
   );
 }

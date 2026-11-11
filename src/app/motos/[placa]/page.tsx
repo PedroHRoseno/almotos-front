@@ -21,13 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { DockedForm } from "@/components/layout/form-dock";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -733,39 +727,38 @@ export default function VeiculoDetailPage() {
         </DialogContent>
       </Dialog>
 
-      <Sheet modal={false} open={!isFinance && sellOpen} onOpenChange={setSellOpen}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>Vender Veículo</SheetTitle>
-            <SheetDescription>A ficha continua visível à esquerda.</SheetDescription>
-          </SheetHeader>
-          <FormVenda
-            insideModal
-            defaultPlate={vehicle.licensePlate || vehicle.id || ""}
-            onSuccess={() => {
-              setSellOpen(false);
-              fetchPage();
-            }}
-          />
-        </SheetContent>
-      </Sheet>
+      <DockedForm
+        id={`sale:${vehicle.licensePlate || vehicle.id}`}
+        open={!isFinance && sellOpen}
+        onOpenChange={setSellOpen}
+        title={`Vender ${vehicle.licensePlate || vehicle.modelName}`}
+      >
+        <FormVenda
+          insideModal
+          defaultPlate={vehicle.licensePlate || vehicle.id || ""}
+          onSuccess={() => {
+            setSellOpen(false);
+            fetchPage();
+          }}
+        />
+      </DockedForm>
 
-      <Sheet modal={false} open={!isFinance && tradeOpen} onOpenChange={setTradeOpen}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>Realizar Troca</SheetTitle>
-            <SheetDescription>Esta moto já entra como a que sai da loja.</SheetDescription>
-          </SheetHeader>
-          <FormTroca
-            insideModal
-            defaultSaidaPlate={vehicle.licensePlate || vehicle.id || ""}
-            onSuccess={() => {
-              setTradeOpen(false);
-              fetchPage();
-            }}
-          />
-        </SheetContent>
-      </Sheet>
+      <DockedForm
+        id={`trade:${vehicle.licensePlate || vehicle.id}`}
+        open={!isFinance && tradeOpen}
+        onOpenChange={setTradeOpen}
+        title={`Troca · ${vehicle.licensePlate || vehicle.modelName}`}
+        description={"Esta moto já entra como a que sai da loja."}
+      >
+        <FormTroca
+          insideModal
+          defaultSaidaPlate={vehicle.licensePlate || vehicle.id || ""}
+          onSuccess={() => {
+            setTradeOpen(false);
+            fetchPage();
+          }}
+        />
+      </DockedForm>
 
       <AlertDialog open={returnOpen} onOpenChange={setReturnOpen}>
         <AlertDialogContent>

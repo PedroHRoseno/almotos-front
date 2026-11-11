@@ -23,13 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { DockedForm } from "@/components/layout/form-dock";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -417,17 +411,15 @@ export default function VendasPage() {
         </CardContent>
       </Card>
 
-      <Sheet modal={false} open={modalOpen} onOpenChange={setModalOpen}>
-        <SheetContent>
-          <SheetHeader>
-            <SheetTitle>Vender Veículo</SheetTitle>
-            <SheetDescription>
-              A lista à esquerda continua clicável. Preencha a venda sem perder o contexto do estoque.
-            </SheetDescription>
-          </SheetHeader>
-          <FormVenda onSuccess={handleVendaSuccess} insideModal />
-        </SheetContent>
-      </Sheet>
+      <DockedForm
+        id={"sale:new"}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        title={"Nova venda"}
+        description={<>Preencha a venda sem perder o contexto do estoque.</>}
+      >
+        <FormVenda onSuccess={handleVendaSuccess} insideModal />
+      </DockedForm>
 
       <FiscalSheet
         target={fiscalTarget}

@@ -342,9 +342,13 @@ export const api = {
   },
 
   fipe: {
-    models: (brand: string, q?: string) =>
+    models: (brand: string, q?: string, limit?: number) =>
       request<FipeModelsResponse>("/fipe/models", {
-        params: { brand, ...(q?.trim() ? { q: q.trim() } : {}) },
+        params: {
+          brand,
+          ...(q?.trim() ? { q: q.trim() } : {}),
+          ...(limit ? { limit: String(limit) } : {}),
+        },
       }),
     codigo: (brand: string, codigoModelo: string, year?: number) =>
       request<FipeCodigoResponse>("/fipe/codigo", {
@@ -361,6 +365,11 @@ export const api = {
     consulta: (brand: string, codigoModelo: string, year: number) =>
       request<FipeConsultaResponse>("/fipe/consulta", {
         params: { brand, codigoModelo, year: String(year) },
+      }),
+    /** Pelo código exato do ano FIPE ("2023-1", "32000-1" = Zero KM). */
+    consultaPorCodigoAno: (brand: string, codigoModelo: string, yearCode: string) =>
+      request<FipeConsultaResponse>("/fipe/consulta", {
+        params: { brand, codigoModelo, yearCode },
       }),
   },
 

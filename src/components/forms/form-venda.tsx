@@ -6,13 +6,7 @@ import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import type { SearchableSelectOption } from "@/components/ui/searchable-select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { DockedForm } from "@/components/layout/form-dock";
 import { FormField } from "@/components/ui/form-field";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import {
@@ -24,9 +18,9 @@ import {
 } from "@/components/ui/card";
 import { vendaSchema, type VendaFormData } from "@/lib/validations/schemas";
 import { api } from "@/lib/api";
-import { partnerSelectLabel } from "@/lib/masks";
-import type { Vehicle, PartnerSummary } from "@/types";
-import { useState, useEffect, useMemo } from "react";
+import { ContactPicker } from "@/components/forms/contact-picker";
+import type { Vehicle } from "@/types";
+import { useState, useEffect, useMemo, useId } from "react";
 import { FormParceiro } from "@/components/forms/form-parceiro";
 import { PaymentMethodSelect } from "@/components/fiscal/payment-method-select";
 import { FIELD_HINTS } from "@/lib/field-hints";
@@ -51,12 +45,11 @@ export interface FormVendaProps {
 }
 
 export function FormVenda({ onSuccess, insideModal, defaultPlate }: FormVendaProps = {}) {
+  const dockUid = useId();
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [veiculos, setVeiculos] = useState<Vehicle[]>([]);
   const [loadingVeiculos, setLoadingVeiculos] = useState(true);
-  const [partners, setPartners] = useState<PartnerSummary[]>([]);
-  const [loadingPartners, setLoadingPartners] = useState(true);
   const [modalParceiroOpen, setModalParceiroOpen] = useState(false);
 
   const form = useForm<VendaFormData>({
@@ -72,14 +65,6 @@ export function FormVenda({ onSuccess, insideModal, defaultPlate }: FormVendaPro
       .then((response) => setVeiculos(response.content || []))
       .catch(() => setVeiculos([]))
       .finally(() => setLoadingVeiculos(false));
-
-    // Buscar parceiros para seleção
-    setLoadingPartners(true);
-    api.customers
-      .listar(0, 100)
-      .then((response) => setPartners(response.content || []))
-      .catch(() => setPartners([]))
-      .finally(() => setLoadingPartners(false));
   }, []);
 
   const disponiveis = veiculos.filter((v) => isVehicleAvailable(v));
@@ -120,20 +105,9 @@ export function FormVenda({ onSuccess, insideModal, defaultPlate }: FormVendaPro
     [disponiveis]
   );
 
-  // Preparar opções de parceiros para o SearchableSelect
-  const parceiroOptions: SearchableSelectOption[] = useMemo(
-    () =>
-      partners.map((p) => ({
-        value: p.id,
-        label: partnerSelectLabel(p.name, p.document),
-        searchText: `${p.name} ${p.document || ""} ${p.city || ""}`,
-      })),
-    [partners]
-  );
-
   const handleParceiroCriado = (id: string) => {
     setModalParceiroOpen(false);
-    api.customers.listar(0, 100).then((response) => { setPartners(response.content || []); form.setValue("customerId", id); }).catch(() => {});
+    form.setValue("customerId", id, { shouldValidate: true });
   };
 
   const onSubmit = async (data: VendaFormData) => {
@@ -219,15 +193,11 @@ export function FormVenda({ onSuccess, insideModal, defaultPlate }: FormVendaPro
                     control={form.control}
                     name="customerId"
                     render={({ field }) => (
-                      <SearchableSelect
-                        options={parceiroOptions}
+                      <ContactPicker
                         value={field.value}
-                        onValueChange={field.onChange}
-                        placeholder={loadingPartners ? "Carregando…" : "Buscar cliente/parceiro..."}
-                        disabled={loadingPartners}
-                        emptyMessage="Nenhum parceiro encontrado"
+                        onValueChange={(id) => field.onChange(id)}
+                        placeholder="Buscar cliente/parceiro..."
                         error={!!form.formState.errors.customerId}
-                        allowClear
                       />
                     )}
                   />
@@ -259,14 +229,11 @@ export function FormVenda({ onSuccess, insideModal, defaultPlate }: FormVendaPro
                     control={form.control}
                     name="payoutId"
                     render={({ field }) => (
-                      <SearchableSelect
-                        options={parceiroOptions}
+                      <ContactPicker
                         value={field.value || ""}
-                        onValueChange={field.onChange}
+                        onValueChange={(id) => field.onChange(id)}
                         placeholder="Dono ou corretor..."
-                        emptyMessage="Nenhum contato encontrado"
                         error={!!form.formState.errors.payoutId}
-                        allowClear
                       />
                     )}
                   />
@@ -382,22 +349,21 @@ export function FormVenda({ onSuccess, insideModal, defaultPlate }: FormVendaPro
 
       {insideModal && formContent}
 
-      <Dialog open={modalParceiroOpen} onOpenChange={setModalParceiroOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Cadastrar Novo Parceiro</DialogTitle>
-            <DialogDescription>
-              Cadastre um novo parceiro para realizar a venda. Após o cadastro, ele será automaticamente selecionado.
-            </DialogDescription>
-          </DialogHeader>
-          <FormParceiro
-            insideModal
-            onSuccessWithId={(id) => {
-              handleParceiroCriado(id);
-            }}
-          />
-        </DialogContent>
-      </Dialog>
+      <DockedForm
+        id={`contact:new:${dockUid}`}
+        open={modalParceiroOpen}
+        onOpenChange={setModalParceiroOpen}
+        title="Novo contato"
+        description="Cadastre um novo parceiro para realizar a venda. Após o cadastro, ele será automaticamente selecionado."
+        closeOnUnmount
+      >
+        <FormParceiro
+          insideModal
+          onSuccessWithId={(id) => {
+            handleParceiroCriado(id);
+          }}
+        />
+      </DockedForm>
     </>
   );
 }
