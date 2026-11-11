@@ -43,6 +43,9 @@ import type { ExchangeResponse } from "@/types";
 import { FormTroca } from "@/components/forms/form-troca";
 import { toast } from "sonner";
 import { useDashboard } from "@/contexts/DashboardContext";
+import { FiscalCell } from "@/components/fiscal/fiscal-cell";
+import { FiscalSheet } from "@/components/fiscal/fiscal-sheet";
+import { refreshFiscalStatus, useFiscalSummary } from "@/lib/fiscal";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -79,6 +82,11 @@ export default function TrocasPage() {
   const [exchangeToDelete, setExchangeToDelete] = useState<ExchangeResponse | null>(null);
   const [deleting, setDeleting] = useState(false);
   const { refreshDashboard } = useDashboard();
+  const [fiscalTarget, setFiscalTarget] = useState<{ kind: "EXCHANGE"; id: number; title: string } | null>(null);
+  const { summary: fiscalSummary, reload: reloadFiscal } = useFiscalSummary(
+    "EXCHANGE",
+    exchanges.map((exchange) => exchange.id)
+  );
 
   const fetchExchanges = useCallback(() => {
     setLoading(true);
@@ -127,6 +135,8 @@ export default function TrocasPage() {
       setDeleteDialogOpen(false);
       setExchangeToDelete(null);
       fetchExchanges();
+      reloadFiscal();
+      void refreshFiscalStatus();
       refreshDashboard();
     } catch (error) {
       toast.error(
@@ -186,6 +196,7 @@ export default function TrocasPage() {
                       <TableHead className="min-w-[180px]">Veículo Saída</TableHead>
                       <TableHead className="min-w-[180px]">Parceiro</TableHead>
                       <TableHead className="text-right min-w-[120px]">Diferença</TableHead>
+                      <TableHead className="min-w-[200px]">NF-e</TableHead>
                       <TableHead className="w-[100px]">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -238,6 +249,20 @@ export default function TrocasPage() {
                               {formatCurrency(exchange.diferencaValor)}
                             </div>
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          <FiscalCell
+                            summary={fiscalSummary}
+                            id={exchange.id}
+                            directions={["ENTRADA", "SAIDA"]}
+                            onOpen={() =>
+                              setFiscalTarget({
+                                kind: "EXCHANGE",
+                                id: exchange.id,
+                                title: `Troca #${exchange.id} · entra ${exchange.vehicleEntradaModel}, sai ${exchange.vehicleSaidaModel} · ${exchange.partnerName}`,
+                              })
+                            }
+                          />
                         </TableCell>
                         <TableCell>
                           <Button
@@ -340,6 +365,12 @@ export default function TrocasPage() {
           <FormTroca onSuccess={handleTrocaSuccess} insideModal />
         </SheetContent>
       </Sheet>
+
+      <FiscalSheet
+        target={fiscalTarget}
+        onOpenChange={(open) => !open && setFiscalTarget(null)}
+        onChanged={reloadFiscal}
+      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

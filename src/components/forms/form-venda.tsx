@@ -28,6 +28,7 @@ import { partnerSelectLabel } from "@/lib/masks";
 import type { Vehicle, PartnerSummary } from "@/types";
 import { useState, useEffect, useMemo } from "react";
 import { FormParceiro } from "@/components/forms/form-parceiro";
+import { PaymentMethodSelect } from "@/components/fiscal/payment-method-select";
 import { FIELD_HINTS } from "@/lib/field-hints";
 import { isVehicleAvailable } from "@/lib/vehicle-status";
 import { plateLabel, vehicleKey } from "@/lib/vehicle-ref";
@@ -40,6 +41,7 @@ const defaultValues: Partial<VendaFormData> = {
   ownershipKind: "OWN",
   payoutId: "",
   payoutAmount: 0,
+  paymentMethod: "",
 };
 
 export interface FormVendaProps {
@@ -142,6 +144,7 @@ export function FormVenda({ onSuccess, insideModal, defaultPlate }: FormVendaPro
         vehicle: { licensePlate: data.vehicleLicensePlate },
         customer: { id: data.customerId },
         salePrice: data.salePrice,
+        paymentMethod: data.paymentMethod || null,
         ...(data.ownershipKind === "THIRD_PARTY" && data.payoutId
           ? {
               payoutPartner: { id: data.payoutId },
@@ -321,6 +324,23 @@ export function FormVenda({ onSuccess, insideModal, defaultPlate }: FormVendaPro
                   />
                 )}
               />
+            </FormField>
+
+            <FormField
+              name="paymentMethod"
+              label="Forma de pagamento"
+              error={form.formState.errors.paymentMethod}
+            >
+              <Controller
+                control={form.control}
+                name="paymentMethod"
+                render={({ field }) => (
+                  <PaymentMethodSelect id="paymentMethod" value={field.value} onChange={field.onChange} />
+                )}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Só a nota fiscal usa. Se ficar em branco, é pedida na hora de emitir.
+              </p>
             </FormField>
           </div>
 

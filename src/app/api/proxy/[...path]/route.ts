@@ -209,7 +209,12 @@ async function handleProxy(
 
       // Para 204/304, não pode haver body
       const isNoBodyStatus = response.status === 204 || response.status === 304;
-      const responseText = isNoBodyStatus ? "" : await response.text();
+      // Bytes crus: XML/PDF de nota fiscal não podem passar por text() (corrompe binário).
+      const responseBytes = isNoBodyStatus ? null : await response.arrayBuffer();
+      const responseText =
+        response.status === 404 && responseBytes
+          ? new TextDecoder().decode(responseBytes)
+          : "";
 
       if (response.status === 404 && /Application not found/i.test(responseText)) {
         console.warn(
@@ -227,7 +232,7 @@ async function handleProxy(
 
       const nextResponse = isNoBodyStatus
         ? new NextResponse(null, { status: response.status, statusText: response.statusText })
-        : new NextResponse(responseText, { status: response.status, statusText: response.statusText });
+        : new NextResponse(responseBytes, { status: response.status, statusText: response.statusText });
 
       // fetch() do Node já descomprime gzip/br — não repassar Content-Encoding/Length
       // ou o browser tenta descomprimir de novo → ERR_CONTENT_DECODING_FAILED (200 OK).

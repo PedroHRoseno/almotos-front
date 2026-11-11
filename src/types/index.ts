@@ -41,6 +41,10 @@ export interface Address {
   state: string;
   reference?: string;
   zipCode: string;
+  /** NF-e: bairro, complemento e código IBGE do município (preenchidos pelo CEP). */
+  neighborhood?: string | null;
+  complement?: string | null;
+  ibgeCode?: string | null;
 }
 
 /** Cliente/Parceiro (Customer/Partner) – id UUID; documento opcional */
@@ -51,6 +55,8 @@ export interface Customer {
   phoneNumber1?: string;
   phoneNumber2?: string;
   address?: Address;
+  email?: string | null;
+  stateRegistration?: string | null;
 }
 
 export interface PartnerRef {
@@ -74,6 +80,8 @@ export interface PartnerDetail {
   name: string;
   phoneNumber1?: string;
   phoneNumber2?: string;
+  email?: string | null;
+  stateRegistration?: string | null;
   address?: Address;
   totalSales: number;
   totalPurchases: number;
@@ -189,7 +197,17 @@ export interface Vehicle {
   acquisitionOrigin?: AcquisitionOrigin;
   baseCost?: number;
   agreedPayout?: number | null;
+  /** Identificação fiscal (NF-e). */
+  chassis?: string | null;
+  renavam?: string | null;
+  engineCc?: number | null;
+  fuelType?: FuelType | null;
+  ncmCode?: string | null;
+  /** NCM que a nota vai usar (manual ou pela cilindrada). */
+  ncmEffective?: string;
 }
+
+export type FuelType = "GASOLINA" | "ETANOL" | "FLEX" | "ELETRICO";
 
 /** Payload para criar veículo – POST /vehicles */
 export interface VehicleCreate {
@@ -215,6 +233,11 @@ export interface VehicleCreate {
   acquisitionOrigin?: AcquisitionOrigin;
   baseCost?: number | null;
   agreedPayout?: number | null;
+  chassis?: string | null;
+  renavam?: string | null;
+  engineCc?: number | null;
+  fuelType?: FuelType | null;
+  ncmCode?: string | null;
 }
 
 export interface FipeModel {
@@ -297,6 +320,8 @@ export interface SaleResponse {
   payoutAmount?: number;
   storeProfit?: number | null;
   baseCost?: number | null;
+  /** Código tPag da NF-e (17 = PIX...). */
+  paymentMethod?: string | null;
 }
 
 /** Payload para criar venda – POST /sales. Back-end preenche saleDate. */
@@ -307,6 +332,7 @@ export interface SaleCreate {
   payoutPartner?: PartnerRef;
   payoutAmount?: number;
   storeProfit?: number;
+  paymentMethod?: string | null;
 }
 
 /** Payload para editar venda – PUT /sales/{id} */
@@ -374,6 +400,8 @@ export interface TrocaInput {
   incomingVehicle?: VehicleCreate;
   customerId?: string;
   customerDocument?: string;
+  /** Como o cliente pagou a diferença (tPag). */
+  paymentMethod?: string | null;
 }
 
 /** DTO de resposta de troca do backend */
@@ -393,6 +421,7 @@ export interface ExchangeResponse {
   tradeInEvaluation?: number;
   exchangeDate: string;
   status: TransactionStatus;
+  paymentMethod?: string | null;
 }
 
 /** Payload para editar troca – PUT /exchanges/{id} */
@@ -555,6 +584,155 @@ export interface SaleHistoryItem {
   payoutAmount?: number;
   storeProfit?: number | null;
 }
+
+// --- Fiscal (NF-e via ForeCast) --------------------------------------
+
+export type FiscalEnvironment = "HOMOLOGACAO" | "PRODUCAO" | "MOCK";
+export type FiscalSourceKind = "SALE" | "PURCHASE" | "EXCHANGE" | "RETURN";
+export type FiscalDirection = "ENTRADA" | "SAIDA";
+export type FiscalStatus =
+  | "PROCESSANDO"
+  | "AUTORIZADA"
+  | "REJEITADA"
+  | "DENEGADA"
+  | "CANCELADA"
+  | "ERRO";
+export type FiscalDivergence = "PENDING" | "CANCELLED_AT_SEFAZ" | "RETURN_ISSUED" | "KEPT";
+export type FiscalProblemArea = "vehicle" | "partner" | "operation" | "accountant" | "config" | "rule";
+
+export interface FiscalPaymentMethod {
+  code: string;
+  label: string;
+}
+
+export interface FiscalStatusInfo {
+  environment: FiscalEnvironment;
+  configured: boolean;
+  hasFiscalValue: boolean;
+  emitterCnpj?: string;
+  emitterUf?: string;
+  webhookEnabled: boolean;
+  pendingDivergences: number;
+  paymentMethods: FiscalPaymentMethod[];
+}
+
+export interface FiscalCheckResult {
+  ok: boolean;
+  environment: FiscalEnvironment;
+  company: {
+    name?: string;
+    active?: boolean;
+    nfeHomologation?: boolean;
+    nfeProduction?: boolean;
+    series?: string;
+  };
+  certificateValidUntil?: string;
+  problems: string[];
+}
+
+export interface FiscalDocument {
+  id: number;
+  ref: string;
+  environment: FiscalEnvironment;
+  currentEnvironment?: boolean;
+  operation: string;
+  direction: FiscalDirection;
+  sourceKind: FiscalSourceKind;
+  saleId?: number;
+  purchaseId?: number;
+  exchangeId?: number;
+  referencedDocumentId?: number;
+  vehicleId: string;
+  partnerId: string;
+  attempt: number;
+  chassis: string;
+  cfop: string;
+  ncm: string;
+  amount: number;
+  counterpartName: string;
+  counterpartDocument: string;
+  description: string;
+  status: FiscalStatus;
+  number?: string;
+  series?: string;
+  accessKey?: string;
+  protocol?: string;
+  sefazStatus?: string;
+  sefazMessage?: string;
+  hasXml: boolean;
+  hasDanfe: boolean;
+  authorizedAt?: string;
+  cancelUntil?: string;
+  canCancel: boolean;
+  cancelledAt?: string;
+  cancelReason?: string;
+  divergence?: FiscalDivergence;
+  divergenceReason?: string;
+  divergenceOpenedAt?: string;
+  divergenceResolvedAt?: string;
+  divergenceResolvedBy?: string;
+  createdAt: string;
+  createdBy?: string;
+}
+
+export interface FiscalProblem {
+  message: string;
+  area: FiscalProblemArea;
+}
+
+export interface FiscalPlan {
+  sourceKind: FiscalSourceKind;
+  sourceId: number;
+  operation: string;
+  direction: FiscalDirection;
+  label: string;
+  nature: string;
+  cfop: string;
+  ncm: string;
+  csosn: string;
+  pisCofinsCst: string;
+  amount: number;
+  description: string;
+  additionalInfo: string;
+  payments: { method: string; label: string; amount: number }[];
+  paymentMethodMissing: boolean;
+  counterpart: {
+    id: string;
+    name: string;
+    document?: string;
+    street?: string;
+    number?: string;
+    neighborhood?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    ibgeCode?: string;
+  };
+  vehicle: {
+    id: string;
+    plate?: string;
+    brand: string;
+    model: string;
+    chassis?: string;
+  };
+  referencedDocumentId?: number;
+  problems: FiscalProblem[];
+  canEmit: boolean;
+  documents: FiscalDocument[];
+}
+
+export interface FiscalPreview {
+  environment: FiscalEnvironment;
+  sourceKind: FiscalSourceKind;
+  sourceId: number;
+  plans: FiscalPlan[];
+}
+
+/** Situação resumida por operação (coluna "NF-e" das listas). */
+export type FiscalSummary = Record<
+  string,
+  { statuses: Partial<Record<FiscalDirection, FiscalStatus>>; divergence: boolean }
+>;
 
 export interface ExchangeHistoryItem {
   id: number;

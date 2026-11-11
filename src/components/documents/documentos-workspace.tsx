@@ -116,6 +116,12 @@ export function DocumentosWorkspace() {
     }
   }, [vehicleId]);
 
+  // Chassi e RENAVAM salvos na ficha da moto preenchem o documento (dá para editar aqui).
+  useEffect(() => {
+    if (vehicle?.chassis) setChassis((current) => current || vehicle.chassis || "");
+    if (vehicle?.renavam) setRenavam((current) => current || vehicle.renavam || "");
+  }, [vehicle?.chassis, vehicle?.renavam]);
+
   useEffect(() => {
     let cancelled = false;
     const timer = window.setTimeout(() => {
@@ -419,7 +425,7 @@ export function DocumentosWorkspace() {
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              O cadastro da moto não guarda chassi nem RENAVAM. O PDF só imprime o que for preenchido aqui.
+              Vêm da ficha da moto quando estão cadastrados. Mudar aqui vale só para este PDF.
             </p>
           </CardContent>
         </Card>

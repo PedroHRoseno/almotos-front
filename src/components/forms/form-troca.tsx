@@ -29,6 +29,7 @@ import { digitsOnly, formatBRL, partnerSelectLabel } from "@/lib/masks";
 import type { Vehicle, PartnerSummary } from "@/types";
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { FormParceiro } from "@/components/forms/form-parceiro";
+import { PaymentMethodSelect } from "@/components/fiscal/payment-method-select";
 import { FIELD_HINTS } from "@/lib/field-hints";
 import { isVehicleAvailable } from "@/lib/vehicle-status";
 
@@ -38,6 +39,7 @@ const defaultValues: Partial<TrocaFormData> = {
   salePriceLoja: undefined,
   tradeInEvaluation: undefined,
   customerId: "",
+  paymentMethod: "",
 };
 
 /** CPF/CNPJ com máscara vai só com dígitos: a API compara o documento assim. */
@@ -238,6 +240,7 @@ export function FormTroca({ onSuccess, insideModal, defaultSaidaPlate }: FormTro
         salePriceLoja: data.salePriceLoja,
         tradeInEvaluation: data.tradeInEvaluation,
         customerId: data.customerId.trim(),
+        paymentMethod: data.paymentMethod || null,
       };
 
       await api.exchanges.realizar(payload);
@@ -415,6 +418,25 @@ export function FormTroca({ onSuccess, insideModal, defaultSaidaPlate }: FormTro
                 )}
               />
             </FormField>
+
+            {cashDifference > 0 && (
+              <FormField
+                name="paymentMethod"
+                label="Como o cliente pagou a diferença"
+                error={form.formState.errors.paymentMethod}
+              >
+                <Controller
+                  control={form.control}
+                  name="paymentMethod"
+                  render={({ field }) => (
+                    <PaymentMethodSelect id="paymentMethod" value={field.value} onChange={field.onChange} />
+                  )}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Só a nota fiscal usa. Se ficar em branco, é pedida na hora de emitir.
+                </p>
+              </FormField>
+            )}
           </div>
 
           <div

@@ -316,8 +316,13 @@ export default function ContatosPage() {
                       state: editingPartner.address.state || "",
                       reference: editingPartner.address.reference || "",
                       zipCode: editingPartner.address.zipCode || "",
+                      neighborhood: editingPartner.address.neighborhood || "",
+                      complement: editingPartner.address.complement || "",
+                      ibgeCode: editingPartner.address.ibgeCode || "",
                     }
                   : undefined,
+                email: editingPartner.email || "",
+                stateRegistration: editingPartner.stateRegistration || "",
               }}
               onSuccess={() => {
                 setEditModalOpen(false);

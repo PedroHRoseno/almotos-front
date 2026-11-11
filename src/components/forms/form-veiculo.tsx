@@ -15,7 +15,12 @@ import {
 } from "@/components/ui/select";
 import { FormField } from "@/components/ui/form-field";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { veiculoSchema, type VeiculoFormData } from "@/lib/validations/schemas";
+import {
+  normalizeChassis,
+  normalizeRenavam,
+  veiculoSchema,
+  type VeiculoFormData,
+} from "@/lib/validations/schemas";
 import { formatLicensePlate, partnerSelectLabel } from "@/lib/masks";
 import { api } from "@/lib/api";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -59,7 +64,22 @@ const emptyDefaults: Partial<VeiculoFormData> = {
   ownerId: "",
   baseCost: undefined,
   agreedPayout: undefined,
+  chassis: null,
+  renavam: null,
+  engineCc: null,
+  fuelType: null,
 };
+
+/** Mesma tabela do backend (services/fiscal/nfe_payload.py). */
+function ncmPorCilindrada(cc?: number | null, fuel?: string | null): string {
+  if (fuel === "ELETRICO") return "8711.60.00";
+  if (!cc || cc <= 0) return "8711.20.10";
+  if (cc <= 50) return "8711.10.00";
+  if (cc <= 250) return "8711.20.10";
+  if (cc <= 500) return "8711.30.00";
+  if (cc <= 800) return "8711.40.00";
+  return "8711.50.00";
+}
 
 function valuesFromVehicle(vehicle: Vehicle): VeiculoFormData {
   return {
@@ -81,6 +101,10 @@ function valuesFromVehicle(vehicle: Vehicle): VeiculoFormData {
     baseCost: vehicle.baseCost ?? undefined,
     agreedPayout: vehicle.agreedPayout ?? undefined,
     ownerId: vehicle.ownerId ?? "",
+    chassis: vehicle.chassis ?? null,
+    renavam: vehicle.renavam ?? null,
+    engineCc: vehicle.engineCc ?? null,
+    fuelType: vehicle.fuelType ?? null,
   };
 }
 
@@ -175,6 +199,9 @@ export function FormVeiculo({
   const watchedPlate = form.watch("licensePlate");
   const watchedInStock = form.watch("inStock");
   const watchedOwnership = form.watch("ownershipKind");
+  const watchedFuel = form.watch("fuelType");
+  const watchedEngineCc = form.watch("engineCc");
+  const ncmSugerido = ncmPorCilindrada(watchedEngineCc, watchedFuel);
 
   useEffect(() => {
     api.customers
@@ -273,6 +300,11 @@ export function FormVeiculo({
       acquisitionOrigin: resolveAcquisitionOrigin(data.ownershipKind, vehicle),
       baseCost: data.ownershipKind === "THIRD_PARTY" ? data.agreedPayout ?? 0 : data.baseCost ?? 0,
       agreedPayout: data.ownershipKind === "THIRD_PARTY" ? data.agreedPayout ?? 0 : null,
+      chassis: data.chassis ? normalizeChassis(data.chassis) : null,
+      renavam: data.renavam ? normalizeRenavam(data.renavam) : null,
+      engineCc: data.engineCc ?? null,
+      fuelType: data.fuelType ?? null,
+      ncmCode: vehicle?.ncmCode ?? null,
     };
 
     try {
@@ -479,6 +511,81 @@ export function FormVeiculo({
             )}
           />
         </FormField>
+
+        <div className="space-y-3 rounded-xl border border-line p-4 @lg:col-span-2">
+          <div>
+            <h3 className="text-sm font-semibold text-ink">Identificação fiscal</h3>
+            <p className="text-xs text-ink-muted">
+              Opcional para cadastrar; a NF-e exige chassi e RENAVAM. Os PDFs de Documentos usam daqui.
+            </p>
+          </div>
+          <div className="grid min-w-0 gap-4 @lg:grid-cols-2">
+            <FormField name="chassis" label="Chassi" error={form.formState.errors.chassis}>
+              <Input
+                id="chassis"
+                autoComplete="off"
+                maxLength={20}
+                placeholder="17 caracteres (sem I, O ou Q)"
+                className="font-mono uppercase"
+                {...form.register("chassis", {
+                  setValueAs: (value: string) => normalizeChassis(value) || null,
+                })}
+              />
+            </FormField>
+            <FormField name="renavam" label="RENAVAM" error={form.formState.errors.renavam}>
+              <Input
+                id="renavam"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={11}
+                placeholder="11 dígitos"
+                className="font-mono"
+                {...form.register("renavam", {
+                  setValueAs: (value: string) => (value ? normalizeRenavam(value) : null),
+                })}
+              />
+            </FormField>
+            <FormField name="engineCc" label="Cilindrada (cc)" error={form.formState.errors.engineCc}>
+              <Input
+                id="engineCc"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                placeholder="Ex.: 160"
+                {...form.register("engineCc", {
+                  setValueAs: (value: string) => (value === "" || value == null ? null : Number(value)),
+                })}
+              />
+            </FormField>
+            <FormField name="fuelType" label="Combustível" error={form.formState.errors.fuelType}>
+              <Controller
+                control={form.control}
+                name="fuelType"
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? "__NONE__"}
+                    onValueChange={(value) => field.onChange(value === "__NONE__" ? null : value)}
+                  >
+                    <SelectTrigger id="fuelType">
+                      <SelectValue placeholder="Não informado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__NONE__">Não informado</SelectItem>
+                      <SelectItem value="GASOLINA">Gasolina</SelectItem>
+                      <SelectItem value="FLEX">Flex</SelectItem>
+                      <SelectItem value="ETANOL">Etanol</SelectItem>
+                      <SelectItem value="ELETRICO">Elétrico</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </FormField>
+          </div>
+          <p className="text-xs text-ink-muted">
+            NCM da nota: <strong className="text-ink">{ncmSugerido}</strong>{" "}
+            {watchedFuel === "ELETRICO" ? "(moto elétrica)" : "(calculado pela cilindrada)"}
+          </p>
+        </div>
 
         <FormField name="inStock" label="Em estoque" error={form.formState.errors.inStock}>
           <Controller

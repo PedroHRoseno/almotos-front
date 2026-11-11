@@ -118,6 +118,9 @@ export function FormParceiro({
             state: data.address.state.trim().toUpperCase(),
             reference: data.address.reference?.trim() || undefined,
             zipCode: data.address.zipCode.replace(/\D/g, ""),
+            neighborhood: data.address.neighborhood?.trim() || null,
+            complement: data.address.complement?.trim() || null,
+            ibgeCode: data.address.ibgeCode?.replace(/\D/g, "") || null,
           }
         : undefined;
       
@@ -148,6 +151,8 @@ export function FormParceiro({
         phoneNumber1: data.phoneNumber1?.trim() || undefined,
         phoneNumber2: data.phoneNumber2?.trim() || undefined,
         address: addressData,
+        email: data.email?.trim() || null,
+        stateRegistration: data.stateRegistration?.trim() || null,
       };
 
       if (isEdit && partnerId) {
@@ -271,6 +276,24 @@ export function FormParceiro({
             )}
           />
         </FormField>
+
+        <FormField name="email" label="E-mail (opcional)" error={form.formState.errors.email}>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            placeholder="cliente@exemplo.com"
+            {...form.register("email")}
+          />
+        </FormField>
+
+        <FormField
+          name="stateRegistration"
+          label="Inscrição estadual (só empresa contribuinte)"
+          error={form.formState.errors.stateRegistration}
+        >
+          <Input id="stateRegistration" placeholder="Em branco para pessoa física" {...form.register("stateRegistration")} />
+        </FormField>
       </div>
 
       <div className="space-y-4">
@@ -294,6 +317,9 @@ export function FormParceiro({
                   state: "",
                   zipCode: "",
                   reference: "",
+                  neighborhood: "",
+                  complement: "",
+                  ibgeCode: "",
                 }, { shouldValidate: false });
                 setCepBuscado(null);
               }
@@ -377,7 +403,7 @@ export function FormParceiro({
                           const ruaAtual = form.getValues("address.streetName");
                           const cidadeAtual = form.getValues("address.city");
                           const estadoAtual = form.getValues("address.state");
-                          const referenciaAtual = form.getValues("address.reference");
+                          const bairroAtual = form.getValues("address.neighborhood");
                           
                           // Preencher rua apenas se estiver vazia ou se foi preenchida automaticamente antes
                           if (!ruaAtual?.trim() || cepJaBuscado) {
@@ -394,9 +420,12 @@ export function FormParceiro({
                             form.setValue("address.state", dadosCep.uf || "");
                           }
                           
-                          // Preencher referência com bairro apenas se estiver vazio
-                          if (!referenciaAtual?.trim() && dadosCep.bairro) {
-                            form.setValue("address.reference", dadosCep.bairro);
+                          // Bairro e código IBGE do município: a NF-e exige os dois.
+                          if ((!bairroAtual?.trim() || cepJaBuscado) && dadosCep.bairro) {
+                            form.setValue("address.neighborhood", dadosCep.bairro);
+                          }
+                          if (dadosCep.ibge) {
+                            form.setValue("address.ibgeCode", dadosCep.ibge, { shouldValidate: true });
                           }
                           
                           setCepBuscado(cepLimpo);
@@ -524,6 +553,40 @@ export function FormParceiro({
                     </Select>
                   )}
                 />
+              </FormField>
+
+              <FormField
+                name="address.neighborhood"
+                label="Bairro"
+                error={form.formState.errors.address?.neighborhood}
+              >
+                <Input id="neighborhood" placeholder="Centro" {...form.register("address.neighborhood")} />
+                <p className="mt-1 text-xs text-muted-foreground">A NF-e exige o bairro.</p>
+              </FormField>
+
+              <FormField
+                name="address.complement"
+                label="Complemento (opcional)"
+                error={form.formState.errors.address?.complement}
+              >
+                <Input id="complement" placeholder="Apto, bloco, sala…" {...form.register("address.complement")} />
+              </FormField>
+
+              <FormField
+                name="address.ibgeCode"
+                label="Código IBGE do município"
+                error={form.formState.errors.address?.ibgeCode}
+              >
+                <Input
+                  id="ibgeCode"
+                  inputMode="numeric"
+                  maxLength={7}
+                  placeholder="Preenchido pelo 'Buscar CEP'"
+                  {...form.register("address.ibgeCode")}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Vem do CEP. A NF-e precisa dele para identificar a cidade.
+                </p>
               </FormField>
 
               <FormField

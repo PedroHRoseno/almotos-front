@@ -10,6 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useDashboard } from "@/contexts/DashboardContext";
+import { FiscalCell } from "@/components/fiscal/fiscal-cell";
+import { FiscalSheet } from "@/components/fiscal/fiscal-sheet";
+import { refreshFiscalStatus, useFiscalSummary } from "@/lib/fiscal";
 import {
   Table,
   TableBody,
@@ -85,6 +88,11 @@ export default function ComprasPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteVehicle, setDeleteVehicle] = useState(false);
   const { refreshDashboard } = useDashboard();
+  const [fiscalTarget, setFiscalTarget] = useState<{ kind: "PURCHASE"; id: number; title: string } | null>(null);
+  const { summary: fiscalSummary, reload: reloadFiscal } = useFiscalSummary(
+    "PURCHASE",
+    purchases.map((purchase) => purchase.id)
+  );
 
   // Debounce do termo de busca
   useEffect(() => {
@@ -150,6 +158,8 @@ export default function ComprasPage() {
       setPurchaseToDelete(null);
       setDeleteVehicle(false);
       fetchPurchases();
+      reloadFiscal();
+      void refreshFiscalStatus();
       refreshDashboard();
     } catch (error) {
       toast.error(
@@ -239,6 +249,7 @@ export default function ComprasPage() {
                       <TableHead className="min-w-[180px]">Fornecedor</TableHead>
                       <TableHead className="text-right min-w-[120px]">Valor</TableHead>
                       <TableHead className="w-[100px]">Status</TableHead>
+                      <TableHead className="min-w-[150px]">NF-e</TableHead>
                       <TableHead className="w-[100px]">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -279,6 +290,20 @@ export default function ComprasPage() {
                           <Badge variant={purchase.status === "CANCELLED" ? "secondary" : "default"}>
                             {purchase.status === "CANCELLED" ? "Cancelada" : "Ativa"}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <FiscalCell
+                            summary={fiscalSummary}
+                            id={purchase.id}
+                            directions={["ENTRADA"]}
+                            onOpen={() =>
+                              setFiscalTarget({
+                                kind: "PURCHASE",
+                                id: purchase.id,
+                                title: `Compra #${purchase.id} · ${purchase.vehicleBrand} ${purchase.vehicleModel} · ${purchase.partnerName}`,
+                              })
+                            }
+                          />
                         </TableCell>
                         <TableCell>
                           <Button
@@ -382,6 +407,12 @@ export default function ComprasPage() {
           <FormCompra onSuccess={handleCompraSuccess} insideModal />
         </SheetContent>
       </Sheet>
+
+      <FiscalSheet
+        target={fiscalTarget}
+        onOpenChange={(open) => !open && setFiscalTarget(null)}
+        onChanged={reloadFiscal}
+      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

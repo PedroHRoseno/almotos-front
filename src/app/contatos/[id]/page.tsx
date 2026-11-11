@@ -267,8 +267,13 @@ export default function ContatoDetailPage() {
                     state: partner.address.state || "",
                     reference: partner.address.reference || "",
                     zipCode: partner.address.zipCode || "",
+                    neighborhood: partner.address.neighborhood || "",
+                    complement: partner.address.complement || "",
+                    ibgeCode: partner.address.ibgeCode || "",
                   }
                 : undefined,
+              email: partner.email || "",
+              stateRegistration: partner.stateRegistration || "",
             }}
             onSuccess={() => {
               setEditModalOpen(false);

@@ -21,7 +21,9 @@ import {
   BadgeDollarSign,
   Filter,
   FileText,
+  Receipt,
 } from "lucide-react";
+import { useFiscalStatus } from "@/lib/fiscal";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "./sidebar-provider";
@@ -40,6 +42,7 @@ const menuItems = [
   { title: "Compras", href: "/compras", icon: ShoppingBag, hideForFinance: true },
   { title: "Vendas", href: "/vendas", icon: ShoppingCart, hideForFinance: true },
   { title: "Documentos", href: "/documentos", icon: FileText },
+  { title: "Notas Fiscais", href: "/notas-fiscais", icon: Receipt, hideForFinance: true },
   { title: "Trocas", href: "/trocas", icon: Repeat, hideForFinance: true },
   { title: "Fluxo de Caixa", href: "/fluxo-caixa", icon: ArrowUpDown, hideForFinance: true },
   { title: "Relatórios", href: "/relatorios", icon: BarChart3, hideForFinance: true },
@@ -55,6 +58,12 @@ export function AppSidebar() {
   const isFinance = isFinanceRole(user?.role);
   const homeHref = homePathForRole(user?.role);
   const visibleMenuItems = menuItems.filter((item) => !(isFinance && item.hideForFinance));
+  const { info: fiscalInfo, reload: reloadFiscal } = useFiscalStatus(Boolean(user) && !isFinance);
+  const pendingDivergences = fiscalInfo?.pendingDivergences ?? 0;
+
+  useEffect(() => {
+    if (user && !isFinance) void reloadFiscal();
+  }, [pathname, user, isFinance, reloadFiscal]);
 
   // Fechar sidebar mobile ao mudar de rota
   useEffect(() => {
@@ -171,8 +180,21 @@ export function AppSidebar() {
                   )}
                   title={collapsed ? item.title : undefined}
                 >
-                  <item.icon className="h-5 w-5 shrink-0" />
-                  {!collapsed && <span>{item.title}</span>}
+                  <span className="relative shrink-0">
+                    <item.icon className="h-5 w-5" />
+                    {collapsed && item.href === "/notas-fiscais" && pendingDivergences > 0 && (
+                      <span className="absolute -right-1.5 -top-1.5 h-2.5 w-2.5 rounded-full bg-red-600" aria-hidden="true" />
+                    )}
+                  </span>
+                  {!collapsed && <span className="flex-1">{item.title}</span>}
+                  {!collapsed && item.href === "/notas-fiscais" && pendingDivergences > 0 && (
+                    <span
+                      className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-semibold text-white"
+                      title={`${pendingDivergences} divergência(s) fiscal(is) aberta(s)`}
+                    >
+                      {pendingDivergences}
+                    </span>
+                  )}
                 </Link>
               </li>
             );

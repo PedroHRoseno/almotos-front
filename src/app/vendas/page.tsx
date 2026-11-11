@@ -46,6 +46,9 @@ import { formatDocumentOrDash } from "@/lib/masks";
 import type { SaleResponse } from "@/types";
 import { FormVenda } from "@/components/forms/form-venda";
 import { useDashboard } from "@/contexts/DashboardContext";
+import { FiscalCell } from "@/components/fiscal/fiscal-cell";
+import { FiscalSheet } from "@/components/fiscal/fiscal-sheet";
+import { refreshFiscalStatus, useFiscalSummary } from "@/lib/fiscal";
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat("pt-BR", {
@@ -85,6 +88,11 @@ export default function VendasPage() {
   const [saleToDelete, setSaleToDelete] = useState<SaleResponse | null>(null);
   const [deleting, setDeleting] = useState(false);
   const { refreshDashboard } = useDashboard();
+  const [fiscalTarget, setFiscalTarget] = useState<{ kind: "SALE"; id: number; title: string } | null>(null);
+  const { summary: fiscalSummary, reload: reloadFiscal } = useFiscalSummary(
+    "SALE",
+    sales.map((sale) => sale.id)
+  );
 
   // Debounce do termo de busca
   useEffect(() => {
@@ -149,6 +157,8 @@ export default function VendasPage() {
       setDeleteDialogOpen(false);
       setSaleToDelete(null);
       fetchSales();
+      reloadFiscal();
+      void refreshFiscalStatus();
       refreshDashboard();
     } catch (error) {
       toast.error(
@@ -238,6 +248,7 @@ export default function VendasPage() {
                       <TableHead className="min-w-[180px]">Cliente</TableHead>
                       <TableHead className="text-right min-w-[120px]">Valor</TableHead>
                       <TableHead className="w-[110px]">Status</TableHead>
+                      <TableHead className="min-w-[150px]">NF-e</TableHead>
                       <TableHead className="w-[120px]">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -278,6 +289,20 @@ export default function VendasPage() {
                           <Badge variant={sale.status === "CANCELLED" ? "secondary" : "default"}>
                             {sale.status === "CANCELLED" ? "Cancelada" : "Ativa"}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <FiscalCell
+                            summary={fiscalSummary}
+                            id={sale.id}
+                            directions={["SAIDA"]}
+                            onOpen={() =>
+                              setFiscalTarget({
+                                kind: "SALE",
+                                id: sale.id,
+                                title: `Venda #${sale.id} · ${sale.vehicleBrand} ${sale.vehicleModel} · ${sale.partnerName}`,
+                              })
+                            }
+                          />
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
@@ -404,12 +429,24 @@ export default function VendasPage() {
         </SheetContent>
       </Sheet>
 
+      <FiscalSheet
+        target={fiscalTarget}
+        onOpenChange={(open) => !open && setFiscalTarget(null)}
+        onChanged={reloadFiscal}
+      />
+
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar Cancelamento</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja cancelar esta venda? A venda será marcada como CANCELADA e o veículo voltará para AVAILABLE no estoque. Transações canceladas não aparecem nos cálculos financeiros.
+              {saleToDelete && fiscalSummary[String(saleToDelete.id)]?.statuses?.SAIDA === "AUTORIZADA" && (
+                <span className="mt-2 block font-medium text-amber-800 dark:text-amber-300">
+                  Esta venda tem NF-e autorizada. Cancelar a venda não cancela a nota: ela vai para
+                  a fila de Divergências em Notas Fiscais, para você decidir depois.
+                </span>
+              )}
               {saleToDelete && (
                 <div className="mt-2 p-2 bg-muted rounded text-xs">
                   <div><strong>Veículo:</strong> {saleToDelete.vehicleBrand} {saleToDelete.vehicleModel} - {saleToDelete.vehicleLicensePlate}</div>

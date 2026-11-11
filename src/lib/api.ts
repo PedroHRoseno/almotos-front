@@ -37,6 +37,13 @@ import type {
   VehicleInterest,
   VehicleInterestCreate,
   VehicleInterestStatus,
+  FiscalCheckResult,
+  FiscalDirection,
+  FiscalDocument,
+  FiscalPreview,
+  FiscalSourceKind,
+  FiscalStatusInfo,
+  FiscalSummary,
 } from "@/types";
 import {
   clearStoredAuth,
@@ -199,6 +206,39 @@ export function uploadVehicleImageWithProgress(
     fd.append("file", file);
     xhr.send(fd);
   });
+}
+
+/**
+ * Baixa um arquivo autenticado (XML/DANFE). Link direto não leva o JWT, então
+ * busca como blob e abre (PDF) ou salva (XML).
+ */
+export async function downloadAuthenticatedFile(
+  path: string,
+  fileName: string,
+  mode: "open" | "save" = "save"
+): Promise<void> {
+  const url = new URL(`${PROXY_PREFIX}${path}`, getBaseUrl());
+  const token = getValidStoredToken();
+  const res = await fetch(url.toString(), {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(parseApiErrorBody(text, res.status, res.statusText));
+  }
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  if (mode === "open") {
+    window.open(objectUrl, "_blank", "noopener");
+  } else {
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
 }
 
 /** Teto de `size` no SoR FastAPI (`PageQuery`: ge=1, le=200). Acima disso a API devolve 422. */
@@ -555,6 +595,85 @@ export const api = {
         method: "DELETE",
       }),
   },
+  fiscal: {
+    status: () => request<FiscalStatusInfo>("/fiscal/status"),
+    testarConexao: () => request<FiscalCheckResult>("/fiscal/status/check", { method: "POST" }),
+    listar: (options: {
+      page?: number;
+      size?: number;
+      status?: string;
+      direction?: string;
+      environment?: string;
+      divergence?: string;
+      search?: string;
+      sourceKind?: FiscalSourceKind;
+      sourceId?: number;
+      vehicleId?: string;
+    } = {}) => {
+      const params: Record<string, string> = {
+        page: String(options.page ?? 0),
+        size: String(options.size ?? 20),
+      };
+      if (options.status) params.status = options.status;
+      if (options.direction) params.direction = options.direction;
+      if (options.environment) params.environment = options.environment;
+      if (options.divergence) params.divergence = options.divergence;
+      if (options.search?.trim()) params.search = options.search.trim();
+      if (options.sourceKind) params.sourceKind = options.sourceKind;
+      if (options.sourceId != null) params.sourceId = String(options.sourceId);
+      if (options.vehicleId) params.vehicleId = options.vehicleId;
+      return request<PageResponse<FiscalDocument>>("/fiscal/documents", { params });
+    },
+    resumo: (sourceKind: Exclude<FiscalSourceKind, "RETURN">, ids: number[]) =>
+      request<FiscalSummary>("/fiscal/documents/summary", {
+        params: { sourceKind, ids: ids.join(",") },
+      }),
+    previa: (sourceKind: FiscalSourceKind, sourceId: number, paymentMethod?: string) =>
+      request<FiscalPreview>("/fiscal/preview", {
+        params: {
+          sourceKind,
+          sourceId: String(sourceId),
+          ...(paymentMethod ? { paymentMethod } : {}),
+        },
+      }),
+    emitir: (body: {
+      sourceKind: FiscalSourceKind;
+      sourceId: number;
+      direction: FiscalDirection;
+      paymentMethod?: string;
+      confirm: true;
+    }) =>
+      request<FiscalDocument>("/fiscal/documents", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    detalhe: (id: number) => request<FiscalDocument>(`/fiscal/documents/${id}`),
+    atualizar: (id: number) =>
+      request<FiscalDocument>(`/fiscal/documents/${id}/refresh`, { method: "POST" }),
+    cancelar: (id: number, body: { justification: string; confirmNumber: string }) =>
+      request<FiscalDocument>(`/fiscal/documents/${id}/cancel`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    manter: (id: number, reason: string) =>
+      request<FiscalDocument>(`/fiscal/documents/${id}/keep`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      }),
+    baixarXml: (doc: FiscalDocument) =>
+      downloadAuthenticatedFile(
+        `/fiscal/documents/${doc.id}/xml`,
+        `${doc.accessKey ? `NFe${doc.accessKey}` : doc.ref}.xml`,
+        "save"
+      ),
+    abrirDanfe: (doc: FiscalDocument) =>
+      downloadAuthenticatedFile(
+        `/fiscal/documents/${doc.id}/danfe`,
+        `${doc.accessKey ? `NFe${doc.accessKey}` : doc.ref}.pdf`,
+        "open"
+      ),
+  },
+
   interests: {
     listar: (
       page: number = 0,

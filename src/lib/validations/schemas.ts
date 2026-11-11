@@ -2,6 +2,54 @@ import { z } from "zod";
 
 const PLATE_PATTERN = /^[A-Z]{3}-[0-9][A-Z0-9][0-9]{2}$/;
 
+/** Chassi (VIN): 17 letras/números, sem I, O ou Q. */
+export const CHASSIS_PATTERN = /^[A-HJ-NPR-Z0-9]{17}$/;
+
+export function normalizeChassis(value?: string | null): string {
+  return (value ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+export function normalizeRenavam(value?: string | null): string {
+  const digits = (value ?? "").replace(/\D/g, "");
+  return digits.length >= 9 && digits.length <= 11 ? digits.padStart(11, "0") : digits;
+}
+
+/** Dígito verificador do RENAVAM (mesma regra do backend). */
+export function renavamValido(value?: string | null): boolean {
+  const digits = normalizeRenavam(value);
+  if (!/^\d{11}$/.test(digits)) return false;
+  const pesos = [3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+  const soma = pesos.reduce((acc, peso, i) => acc + Number(digits[i]) * peso, 0);
+  const dv = (soma * 10) % 11;
+  return (dv === 10 ? 0 : dv) === Number(digits[10]);
+}
+
+const fiscalVehicleFields = {
+  chassis: z
+    .string()
+    .optional()
+    .nullable()
+    .refine((value) => !value || CHASSIS_PATTERN.test(normalizeChassis(value)), "Chassi: 17 letras/números, sem I, O ou Q"),
+  renavam: z
+    .string()
+    .optional()
+    .nullable()
+    .refine((value) => !value || renavamValido(value), "RENAVAM inválido (o dígito verificador não confere)"),
+  engineCc: z
+    .number({ invalid_type_error: "Cilindrada deve ser um número" })
+    .int("Cilindrada deve ser inteira")
+    .min(1, "Cilindrada inválida")
+    .max(3000, "Cilindrada inválida")
+    .optional()
+    .nullable(),
+  fuelType: z.enum(["GASOLINA", "ETANOL", "FLEX", "ELETRICO"]).optional().nullable(),
+  ncmCode: z
+    .string()
+    .optional()
+    .nullable()
+    .refine((value) => !value || /^\d{8}$/.test(value.replace(/\D/g, "")), "NCM deve ter 8 dígitos"),
+};
+
 /** Schema de validação para cadastro de Veículo (POST /vehicles). Placa vazia vale para elétrica. */
 export const veiculoSchema = z.object({
   licensePlate: z.string().optional().or(z.literal("")).nullable(),
@@ -47,6 +95,7 @@ export const veiculoSchema = z.object({
   ownerId: z.string().optional().or(z.literal("")),
   baseCost: z.number().min(0, "Custo base não pode ser negativo").optional(),
   agreedPayout: z.number().min(0, "Repasse combinado não pode ser negativo").optional(),
+  ...fiscalVehicleFields,
 }).superRefine((data, ctx) => {
   const plate = data.licensePlate?.trim() ?? "";
   if (plate && !PLATE_PATTERN.test(plate)) {
@@ -92,6 +141,8 @@ export const vendaSchema = z.object({
   ownershipKind: z.enum(["OWN", "THIRD_PARTY"]).optional(),
   payoutId: z.string().optional().or(z.literal("")),
   payoutAmount: z.number().optional(),
+  /** Código tPag (NF-e). Opcional na venda; a nota pede se faltar. */
+  paymentMethod: z.string().optional().or(z.literal("")),
 }).superRefine((data, ctx) => {
   if (data.ownershipKind !== "THIRD_PARTY") return;
   if (!data.payoutId) {
@@ -127,6 +178,7 @@ export const trocaSchema = z
       .string()
       .min(1, "Selecione o contato do cliente nesta troca")
       .refine((value) => value !== "__NONE__", "Selecione o contato do cliente nesta troca"),
+    paymentMethod: z.string().optional().or(z.literal("")),
   })
   .superRefine((data, ctx) => {
     if (!data.veiculoEntradaLicensePlate) {
@@ -178,6 +230,13 @@ const addressSchema = z.object({
     .string()
     .min(1, "CEP é obrigatório")
     .regex(/^\d{5}-?\d{3}$/, "CEP inválido (formato: 12345-678 ou 12345678)"),
+  neighborhood: z.string().max(120, "Bairro deve ter no máximo 120 caracteres").optional().or(z.literal("")),
+  complement: z.string().max(120, "Complemento deve ter no máximo 120 caracteres").optional().or(z.literal("")),
+  ibgeCode: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .refine((value) => !value || /^\d{7}$/.test(value), "Código IBGE tem 7 dígitos (vem do CEP)"),
 });
 
 export const parceiroSchema = z.object({
@@ -204,6 +263,12 @@ export const parceiroSchema = z.object({
     .optional()
     .or(z.literal("")),
   address: addressSchema.optional(),
+  email: z.string().email("E-mail inválido").max(120).optional().or(z.literal("")),
+  stateRegistration: z
+    .string()
+    .max(20, "Inscrição estadual deve ter no máximo 20 caracteres")
+    .optional()
+    .or(z.literal("")),
 });
 
 export type ParceiroFormData = z.infer<typeof parceiroSchema>;

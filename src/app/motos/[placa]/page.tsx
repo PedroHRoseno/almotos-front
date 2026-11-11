@@ -45,6 +45,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { VehiclePhotoPipeline } from "@/components/vehicle/vehicle-photo-pipeline";
 import { FormVeiculo } from "@/components/forms/form-veiculo";
+import { VehicleFiscalCard } from "@/components/fiscal/vehicle-fiscal-card";
 import { CurrencyInput } from "@/components/ui/currency-input";
 
 function formatCurrency(value: number): string {
@@ -542,6 +543,8 @@ export default function VeiculoDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {!isFinanceRole(user?.role) && <VehicleFiscalCard vehicle={vehicle} />}
 
       {/* Histórico de Transações */}
       <Card>

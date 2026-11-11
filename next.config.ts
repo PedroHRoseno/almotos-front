@@ -13,6 +13,8 @@ if (process.env.NODE_ENV === "production" && !process.env.NEXT_PUBLIC_API_URL) {
 }
 
 const nextConfig: NextConfig = {
+  // QA local (scripts/qa.ps1) usa .next-qa para rodar ao lado do `npm run dev` normal.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   images: {
     remotePatterns: [
       // Permite miniaturas no admin vindas de URLs externas (galeria do catálogo)
