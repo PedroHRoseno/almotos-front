@@ -32,6 +32,8 @@ import type {
   FipeCodigoResponse,
   FipeAnosResponse,
   FipeConsultaResponse,
+  PlateBalance,
+  PlateLookupResponse,
   VehicleTag,
   InternalUser,
   VehicleInterest,
@@ -370,6 +372,19 @@ export const api = {
     consultaPorCodigoAno: (brand: string, codigoModelo: string, yearCode: string) =>
       request<FipeConsultaResponse>("/fipe/consulta", {
         params: { brand, codigoModelo, yearCode },
+      }),
+  },
+
+  /** Consulta por placa (Simples API, cobrada). O token fica só no SoR. */
+  plates: {
+    lookup: (plate: string, options: { forceRefresh?: boolean } = {}) =>
+      request<PlateLookupResponse>("/plates/lookup", {
+        method: "POST",
+        body: JSON.stringify({ plate, forceRefresh: Boolean(options.forceRefresh) }),
+      }),
+    balance: (refresh = false) =>
+      request<PlateBalance>("/plates/balance", {
+        params: refresh ? { refresh: "true" } : undefined,
       }),
   },
 

@@ -13,7 +13,7 @@ import { compraSchema, type CompraFormData } from "@/lib/validations/schemas";
 import { api, API_MAX_PAGE_SIZE } from "@/lib/api";
 import { ContactPicker } from "@/components/forms/contact-picker";
 import { toast } from "sonner";
-import { useState, useEffect, useMemo, useCallback, useId } from "react";
+import { useState, useEffect, useMemo, useCallback, useId, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormParceiro } from "./form-parceiro";
@@ -30,9 +30,11 @@ const defaultValues: Partial<CompraFormData> = {
 export interface FormCompraProps {
   onSuccess?: () => void;
   insideModal?: boolean;
+  /** Veículo recém-cadastrado (ex.: vindo da Consulta Placa) já selecionado. */
+  defaultVehiclePlate?: string;
 }
 
-export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
+export function FormCompra({ onSuccess, insideModal, defaultVehiclePlate }: FormCompraProps = {}) {
   const dockUid = useId();
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -135,6 +137,15 @@ export function FormCompra({ onSuccess, insideModal }: FormCompraProps = {}) {
       })
       .catch(() => {});
   };
+
+  const prefilledVehicle = useRef(false);
+  useEffect(() => {
+    if (!defaultVehiclePlate || prefilledVehicle.current) return;
+    prefilledVehicle.current = true;
+    handleVeiculoCriado(defaultVehiclePlate);
+    // Só no mount: seleciona o veículo que acabou de ser cadastrado.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultVehiclePlate]);
 
   const onSubmit = async (data: CompraFormData) => {
     setSuccess(null);

@@ -281,6 +281,69 @@ export interface FipeConsultaResponse {
   dataConsulta?: string | null;
 }
 
+/* ------------------------------------------------ Consulta por placa (Simples API) */
+
+export type PlateBalanceStatus = "OK" | "LOW" | "EMPTY" | "UNKNOWN";
+
+export interface PlateBalance {
+  available: boolean;
+  balanceCents?: number | null;
+  estimatedLookups?: number | null;
+  status: PlateBalanceStatus;
+  lowThresholdCents: number;
+  lookupPriceCents: number;
+  checkedAt?: string | null;
+}
+
+export type PlateLookupOutcome =
+  | "FOUND"
+  | "NOT_FOUND"
+  | "INVALID_PLATE"
+  | "INSUFFICIENT_BALANCE"
+  | "UNAVAILABLE"
+  | "RATE_LIMITED"
+  | "NOT_CONFIGURED";
+
+export interface PlateVehicle {
+  brand: string;
+  modelName: string;
+  manufactureYear?: number | null;
+  modelYear?: number | null;
+  /** Hex #RRGGBB pronto para o color picker; null = cor sem equivalente. */
+  color?: string | null;
+  colorLabel?: string | null;
+  fuelType?: string | null;
+  engineCc?: number | null;
+}
+
+export interface PlateMetadata {
+  fuelRaw?: string | null;
+  city?: string | null;
+  state?: string | null;
+  vehicleType?: string | null;
+  species?: string | null;
+  origin?: string | null;
+  isMotorcycle: boolean;
+}
+
+export interface PlateFipeSuggestion {
+  available: boolean;
+  candidates: FipeModel[];
+  autoSelect?: FipeModel | null;
+}
+
+export interface PlateLookupResponse {
+  outcome: PlateLookupOutcome;
+  plate?: string | null;
+  message?: string | null;
+  charged: boolean;
+  cached: boolean;
+  vehicle?: PlateVehicle | null;
+  metadata?: PlateMetadata | null;
+  fipe?: PlateFipeSuggestion | null;
+  balance: PlateBalance;
+}
+
 export type InternalUserRole = "ADMIN" | "USER" | "FINANCE";
 
 export interface InternalUser {

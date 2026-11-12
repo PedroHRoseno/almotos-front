@@ -42,6 +42,20 @@ import { TagInput } from "@/components/forms/tag-input";
 import { FIELD_HINTS } from "@/lib/field-hints";
 import { compareFipe, formatFipePercent } from "@/lib/fipe-compare";
 import { formatBRL } from "@/lib/masks";
+import { toast } from "sonner";
+import { PlateLookupButton } from "@/components/plates/plate-lookup-button";
+import { PLATE_FIELD_LABELS, plateToVehicleValues } from "@/lib/plate-prefill";
+import type { FipeModel, PlateLookupResponse } from "@/types";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const emptyDefaults: Partial<VeiculoFormData> = {
   licensePlate: "",
@@ -184,6 +198,10 @@ export function FormVeiculo({
   );
   const [fipeConsulta, setFipeConsulta] = useState<FipeConsultaResponse | null>(null);
   const [fipeLoading, setFipeLoading] = useState(false);
+  /** Candidatos FIPE vindos da placa quando não deu para escolher sozinho. */
+  const [plateFipeCandidates, setPlateFipeCandidates] = useState<FipeModel[]>([]);
+  /** Edição: confirmação antes de sobrescrever com os dados da placa. */
+  const [pendingPlate, setPendingPlate] = useState<PlateLookupResponse | null>(null);
 
   const form = useForm<VeiculoFormData>({
     resolver: zodResolver(veiculoSchema),
@@ -255,6 +273,72 @@ export function FormVeiculo({
       cancelled = true;
     };
   }, [watchedBrand, codigoModelo, watchedModelYear]);
+
+  const selectFipeModel = (item: FipeModel) => {
+    const brand = form.getValues("brand");
+    form.setValue("modelName", item.nome, { shouldDirty: true, shouldValidate: true });
+    setCodigoModelo(item.codigoModelo);
+    setPlateFipeCandidates([]);
+    const year = form.getValues("modelYear");
+    if (!brand) return;
+    api.fipe
+      .codigo(brand, item.codigoModelo, Number.isFinite(year) ? year : undefined)
+      .then((res) => form.setValue("codigoFipe", res.available ? res.codigoFipe ?? null : null))
+      .catch(() => form.setValue("codigoFipe", null));
+  };
+
+  const plateDiff = (res: PlateLookupResponse) => {
+    const next = plateToVehicleValues(res);
+    return (Object.keys(PLATE_FIELD_LABELS) as Array<keyof VeiculoFormData>)
+      .filter((key) => next[key] !== undefined && String(next[key]) !== String(form.getValues(key) ?? ""))
+      .map((key) => ({ key, label: PLATE_FIELD_LABELS[key] as string, from: form.getValues(key), to: next[key] }));
+  };
+
+  const applyPlateResult = (res: PlateLookupResponse, withUndo: boolean) => {
+    const next = plateToVehicleValues(res);
+    const keys = Object.keys(next) as Array<keyof VeiculoFormData>;
+    const snapshot = Object.fromEntries(keys.map((key) => [key, form.getValues(key)]));
+    const previousCodigo = { codigoModelo, codigoFipe: form.getValues("codigoFipe") };
+    keys.forEach((key) => {
+      if (key === "licensePlate" && !form.getValues("licensePlate")) return;
+      form.setValue(key, next[key] as never, { shouldDirty: true, shouldValidate: true });
+    });
+    form.setValue("codigoFipe", null);
+    setCodigoModelo(null);
+    setFipeConsulta(null);
+    const auto = res.fipe?.autoSelect;
+    if (auto) {
+      selectFipeModel(auto);
+    } else {
+      setPlateFipeCandidates(res.fipe?.candidates ?? []);
+    }
+    if (withUndo) {
+      toast("Formulário preenchido pela placa.", {
+        action: {
+          label: "Desfazer",
+          onClick: () => {
+            keys.forEach((key) => form.setValue(key, snapshot[key] as never, { shouldDirty: true }));
+            setCodigoModelo(previousCodigo.codigoModelo);
+            form.setValue("codigoFipe", previousCodigo.codigoFipe ?? null);
+            setPlateFipeCandidates([]);
+          },
+        },
+      });
+    }
+  };
+
+  const handlePlateResult = (res: PlateLookupResponse) => {
+    if (res.outcome !== "FOUND" || !res.vehicle) return;
+    if (isEdit) {
+      if (plateDiff(res).length === 0) {
+        toast.success("Os dados da placa já batem com o cadastro.");
+        return;
+      }
+      setPendingPlate(res);
+      return;
+    }
+    applyPlateResult(res, true);
+  };
 
   const onSubmit = async (data: VeiculoFormData) => {
     setSuccess(null);
@@ -370,6 +454,9 @@ export function FormVeiculo({
               />
             )}
           />
+          {!readOnly && (
+            <PlateLookupButton className="mt-2" plate={watchedPlate} onResult={handlePlateResult} />
+          )}
         </FormField>
 
         <FormField name="brand" label="Marca" required error={form.formState.errors.brand}>
@@ -400,6 +487,30 @@ export function FormVeiculo({
         </FormField>
 
         <FormField name="modelName" label="Modelo" required error={form.formState.errors.modelName}>
+          {plateFipeCandidates.length > 0 && (
+            <div className="mb-2 space-y-1.5 rounded-xl border border-brand/30 bg-brand/5 p-2">
+              <p className="text-xs text-ink-muted">Escolha o modelo FIPE que corresponde à placa:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {plateFipeCandidates.map((item) => (
+                  <button
+                    key={item.codigoModelo}
+                    type="button"
+                    onClick={() => selectFipeModel(item)}
+                    className="rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink transition-colors hover:border-brand/60"
+                  >
+                    {item.nome}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setPlateFipeCandidates([])}
+                  className="px-1 text-xs text-ink-subtle underline-offset-2 hover:underline"
+                >
+                  manter nome da placa
+                </button>
+              </div>
+            </div>
+          )}
           <Controller
             control={form.control}
             name="modelName"
@@ -905,6 +1016,37 @@ export function FormVeiculo({
         </Button>
         )}
       </div>
+      <AlertDialog open={pendingPlate != null} onOpenChange={(open) => !open && setPendingPlate(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Aplicar os dados da placa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Estes campos do cadastro vão mudar. Os demais ficam como estão.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <ul className="space-y-1 text-sm">
+            {pendingPlate &&
+              plateDiff(pendingPlate).map((item) => (
+                <li key={item.key} className="flex flex-wrap gap-x-2">
+                  <span className="text-ink-subtle">{item.label}:</span>
+                  <span className="text-ink-muted line-through">{String(item.from ?? "—")}</span>
+                  <span className="font-medium text-ink">→ {String(item.to ?? "—")}</span>
+                </li>
+              ))}
+          </ul>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Manter cadastro</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingPlate) applyPlateResult(pendingPlate, false);
+                setPendingPlate(null);
+              }}
+            >
+              Aplicar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </form>
   );
 

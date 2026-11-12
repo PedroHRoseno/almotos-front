@@ -19,6 +19,7 @@ import {
   ArrowUpDown,
   BookOpen,
   BadgeDollarSign,
+  ScanSearch,
   Filter,
   FileText,
   Receipt,
@@ -36,6 +37,7 @@ import { homePathForRole, isFinanceRole } from "@/lib/roles";
 const menuItems = [
   { title: "Dashboard", href: "/", icon: LayoutDashboard, hideForFinance: true },
   { title: "Veículos", href: "/motos", icon: Bike },
+  { title: "Consulta Placa", href: "/consulta-placa", icon: ScanSearch, hideForFinance: true },
   { title: "Consulta FIPE", href: "/consulta-fipe", icon: BadgeDollarSign },
   { title: "Contatos", href: "/contatos", icon: Users },
   { title: "Leads (Espera)", href: "/leads", icon: Filter, hideForFinance: true },

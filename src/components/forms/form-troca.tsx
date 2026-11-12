@@ -41,9 +41,11 @@ export interface FormTrocaProps {
   onSuccess?: () => void;
   insideModal?: boolean;
   defaultSaidaPlate?: string;
+  /** Moto de entrada recém-cadastrada (ex.: vinda da Consulta Placa). */
+  defaultEntradaPlate?: string;
 }
 
-export function FormTroca({ onSuccess, insideModal, defaultSaidaPlate }: FormTrocaProps = {}) {
+export function FormTroca({ onSuccess, insideModal, defaultSaidaPlate, defaultEntradaPlate }: FormTrocaProps = {}) {
   const dockUid = useId();
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +84,12 @@ export function FormTroca({ onSuccess, insideModal, defaultSaidaPlate }: FormTro
       form.setValue("veiculoSaidaLicensePlate", defaultSaidaPlate);
     }
   }, [defaultSaidaPlate, form]);
+
+  useEffect(() => {
+    if (defaultEntradaPlate) {
+      form.setValue("veiculoEntradaLicensePlate", defaultEntradaPlate);
+    }
+  }, [defaultEntradaPlate, form]);
 
   useEffect(() => {
     if (!saidaPlaca) {
