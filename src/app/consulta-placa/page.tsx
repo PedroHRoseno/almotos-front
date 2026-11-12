@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { History, Loader2, PackagePlus, Repeat, RotateCw, ScanSearch, ShoppingBag } from "lucide-react";
+import { Camera, History, Loader2, PackagePlus, Repeat, RotateCw, ScanSearch, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormVeiculo } from "@/components/forms/form-veiculo";
@@ -9,7 +9,7 @@ import { FormCompra } from "@/components/forms/form-compra";
 import { FormTroca } from "@/components/forms/form-troca";
 import { useFormDock } from "@/components/layout/form-dock";
 import { PlateBalanceBadge } from "@/components/plates/plate-balance-badge";
-import { isLookupablePlate, usePlateLookup } from "@/components/plates/plate-lookup-button";
+import { isLookupablePlate, usePlateLookup, usePlateOcr } from "@/components/plates/plate-lookup-button";
 import { PlateLookupCard } from "@/components/plates/plate-lookup-card";
 import { formatLicensePlate } from "@/lib/masks";
 import { plateToVehicleValues } from "@/lib/plate-prefill";
@@ -43,7 +43,10 @@ type NextStep = "estoque" | "compra" | "troca";
 export default function ConsultaPlacaPage() {
   const dock = useFormDock();
   const { balance } = usePlateBalance();
-  const { lookup, loading } = usePlateLookup();
+  const { lookup, loading: lookupLoading } = usePlateLookup();
+  const { read: readPhoto, loading: ocrLoading } = usePlateOcr();
+  const loading = lookupLoading || ocrLoading;
+  const fileRef = useRef<HTMLInputElement>(null);
   const [plate, setPlate] = useState("");
   const [result, setResult] = useState<PlateLookupResponse | null>(null);
   const [recents, setRecents] = useState<Recent[]>([]);
@@ -61,11 +64,9 @@ export default function ConsultaPlacaPage() {
   const empty = balance?.status === "EMPTY";
   const valid = isLookupablePlate(plate);
 
-  const search = async (value = plate, forceRefresh = false) => {
-    if (!isLookupablePlate(value)) return;
-    const res = await lookup(value, forceRefresh);
-    if (!res) return;
+  const handleResult = (res: PlateLookupResponse) => {
     setResult(res);
+    if (res.plate) setPlate(res.plate);
     if (res.outcome === "FOUND" && res.vehicle && res.plate) {
       const next = [
         { plate: res.plate, label: `${res.vehicle.brand.replace(/_/g, " ")} ${res.vehicle.modelName}` },
@@ -74,6 +75,18 @@ export default function ConsultaPlacaPage() {
       setRecents(next);
       writeRecents(next);
     }
+  };
+
+  const search = async (value = plate, forceRefresh = false) => {
+    if (!isLookupablePlate(value)) return;
+    const res = await lookup(value, forceRefresh);
+    if (res) handleResult(res);
+  };
+
+  const onPhoto = async (file: File | undefined) => {
+    if (!file) return;
+    const res = await readPhoto(file);
+    if (res) handleResult(res);
   };
 
   const openVehicleForm = (step: NextStep) => {
@@ -168,8 +181,31 @@ export default function ConsultaPlacaPage() {
           className="h-14 font-mono text-2xl uppercase tracking-[0.2em] sm:max-w-xs"
         />
         <Button type="submit" size="lg" className="h-14" disabled={!valid || loading || empty}>
-          {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ScanSearch className="mr-2 h-5 w-5" />}
+          {lookupLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <ScanSearch className="mr-2 h-5 w-5" />}
           Consultar placa
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          capture="environment"
+          className="hidden"
+          onChange={(event) => {
+            void onPhoto(event.target.files?.[0]);
+            event.target.value = "";
+          }}
+        />
+        <Button
+          type="button"
+          size="lg"
+          variant="outline"
+          className="h-14"
+          disabled={loading || empty}
+          onClick={() => fileRef.current?.click()}
+          title="Ler a placa por uma foto (R$ 0,05 a leitura + R$ 0,10 a consulta)"
+        >
+          {ocrLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Camera className="mr-2 h-5 w-5" />}
+          Ler pela foto
         </Button>
         {result?.cached && (
           <Button type="button" variant="ghost" size="sm" onClick={() => void search(plate, true)} disabled={loading || empty}>

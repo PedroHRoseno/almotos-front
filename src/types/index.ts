@@ -281,6 +281,27 @@ export interface FipeConsultaResponse {
   dataConsulta?: string | null;
 }
 
+export type FipeVehicleKind = "motos" | "carros" | "caminhoes";
+
+/** Um ano do modelo com o valor FIPE (GET /fipe/precos e plate lookup). */
+export interface FipeYearPrice {
+  codigoAno: string;
+  nome: string;
+  ano?: number | null;
+  zeroKm: boolean;
+  combustivel?: string | null;
+  valor?: number | null;
+  valorTexto?: string | null;
+  codigoFipe?: string | null;
+  mesReferencia?: string | null;
+  plateYear: boolean;
+}
+
+export interface FipeYearPricesResponse {
+  available: boolean;
+  items: FipeYearPrice[];
+}
+
 /* ------------------------------------------------ Consulta por placa (Simples API) */
 
 export type PlateBalanceStatus = "OK" | "LOW" | "EMPTY" | "UNKNOWN";
@@ -302,7 +323,9 @@ export type PlateLookupOutcome =
   | "INSUFFICIENT_BALANCE"
   | "UNAVAILABLE"
   | "RATE_LIMITED"
-  | "NOT_CONFIGURED";
+  | "NOT_CONFIGURED"
+  | "OCR_NO_PLATE"
+  | "OCR_LOW_CONFIDENCE";
 
 export interface PlateVehicle {
   brand: string;
@@ -328,8 +351,24 @@ export interface PlateMetadata {
 
 export interface PlateFipeSuggestion {
   available: boolean;
+  /** Tabela FIPE usada (carro na placa → "carros"). */
+  vehicleKind?: FipeVehicleKind;
   candidates: FipeModel[];
   autoSelect?: FipeModel | null;
+  /** Melhor palpite: autoSelect ou o candidato mais parecido. */
+  selected?: FipeModel | null;
+  modelYear?: number | null;
+  /** Valor FIPE do ano-modelo da placa para `selected`. */
+  price?: FipeConsultaResponse | null;
+  /** Valor FIPE dos outros anos do mesmo modelo. */
+  years?: FipeYearPrice[];
+}
+
+export interface PlateOcr {
+  plate: string;
+  confidence: number;
+  plateType?: string | null;
+  detectionMethod?: string | null;
 }
 
 export interface PlateLookupResponse {
@@ -341,6 +380,7 @@ export interface PlateLookupResponse {
   vehicle?: PlateVehicle | null;
   metadata?: PlateMetadata | null;
   fipe?: PlateFipeSuggestion | null;
+  ocr?: PlateOcr | null;
   balance: PlateBalance;
 }
 

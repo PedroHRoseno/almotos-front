@@ -32,6 +32,8 @@ import type {
   FipeCodigoResponse,
   FipeAnosResponse,
   FipeConsultaResponse,
+  FipeVehicleKind,
+  FipeYearPricesResponse,
   PlateBalance,
   PlateLookupResponse,
   VehicleTag,
@@ -364,9 +366,14 @@ export const api = {
       request<FipeAnosResponse>("/fipe/anos", {
         params: { brand, codigoModelo },
       }),
-    consulta: (brand: string, codigoModelo: string, year: number) =>
+    /** Valor de cada ano do modelo numa chamada só. */
+    precos: (brand: string, codigoModelo: string, tipo: FipeVehicleKind = "motos") =>
+      request<FipeYearPricesResponse>("/fipe/precos", {
+        params: { brand, codigoModelo, tipo },
+      }),
+    consulta: (brand: string, codigoModelo: string, year: number, tipo: FipeVehicleKind = "motos") =>
       request<FipeConsultaResponse>("/fipe/consulta", {
-        params: { brand, codigoModelo, year: String(year) },
+        params: { brand, codigoModelo, year: String(year), tipo },
       }),
     /** Pelo código exato do ano FIPE ("2023-1", "32000-1" = Zero KM). */
     consultaPorCodigoAno: (brand: string, codigoModelo: string, yearCode: string) =>
@@ -381,6 +388,12 @@ export const api = {
       request<PlateLookupResponse>("/plates/lookup", {
         method: "POST",
         body: JSON.stringify({ plate, forceRefresh: Boolean(options.forceRefresh) }),
+      }),
+    /** Foto da placa (base64/data URI) → placa lida + mesmo resultado do lookup. */
+    ocr: (image: string) =>
+      request<PlateLookupResponse>("/plates/ocr", {
+        method: "POST",
+        body: JSON.stringify({ image }),
       }),
     balance: (refresh = false) =>
       request<PlateBalance>("/plates/balance", {

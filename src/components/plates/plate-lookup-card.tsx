@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AlertTriangle, BadgeDollarSign, Check, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { BadgeDollarSign, Check, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatBRL } from "@/lib/masks";
 import { cn } from "@/lib/utils";
-import type { FipeConsultaResponse, FipeModel, PlateLookupResponse } from "@/types";
+import type { FipeConsultaResponse, FipeModel, FipeYearPrice, PlateLookupResponse } from "@/types";
 
 const FUEL_LABEL: Record<string, string> = {
   GASOLINA: "Gasolina",
@@ -30,38 +30,60 @@ type PlateLookupCardProps = {
   onFipeChange?: (model: FipeModel | null, consulta: FipeConsultaResponse | null) => void;
 };
 
-/** Resultado da placa + ponte para a FIPE (Brasil API continua sendo a fonte do valor). */
+/**
+ * Resultado da placa + ponte para a FIPE (Brasil API continua sendo a fonte do valor).
+ * O backend já manda o valor do ano da placa e dos outros anos para o melhor palpite;
+ * só busca de novo quando a pessoa troca o modelo.
+ */
 export function PlateLookupCard({ result, onFipeChange }: PlateLookupCardProps) {
   const vehicle = result.vehicle;
   const meta = result.metadata;
   const fipe = result.fipe;
-  const [picked, setPicked] = useState<FipeModel | null>(fipe?.autoSelect ?? null);
+  const kind = fipe?.vehicleKind ?? "motos";
+  const initial = fipe?.selected ?? fipe?.autoSelect ?? null;
+  const [picked, setPicked] = useState<FipeModel | null>(initial);
   const [consulta, setConsulta] = useState<FipeConsultaResponse | null>(null);
+  const [years, setYears] = useState<FipeYearPrice[]>([]);
   const [loadingFipe, setLoadingFipe] = useState(false);
 
   useEffect(() => {
-    setPicked(result.fipe?.autoSelect ?? null);
+    setPicked(result.fipe?.selected ?? result.fipe?.autoSelect ?? null);
   }, [result]);
 
   useEffect(() => {
     const year = vehicle?.modelYear ?? vehicle?.manufactureYear;
-    if (!picked || !vehicle?.brand || !year) {
+    if (!picked || !vehicle?.brand) {
       setConsulta(null);
+      setYears([]);
       onFipeChange?.(picked, null);
+      return;
+    }
+    // O palpite do backend já vem com preço e anos: nada a buscar.
+    if (fipe?.selected && picked.codigoModelo === fipe.selected.codigoModelo && (fipe.price || fipe.years?.length)) {
+      const price = fipe.price ?? { available: true };
+      setConsulta(price);
+      setYears(fipe.years ?? []);
+      onFipeChange?.(picked, price);
       return;
     }
     let cancelled = false;
     setLoadingFipe(true);
-    api.fipe
-      .consulta(vehicle.brand, picked.codigoModelo, year)
-      .then((res) => {
+    Promise.all([
+      year ? api.fipe.consulta(vehicle.brand, picked.codigoModelo, year, kind) : Promise.resolve(null),
+      api.fipe.precos(vehicle.brand, picked.codigoModelo, kind).catch(() => null),
+    ])
+      .then(([res, precos]) => {
         if (cancelled) return;
         setConsulta(res);
+        setYears(
+          (precos?.items ?? []).map((item) => ({ ...item, plateYear: year != null && item.ano === year }))
+        );
         onFipeChange?.(picked, res);
       })
       .catch(() => {
         if (cancelled) return;
         setConsulta({ available: false });
+        setYears([]);
         onFipeChange?.(picked, null);
       })
       .finally(() => {
@@ -72,7 +94,9 @@ export function PlateLookupCard({ result, onFipeChange }: PlateLookupCardProps) 
     };
     // onFipeChange é callback do pai; não deve redisparar a consulta.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [picked, vehicle?.brand, vehicle?.modelYear, vehicle?.manufactureYear]);
+  }, [picked, fipe, kind, vehicle?.brand, vehicle?.modelYear, vehicle?.manufactureYear]);
+
+  const maxValor = useMemo(() => Math.max(0, ...years.map((item) => item.valor ?? 0)), [years]);
 
   if (!vehicle) return null;
 
@@ -87,6 +111,7 @@ export function PlateLookupCard({ result, onFipeChange }: PlateLookupCardProps) 
           <p className="text-sm text-ink-muted">
             {vehicle.manufactureYear ?? "—"}/{vehicle.modelYear ?? "—"}
             {result.cached ? " · consulta recente (sem nova cobrança)" : ""}
+            {result.ocr ? ` · lida pela foto (${Math.round(result.ocr.confidence * 100)}%)` : ""}
           </p>
         </div>
         {vehicle.color ? (
@@ -99,13 +124,6 @@ export function PlateLookupCard({ result, onFipeChange }: PlateLookupCardProps) 
         ) : null}
       </div>
 
-      {meta && !meta.isMotorcycle && (
-        <p className="flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300">
-          <AlertTriangle className="h-4 w-4 shrink-0" />
-          Esta placa é de um {meta.vehicleType ?? "veículo"}, não de uma moto. Confira antes de cadastrar.
-        </p>
-      )}
-
       <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
         <Row label="Cilindrada" value={vehicle.engineCc ? `${vehicle.engineCc} cc` : null} />
         <Row label="Combustível" value={vehicle.fuelType ? FUEL_LABEL[vehicle.fuelType] : meta?.fuelRaw} />
@@ -115,9 +133,10 @@ export function PlateLookupCard({ result, onFipeChange }: PlateLookupCardProps) 
         <Row label="Procedência" value={meta?.origin} />
       </dl>
 
-      <div className="space-y-2 rounded-xl border border-line p-3">
+      <div className="space-y-3 rounded-xl border border-line p-3">
         <p className="flex items-center gap-2 text-sm font-medium text-ink">
           <BadgeDollarSign className="h-4 w-4 text-brand" /> Referência FIPE (Brasil API)
+          {kind !== "motos" && <span className="text-xs font-normal text-ink-subtle">· tabela de {kind}</span>}
         </p>
         {fipe && !fipe.available && (
           <p className="text-sm text-ink-muted">FIPE indisponível agora. O cadastro segue normalmente.</p>
@@ -160,7 +179,36 @@ export function PlateLookupCard({ result, onFipeChange }: PlateLookupCardProps) 
           </p>
         )}
         {!loadingFipe && picked && consulta && (!consulta.available || consulta.valor == null) && (
-          <p className="text-sm text-ink-muted">Sem valor FIPE para este ano.</p>
+          <p className="text-sm text-ink-muted">Sem valor FIPE para o ano da placa.</p>
+        )}
+        {!loadingFipe && picked && years.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium uppercase tracking-wide text-ink-subtle">Outros anos deste modelo</p>
+            <ul className="divide-y divide-line rounded-lg border border-line">
+              {years.map((item) => (
+                <li
+                  key={item.codigoAno}
+                  className={cn(
+                    "relative flex items-center justify-between gap-3 px-3 py-2 text-sm",
+                    item.plateYear && "bg-brand/10"
+                  )}
+                >
+                  <span
+                    aria-hidden
+                    className="absolute inset-y-0 left-0 bg-brand/10"
+                    style={{ width: maxValor && item.valor ? `${(item.valor / maxValor) * 100}%` : 0 }}
+                  />
+                  <span className="relative truncate text-ink">
+                    {item.zeroKm ? "Zero KM" : item.nome}
+                    {item.plateYear && <span className="ml-2 text-xs font-medium text-brand">ano da placa</span>}
+                  </span>
+                  <span className="relative font-medium tabular-nums text-ink">
+                    {item.valor != null ? formatBRL(item.valor) : "—"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </div>
     </section>

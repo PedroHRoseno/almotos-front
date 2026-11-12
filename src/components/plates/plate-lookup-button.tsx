@@ -20,11 +20,13 @@ export function isLookupablePlate(plate: string | null | undefined): boolean {
 export function notifyPlateOutcome(res: PlateLookupResponse) {
   switch (res.outcome) {
     case "FOUND":
-      if (res.metadata && !res.metadata.isMotorcycle) {
-        toast.warning(res.message || `Atenção: esta placa não é de uma moto (${res.metadata.vehicleType}).`);
-      } else {
-        toast.success(res.cached ? "Dados da placa (consulta recente, sem nova cobrança)." : "Dados da placa preenchidos.");
-      }
+      toast.success(
+        res.ocr
+          ? `Placa ${res.plate} lida pela foto.`
+          : res.cached
+            ? "Dados da placa (consulta recente, sem nova cobrança)."
+            : "Dados da placa preenchidos."
+      );
       if (res.balance.status === "LOW") {
         toast.warning("Saldo da Simples API baixo. Programe uma recarga.");
       }
@@ -37,6 +39,12 @@ export function notifyPlateOutcome(res: PlateLookupResponse) {
       break;
     case "INVALID_PLATE":
       toast.error(res.message || "Placa em formato inválido.");
+      break;
+    case "OCR_LOW_CONFIDENCE":
+      toast.warning(res.message || "Li a placa com pouca certeza. Confira e consulte.");
+      break;
+    case "OCR_NO_PLATE":
+      toast.warning(res.message || "Não consegui ler a placa nesta foto.");
       break;
     default:
       toast.warning(res.message || "Consulta de placa indisponível. Preencha manualmente.");
@@ -64,6 +72,54 @@ export function usePlateLookup() {
     }
   }, []);
   return { lookup, loading };
+}
+
+/** Reduz a foto (lado maior 1600 px, JPEG 0,82) e devolve um data URI: a Simples API aceita até 10 MB. */
+export async function imageFileToDataUrl(file: File, maxSide = 1600, quality = 0.82): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("Não foi possível abrir a imagem."));
+      el.src = url;
+    });
+    const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas indisponível.");
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/jpeg", quality);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/** Foto → POST /plates/ocr. Mesmo contrato do lookup (resultado + saldo). */
+export function usePlateOcr() {
+  const [loading, setLoading] = useState(false);
+  const read = useCallback(async (file: File) => {
+    setLoading(true);
+    try {
+      const image = await imageFileToDataUrl(file);
+      const res = await api.plates.ocr(image);
+      setPlateBalanceFromLookup(res.balance);
+      notifyPlateOutcome(res);
+      return res;
+    } catch (error) {
+      toast.error(
+        error instanceof Error && error.message
+          ? `Leitura da placa falhou: ${error.message}`
+          : "Leitura da placa falhou. Digite a placa."
+      );
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  return { read, loading };
 }
 
 type PlateLookupButtonProps = {
