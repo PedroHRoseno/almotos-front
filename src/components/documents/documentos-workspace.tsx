@@ -3,18 +3,23 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { FileText, Loader2 } from "lucide-react";
+import Link from "next/link";
+import {
+  BookOpenCheck,
+  FileSignature,
+  FileText,
+  HandCoins,
+  Handshake,
+  Loader2,
+  ReceiptText,
+  ScrollText,
+  X,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { api } from "@/lib/api";
 import {
@@ -28,9 +33,11 @@ import {
   type DocumentKind,
 } from "@/lib/documents";
 import { formatBRL, formatDocument, formatStoredPhone, partnerSelectLabel } from "@/lib/masks";
+import { addMonthsIso, formatShortDate, MAX_INSTALLMENTS, previewInstallments } from "@/lib/receivables";
+import { cn } from "@/lib/utils";
 import { plateLabel, vehicleKey } from "@/lib/vehicle-ref";
-import type { Address, PartnerDetail, PartnerSummary, Vehicle } from "@/types";
-import type { DocumentDraft } from "./types";
+import type { Address, PartnerDetail, PartnerSummary, ReceivableAccount, Vehicle } from "@/types";
+import type { DocumentDraft, DocumentInstallmentView } from "./types";
 
 const DocumentPreview = dynamic(
   () => import("@/components/documents/document-preview").then((mod) => mod.DocumentPreview),
@@ -48,13 +55,27 @@ const KIND_HINT: Record<DocumentKind, string> = {
   contrato: "O contato entra como comprador. A loja entra como vendedora.",
   recibo: "O contato entra como pagador. A loja assina o recibo.",
   consignacao: "O contato entra como consignante. A loja recebe o veículo sem ficar dona dele.",
+  promissoria: "O contato entra como emitente (devedor). Ideal para dívida de pagamento único.",
+  carne: "Uma lâmina por parcela, até 4 por folha: canhoto da loja à esquerda, recibo do cliente à direita.",
 };
 
 const AMOUNT_LABEL: Record<DocumentKind, string> = {
   contrato: "Valor da venda",
   recibo: "Valor recebido",
   consignacao: "Valor de referência",
+  promissoria: "Valor da promissória",
+  carne: "Valor total do carnê",
 };
+
+const KIND_CARDS: { value: DocumentKind; icon: typeof FileText; caption: string }[] = [
+  { value: "contrato", icon: FileSignature, caption: "Venda de moto" },
+  { value: "recibo", icon: ReceiptText, caption: "Pagamento ou sinal" },
+  { value: "consignacao", icon: Handshake, caption: "Moto de terceiro" },
+  { value: "promissoria", icon: ScrollText, caption: "Dívida em 1 pagamento" },
+  { value: "carne", icon: BookOpenCheck, caption: "Dívida parcelada" },
+];
+
+const DEBT_KINDS: readonly DocumentKind[] = ["promissoria", "carne"];
 
 export function DocumentosWorkspace() {
   const searchParams = useSearchParams();
@@ -73,6 +94,12 @@ export function DocumentosWorkspace() {
     const param = searchParams.get("date");
     return param && /^\d{4}-\d{2}-\d{2}$/.test(param) ? param : todayLocalIso();
   });
+  const [dueDate, setDueDate] = useState(() => addMonthsIso(todayLocalIso(), 1));
+  const [installmentsText, setInstallmentsText] = useState("3");
+  const [reference, setReference] = useState("");
+  const [receivableId, setReceivableId] = useState(() => searchParams.get("receivableId") ?? "");
+  const [receivable, setReceivable] = useState<ReceivableAccount | null>(null);
+  const [receivableError, setReceivableError] = useState<string | null>(null);
   const [chassis, setChassis] = useState("");
   const [renavam, setRenavam] = useState("");
 
@@ -94,6 +121,8 @@ export function DocumentosWorkspace() {
     const nextType = params.get("type");
     const nextDate = params.get("date");
     const nextAmount = parseDocumentAmount(params.get("amount"));
+    const nextReceivable = params.get("receivableId");
+    if (nextReceivable) setReceivableId(nextReceivable);
     if (nextVehicle) setVehicleId(nextVehicle);
     if (nextContact) setContactId(nextContact);
     if (nextType) setKind(readDocumentKind(nextType));
@@ -103,6 +132,41 @@ export function DocumentosWorkspace() {
       amountSource.current = "query";
     }
   }, [query]);
+
+  // Conta a receber (/receber → "Carnê / Promissória"): cliente, moto, valor e parcelas vêm dela.
+  useEffect(() => {
+    const id = receivableId.trim();
+    if (!id) {
+      setReceivable(null);
+      setReceivableError(null);
+      return;
+    }
+    let cancelled = false;
+    setReceivableError(null);
+    api.receivables
+      .buscar(id)
+      .then((account) => {
+        if (cancelled) return;
+        setReceivable(account);
+        setContactId(account.partner.id);
+        setVehicleId(account.vehicle ? vehicleKey(account.vehicle) : "");
+        setReference(account.description);
+        const pending = account.installments.filter((item) => item.status === "PENDING");
+        setAmount(account.remainingAmount > 0 ? account.remainingAmount : account.totalAmount);
+        amountSource.current = "query";
+        setDueDate(pending[0]?.dueDate ?? account.installments[0]?.dueDate ?? addMonthsIso(todayLocalIso(), 1));
+        setInstallmentsText(String(account.installmentsCount));
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setReceivable(null);
+          setReceivableError(error instanceof Error ? error.message : "Conta a receber não encontrada.");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [receivableId]);
 
   useEffect(() => {
     if (previousPlate.current == null) {
@@ -218,6 +282,8 @@ export function DocumentosWorkspace() {
 
   useEffect(() => {
     if (amountSource.current === "user" || amountSource.current === "query") return;
+    // Promissória e carnê cobram uma dívida: o preço sugerido da moto não serve de valor.
+    if (DEBT_KINDS.includes(kind)) return;
     if (vehicle?.suggestedPrice != null && vehicle.suggestedPrice > 0) {
       setAmount(vehicle.suggestedPrice);
       amountSource.current = "auto";
@@ -227,7 +293,7 @@ export function DocumentosWorkspace() {
       setAmount(undefined);
       amountSource.current = "empty";
     }
-  }, [vehicle]);
+  }, [vehicle, kind]);
 
   const vehicleSelectOptions = useMemo(() => {
     const options = vehicleOptions.map((item) => ({
@@ -273,9 +339,29 @@ export function DocumentosWorkspace() {
         date,
         chassis,
         renavam,
+        reference,
+        dueDate,
+        installmentsCount: Number.parseInt(installmentsText, 10) || 0,
+        receivable,
       }),
-    [kind, vehicle, vehicleId, contact, amount, paymentMethod, date, chassis, renavam]
+    [
+      kind,
+      vehicle,
+      vehicleId,
+      contact,
+      amount,
+      paymentMethod,
+      date,
+      chassis,
+      renavam,
+      reference,
+      dueDate,
+      installmentsText,
+      receivable,
+    ]
   );
+  const isDebt = DEBT_KINDS.includes(kind);
+  const lockedByReceivable = Boolean(receivable) && isDebt;
   const previewDraft = useDebouncedValue(draft, 350);
 
   return (
@@ -285,6 +371,35 @@ export function DocumentosWorkspace() {
         <p className="text-sm text-muted-foreground md:text-base">
           {STORE.legalName} · CNPJ {STORE.cnpj} · {STORE.cityLine}. O PDF é gerado neste navegador.
         </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5" role="radiogroup" aria-label="Tipo de documento">
+        {KIND_CARDS.map((card) => {
+          const option = DOCUMENT_KINDS.find((item) => item.value === card.value);
+          const active = kind === card.value;
+          const Icon = card.icon;
+          return (
+            <button
+              key={card.value}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => setKind(card.value)}
+              className={cn(
+                "flex min-w-0 items-start gap-3 rounded-2xl border p-3 text-left transition-colors",
+                active
+                  ? "border-brand/50 bg-brand/10 text-ink"
+                  : "border-line bg-surface/40 text-ink-muted hover:border-ink-subtle hover:text-ink"
+              )}
+            >
+              <Icon className={cn("mt-0.5 h-5 w-5 shrink-0", active && "text-brand")} />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold leading-tight">{option?.label}</span>
+                <span className="block text-xs text-ink-muted">{card.caption}</span>
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
@@ -297,21 +412,36 @@ export function DocumentosWorkspace() {
             <CardDescription>{KIND_HINT[kind]}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="document-kind">Tipo de documento</Label>
-              <Select value={kind} onValueChange={(value) => setKind(readDocumentKind(value))}>
-                <SelectTrigger id="document-kind">
-                  <SelectValue placeholder="Escolha o documento" />
-                </SelectTrigger>
-                <SelectContent>
-                  {DOCUMENT_KINDS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {receivableError ? <p className="text-xs text-destructive">{receivableError}</p> : null}
+            {receivable ? (
+              <div className="flex items-start gap-3 rounded-xl border border-brand/30 bg-brand/5 p-3 text-sm">
+                <HandCoins className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-ink">{receivable.description}</div>
+                  <div className="text-xs text-ink-muted">
+                    {receivable.partner.name} · {receivable.installmentsCount}{" "}
+                    {receivable.installmentsCount === 1 ? "parcela" : "parcelas"} · falta{" "}
+                    {formatBRL(receivable.remainingAmount)}
+                  </div>
+                  <Link href="/receber" className="text-xs text-brand hover:underline">
+                    Abrir Contas a Receber
+                  </Link>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  aria-label="Desvincular conta a receber"
+                  onClick={() => {
+                    setReceivableId("");
+                    amountSource.current = "user";
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : null}
 
             <div className="space-y-2">
               <Label>Moto</Label>
@@ -377,6 +507,7 @@ export function DocumentosWorkspace() {
                 <Label htmlFor="document-amount">{AMOUNT_LABEL[kind]}</Label>
                 <CurrencyInput
                   id="document-amount"
+                  disabled={lockedByReceivable && kind === "carne"}
                   value={amount}
                   onValueChange={(value) => {
                     amountSource.current = "user";
@@ -386,10 +517,56 @@ export function DocumentosWorkspace() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="document-date">Data</Label>
+                <Label htmlFor="document-date">{isDebt ? "Data de emissão" : "Data"}</Label>
                 <Input id="document-date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
               </div>
             </div>
+
+            {isDebt ? (
+              <>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="document-due">{kind === "carne" ? "1º vencimento" : "Vencimento"}</Label>
+                    <Input
+                      id="document-due"
+                      type="date"
+                      value={dueDate}
+                      disabled={lockedByReceivable && kind === "carne"}
+                      onChange={(event) => setDueDate(event.target.value)}
+                    />
+                  </div>
+                  {kind === "carne" ? (
+                    <div className="space-y-2">
+                      <Label htmlFor="document-installments">Parcelas</Label>
+                      <Input
+                        id="document-installments"
+                        type="number"
+                        min={1}
+                        max={MAX_INSTALLMENTS}
+                        inputMode="numeric"
+                        value={installmentsText}
+                        disabled={lockedByReceivable}
+                        onChange={(event) => setInstallmentsText(event.target.value.replace(/\D/g, "").slice(0, 3))}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="document-reference">Referência da dívida</Label>
+                  <Input
+                    id="document-reference"
+                    value={reference}
+                    onChange={(event) => setReference(event.target.value)}
+                    placeholder="Ex.: Restante venda Bros 160"
+                  />
+                </div>
+                {lockedByReceivable && kind === "carne" ? (
+                  <p className="text-xs text-muted-foreground">
+                    Valores e vencimentos vêm da conta a receber. Para mudar, desvincule a conta.
+                  </p>
+                ) : null}
+              </>
+            ) : null}
 
             <div className="space-y-2">
               <Label htmlFor="document-payment">Forma de pagamento</Label>
@@ -454,6 +631,10 @@ function buildDraft(input: {
   date: string;
   chassis: string;
   renavam: string;
+  reference: string;
+  dueDate: string;
+  installmentsCount: number;
+  receivable: ReceivableAccount | null;
 }): DocumentDraft {
   const dateIso = /^\d{4}-\d{2}-\d{2}$/.test(input.date) ? input.date : todayLocalIso();
   const payment = input.paymentMethod.trim() || "não informada";
@@ -464,6 +645,8 @@ function buildDraft(input: {
     amountLabel: input.amount != null ? formatBRL(input.amount) : "não informado",
     amountWords: input.amount != null ? valorPorExtenso(input.amount) : "",
     paymentMethod: payment,
+    reference: input.reference,
+    installments: buildInstallments(input),
     party: {
       name: input.contact?.name?.trim() || "contato não selecionado",
       document: input.contact?.document ? `CPF/CNPJ ${formatDocument(input.contact.document)}` : "CPF/CNPJ não informado",
@@ -490,6 +673,42 @@ function buildDraft(input: {
           renavam: input.renavam.trim(),
         },
   };
+}
+
+function installmentView(label: string, amount: number, dueIso: string): DocumentInstallmentView {
+  return {
+    label,
+    dueDateLabel: formatShortDate(dueIso),
+    dueDateLong: formatLongDate(dueIso),
+    amountLabel: formatBRL(amount),
+    amountWords: valorPorExtenso(amount),
+  };
+}
+
+/** Parcelas impressas. Com conta a receber, são as dela; sem, divide o total como o backend faria. */
+function buildInstallments(input: {
+  kind: DocumentKind;
+  amount: number | undefined;
+  dueDate: string;
+  installmentsCount: number;
+  receivable: ReceivableAccount | null;
+}): DocumentInstallmentView[] {
+  if (input.kind === "promissoria") {
+    if (input.amount == null || !/^\d{4}-\d{2}-\d{2}$/.test(input.dueDate)) return [];
+    const label = input.receivable?.installmentsCount === 1 ? "1/1" : "Única";
+    return [installmentView(label, input.amount, input.dueDate)];
+  }
+  if (input.kind !== "carne") return [];
+  if (input.receivable) {
+    const total = input.receivable.installmentsCount;
+    return input.receivable.installments
+      .filter((item) => item.status !== "CANCELLED")
+      .map((item) => installmentView(`${item.installmentNumber}/${total}`, item.amount, item.dueDate));
+  }
+  const count = Math.min(Math.max(input.installmentsCount, 1), MAX_INSTALLMENTS);
+  return previewInstallments(input.amount, count, input.dueDate).map((item) =>
+    installmentView(`${item.number}/${count}`, item.amount, item.dueDate)
+  );
 }
 
 function formatVehicleYear(vehicle: Vehicle): string {

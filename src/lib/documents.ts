@@ -12,6 +12,8 @@ export const DOCUMENT_KINDS = [
   { value: "contrato", label: "Contrato de compra e venda" },
   { value: "recibo", label: "Recibo de pagamento / sinal" },
   { value: "consignacao", label: "Termo de consignação" },
+  { value: "promissoria", label: "Nota promissória" },
+  { value: "carne", label: "Carnê de pagamento" },
 ] as const;
 
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number]["value"];
@@ -124,7 +126,7 @@ export function formatLongDate(isoDate: string): string {
 }
 
 export function readDocumentKind(value: string | null | undefined): DocumentKind {
-  if (value === "recibo" || value === "consignacao" || value === "contrato") return value;
+  if (DOCUMENT_KINDS.some((option) => option.value === value)) return value as DocumentKind;
   return "contrato";
 }
 
@@ -136,10 +138,16 @@ export function parseDocumentAmount(value: string | null | undefined): number | 
 }
 
 export function documentFileName(kind: DocumentKind, plate: string, dateIso: string): string {
-  const prefix = kind === "recibo" ? "recibo" : kind === "consignacao" ? "termo-consignacao" : "contrato";
+  const prefix: Record<DocumentKind, string> = {
+    contrato: "contrato",
+    recibo: "recibo",
+    consignacao: "termo-consignacao",
+    promissoria: "nota-promissoria",
+    carne: "carne",
+  };
   const safePlate = plate.replace(/[^a-zA-Z0-9]+/g, "") || "moto";
   const safeDate = /^\d{4}-\d{2}-\d{2}$/.test(dateIso) ? dateIso : "sem-data";
-  return `${prefix}-${safePlate}-${safeDate}.pdf`;
+  return `${prefix[kind]}-${safePlate}-${safeDate}.pdf`;
 }
 
 export function buildDocumentHref(input: {

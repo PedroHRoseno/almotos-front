@@ -10,6 +10,8 @@ import type { DocumentDraft } from "./types";
 import { SalesContractPdf } from "./SalesContractPdf";
 import { ReceiptPdf } from "./ReceiptPdf";
 import { ConsignmentTermPdf } from "./ConsignmentTermPdf";
+import { PromissoryNotePdf } from "./PromissoryNotePdf";
+import { PaymentBookletPdf } from "./PaymentBookletPdf";
 
 type PdfNode = NonNullable<Parameters<typeof pdf>[0]>;
 
@@ -20,6 +22,8 @@ function asPdfNode(node: ReactElement): PdfNode {
 function renderPdfElement(draft: DocumentDraft, logoSrc: string | null): ReactElement {
   if (draft.kind === "recibo") return <ReceiptPdf draft={draft} logoSrc={logoSrc} />;
   if (draft.kind === "consignacao") return <ConsignmentTermPdf draft={draft} logoSrc={logoSrc} />;
+  if (draft.kind === "promissoria") return <PromissoryNotePdf draft={draft} logoSrc={logoSrc} />;
+  if (draft.kind === "carne") return <PaymentBookletPdf draft={draft} logoSrc={logoSrc} />;
   return <SalesContractPdf draft={draft} logoSrc={logoSrc} />;
 }
 

@@ -11,6 +11,7 @@ const FINANCE_BLOCKED_PREFIXES = [
   "/vendas",
   "/trocas",
   "/fluxo-caixa",
+  "/receber",
   "/relatorios",
   "/contas",
   "/leads",

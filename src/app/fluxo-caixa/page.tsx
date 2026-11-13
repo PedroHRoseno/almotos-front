@@ -51,6 +51,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   VEHICLE_SALE: "Venda de veículo",
   EXCHANGE_IN: "Diferença recebida na troca",
   OTHER_INFLOW: "Outros aportes",
+  RECEBIMENTO_CREDIARIO: "Recebimento de crediário",
   VEHICLE_PURCHASE: "Compra de veículo",
   EXCHANGE_OUT: "Diferença paga na troca",
   CONSIGNMENT_PAYOUT: "Repasse de consignado",
@@ -294,6 +295,7 @@ export default function FluxoCaixaPage() {
                 <SelectItem value="VEHICLE_SALE">Venda de veículo</SelectItem>
                 <SelectItem value="EXCHANGE_IN">Diferença recebida na troca</SelectItem>
                 <SelectItem value="OTHER_INFLOW">Outros aportes</SelectItem>
+                <SelectItem value="RECEBIMENTO_CREDIARIO">Recebimento de crediário</SelectItem>
                 <SelectItem value="VEHICLE_PURCHASE">Compra de veículo</SelectItem>
                 <SelectItem value="EXCHANGE_OUT">Diferença paga na troca</SelectItem>
                 <SelectItem value="CONSIGNMENT_PAYOUT">Repasse de consignado</SelectItem>

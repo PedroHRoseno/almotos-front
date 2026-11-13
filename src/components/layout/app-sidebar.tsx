@@ -23,6 +23,7 @@ import {
   Filter,
   FileText,
   Receipt,
+  HandCoins,
 } from "lucide-react";
 import { useFiscalStatus } from "@/lib/fiscal";
 import { cn } from "@/lib/utils";
@@ -47,6 +48,7 @@ const menuItems = [
   { title: "Notas Fiscais", href: "/notas-fiscais", icon: Receipt, hideForFinance: true },
   { title: "Trocas", href: "/trocas", icon: Repeat, hideForFinance: true },
   { title: "Fluxo de Caixa", href: "/fluxo-caixa", icon: ArrowUpDown, hideForFinance: true },
+  { title: "Contas a Receber", href: "/receber", icon: HandCoins, hideForFinance: true },
   { title: "Relatórios", href: "/relatorios", icon: BarChart3, hideForFinance: true },
   { title: "Guia", href: "/guia", icon: BookOpen },
   { title: "Configurações", href: "/configuracoes", icon: Settings },

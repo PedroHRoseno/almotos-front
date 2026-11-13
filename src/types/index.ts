@@ -112,6 +112,7 @@ export type TransactionCategory =
   | "VEHICLE_SALE"
   | "EXCHANGE_IN"
   | "OTHER_INFLOW"
+  | "RECEBIMENTO_CREDIARIO"
   | "VEHICLE_PURCHASE"
   | "EXCHANGE_OUT"
   | "CONSIGNMENT_PAYOUT"
@@ -846,4 +847,77 @@ export interface ExchangeHistoryItem {
   partnerName: string;
   isIncomingVehicle: boolean; // true se este veículo é o de entrada, false se é o de saída
   status: TransactionStatus;
+}
+
+/** Contas a receber (crediário / promissórias) — GET/POST /receivables */
+export type ReceivableStatus = "ACTIVE" | "SETTLED" | "CANCELLED";
+export type ReceivableInstallmentStatus = "PENDING" | "PAID" | "CANCELLED";
+export type ReceivableFilter = "OPEN" | "OVERDUE" | "DUE_SOON" | "SETTLED" | "CANCELLED" | "ALL";
+
+export interface ReceivableInstallment {
+  id: string;
+  installmentNumber: number;
+  amount: number;
+  dueDate: string;
+  paidDate: string | null;
+  status: ReceivableInstallmentStatus;
+  storeTransactionId: number | null;
+  daysOverdue: number;
+}
+
+export interface ReceivableAccount {
+  id: string;
+  partner: {
+    id: string;
+    name: string;
+    document: string | null;
+    phone: string | null;
+    address: string | null;
+  };
+  vehicle: {
+    id: string;
+    brand: string;
+    modelName: string;
+    licensePlate: string | null;
+    manufactureYear: number;
+    modelYear: number;
+    color: string;
+    chassis: string | null;
+    renavam: string | null;
+  } | null;
+  saleId: number | null;
+  description: string;
+  totalAmount: number;
+  installmentsCount: number;
+  status: ReceivableStatus;
+  createdAt: string;
+  installments: ReceivableInstallment[];
+  paidInstallmentsCount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  nextDueDate: string | null;
+  hasOverdue: boolean;
+  overdueAmount: number;
+  maxDaysOverdue: number;
+}
+
+export interface ReceivableCreate {
+  partnerId: string;
+  vehicleId?: string | null;
+  saleId?: number | null;
+  description: string;
+  totalAmount?: number;
+  firstDueDate?: string;
+  installmentsCount?: number;
+  installments?: { amount: number; dueDate: string }[];
+}
+
+export interface ReceivableSummary {
+  openAmount: number;
+  openAccounts: number;
+  overdueAmount: number;
+  overdueAccounts: number;
+  dueSoonAmount: number;
+  dueSoonAccounts: number;
+  receivedThisMonth: number;
 }

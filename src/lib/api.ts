@@ -48,6 +48,10 @@ import type {
   FiscalSourceKind,
   FiscalStatusInfo,
   FiscalSummary,
+  ReceivableAccount,
+  ReceivableCreate,
+  ReceivableFilter,
+  ReceivableSummary,
 } from "@/types";
 import {
   clearStoredAuth,
@@ -630,6 +634,35 @@ export const api = {
     deletar: (id: number) =>
       request<void>(`/store-transactions/${id}`, {
         method: "DELETE",
+      }),
+  },
+  receivables: {
+    listar: (options: { page?: number; size?: number; search?: string; status?: ReceivableFilter } = {}) => {
+      const params: Record<string, string> = {
+        page: String(options.page ?? 0),
+        size: String(options.size ?? 20),
+      };
+      if (options.search?.trim()) params.search = options.search.trim();
+      if (options.status) params.status = options.status;
+      return request<PageResponse<ReceivableAccount>>("/receivables", { params });
+    },
+    resumo: () => request<ReceivableSummary>("/receivables/summary"),
+    buscar: (id: string) => request<ReceivableAccount>(`/receivables/${encodeURIComponent(id)}`),
+    criar: (body: ReceivableCreate) =>
+      request<ReceivableAccount>("/receivables", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    cancelar: (id: string) =>
+      request<ReceivableAccount>(`/receivables/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    darBaixa: (installmentId: string, paidDate?: string) =>
+      request<ReceivableAccount>(`/receivables/installments/${encodeURIComponent(installmentId)}/pay`, {
+        method: "POST",
+        body: JSON.stringify(paidDate ? { paidDate } : {}),
+      }),
+    estornar: (installmentId: string) =>
+      request<ReceivableAccount>(`/receivables/installments/${encodeURIComponent(installmentId)}/unpay`, {
+        method: "POST",
       }),
   },
   fiscal: {

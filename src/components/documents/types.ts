@@ -17,6 +17,15 @@ export interface DocumentVehicleView {
   renavam: string;
 }
 
+/** Parcela pronta para impressão (promissória/carnê). Vem da conta a receber ou do formulário. */
+export interface DocumentInstallmentView {
+  label: string;
+  dueDateLabel: string;
+  dueDateLong: string;
+  amountLabel: string;
+  amountWords: string;
+}
+
 /** Textos já formatados para impressão. O PDF não calcula preço. */
 export interface DocumentDraft {
   kind: DocumentKind;
@@ -27,4 +36,8 @@ export interface DocumentDraft {
   paymentMethod: string;
   party: DocumentParty;
   vehicle: DocumentVehicleView;
+  /** Referência da dívida (descrição da conta a receber). */
+  reference: string;
+  /** Promissória: 1 item. Carnê: todas as parcelas. Vazio nos demais documentos. */
+  installments: DocumentInstallmentView[];
 }
